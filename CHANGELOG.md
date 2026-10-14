@@ -39,3 +39,13 @@
 - Document storage and network behavior, contribution guidance, security boundaries and desktop-widget implementation limitations.
 
 The app retains its macOS 14 deployment target and existing bundle identity. This branch does not change Home Assistant deployment, reset pairing, delete local data or provide a notarized binary release. Source builds and sample previews do not establish live hardware compatibility; public publication remains a separate reviewed step.
+
+## 0.1.2 preview
+
+- Adaptive blue accents, reliable appearance switching and cleaner Settings, widget, notification and Help layouts.
+- Native anchored menu panel with screen-aware bounds, outside-click/Escape dismissal and coalesced status refresh.
+- Immediate page transitions retain departing scene state; selected semantic navigation glyphs fill and animate.
+- Capability-aware speaker playback and music selection, acknowledged announcements, visible errors and authoritative device state.
+- Explicit unsupported-hub camera messaging; no false-success toggles.
+- Native illustration showcase, consistently framed demo views and illustrated connection/usage guides.
+- Isolated appearance, menu geometry and action regressions extend the suite to 57 tests.
