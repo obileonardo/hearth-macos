@@ -1,42 +1,39 @@
-# Open-source preparation status
+# Public source and release status
 
-Updated 2026-10-14. Source preparation, a public repository and a downloadable Mac release have separate completion gates.
+Updated 2026-10-14. [Hearth's public repository](https://github.com/obileonardo/hearth-macos) is available from a reviewed source snapshot with independent history. The private development repository, household data and working installation remain separate. The universal preview is ad-hoc signed; a notarized Mac release still requires distribution credentials.
 
-## Implemented
+## Completed
 
 | Area | Evidence |
 |---|---|
-| Source licensing | MIT license, upstream patch attribution, complete Apache/MIT notice files and artwork provenance |
-| Contributor onboarding | README, contribution/security guidance, issue and PR templates, generic environment examples |
-| Source hygiene | Reviewed tracked-file export; environment files, runtime data, recordings, private handoff and signing files excluded |
-| Configuration | Compose uses generic `HEARTH_DATA` / `TZ` inputs; actual local configuration stays separate |
-| Authentication boundaries | Artwork credentials restricted to the configured Home Assistant origin; cross-origin redirects strip authorization/cookies; embedded web-session injection has an origin guard |
-| Data preservation | Scan imports choose unique filenames; primary-home edits retain its identity; packaging uses a separate staged app |
-| Build automation | Hosted macOS release build, pinned official checkout action and read-only workflow token |
-| GitHub security settings | Dependency alerts and security-fix PRs enabled; Actions limited to GitHub-owned and verified publishers; workflow approval permission remains disabled |
-| Reporting | Settings support/bug-report drafts and a concrete private security contact at `contact@elvisobi.com` |
-| Distribution tooling | Universal app build, separate DMG staging, version/provenance record, Developer ID signing, app/image notarization and SHA-256 output |
+| Public source | Initial reviewed snapshot [`7f42c768`](https://github.com/obileonardo/hearth-macos/commit/7f42c768); no private development history transferred |
+| Licensing and artwork | MIT license, third-party patch attribution, Apache/MIT notice files, artwork provenance and Claude/Codex assistance credits |
+| Contributor onboarding | README, contribution/security guidance, issue and PR templates, generic environment examples and a release policy |
+| Source hygiene | Reviewed export excludes credentials, runtime data, recordings, private handoff, signing profiles and generated builds; included screenshots use explicit sample data |
+| Configuration | Compose uses generic `HEARTH_DATA` / `TZ` inputs; actual local configuration remains separate |
+| Authentication boundaries | Artwork credentials stay at the configured Home Assistant origin; external redirects strip authorization/cookies; embedded web-session injection has an origin guard |
+| Data preservation | Imports select unique scan filenames, primary-home edits preserve identity, fixture stores use explicit paths and packaging modifies a separate staged app |
+| Hosted verification | [First public CI run](https://github.com/obileonardo/hearth-macos/actions/runs/38534020918) succeeded with 36 tests, 2 GPU-dependent skips and no failures; executable build, script checks and optional universal widget compile also passed |
+| Repository protection | Active `main` ruleset requires pull requests and the hosted check, blocks force pushes/deletion; workflow token is read-only and checkout credentials are not persisted |
+| Security reporting | Secret scanning, push protection and private vulnerability reporting enabled; support/security email is `contact@elvisobi.com` |
+| Distribution tooling | Universal build, separate DMG staging, version/provenance manifest, strict signature/image/checksum verification, optional Developer ID app/image notarization and stapling |
+| Preview download | [Universal 0.1.1 preview](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.1-preview) from `7f42c768`, verified and ad-hoc signed, not notarized. SHA-256: `9e60647485e725d91df4c216a3a81fab877330dc05f4fa21f76ec6028536873a` |
+| Widgets and lighting | Interactive desktop widgets remain available; optional WidgetKit source and snapshot integration compile. Hybrid Metal contact lighting executed on an M4, with native SceneKit fallback |
 
-The authentication/data changes have source-review and compile evidence. Full adversarial, hardware and supported-OS coverage remains outstanding. No automated test suite was added or run during this preparation.
+The regression suite covers home/map compatibility, widget snapshots and geometry, origin/redirect boundaries and map-lighting guards. GPU-dependent tests skip on hosted runners without ray-tracing support. The local M4 geometry/kernel checks and hosted XCTest results are distinct evidence; neither establishes every Home Assistant device or supported OS combination.
 
-## History and publication
+## Decisions in effect
 
-The current source tree uses generic configuration. Earlier private development history still includes installation-specific paths/settings and author identities whose public use has not been confirmed. A `.gitignore` change does not remove that history.
+Hearth is maintained by Elvis Obi. The [release policy](release-policy.md) keeps documented developer CLI tools, uses semantic versions and clearly labeled preview releases, and promises no fixed release schedule. Public source uses independent history. Product/brand names identify compatible devices; applicable third-party terms and artwork provenance remain documented.
 
-Prepare public source from a reviewed snapshot with independent history. Keep the private development repository and working installation intact. Review the exact exported files and assets before initializing/publishing the separate repository. Do not change the existing repository's visibility as a shortcut.
+## Remaining validation and inputs
 
-A heuristic review of the baseline main history found no identified credential literals; it does not prove that every possible encoded secret is absent. Binary assets need their own review, and artwork/trademark rights require owner decisions. Detailed private audit inventories stay outside public source.
-
-## Remaining gates
-
-| Gate | What is needed |
+| Area | What remains |
 |---|---|
-| Public repository | Owner approval of the reviewed snapshot, public name/ownership and publication destination |
-| Artwork | Approval of recognizable product imagery, attribution and AI-assistance wording; Apple symbols retain Apple's applicable terms |
-| Signed download | Developer ID Application certificate and a local notarization Keychain profile; accepted app/image submissions and stapled tickets |
-| Repository rules | Required PR/build checks and protection against force pushes/deletion on the chosen repository; current private plan prevents configuring `main` protection |
-| Private GitHub security reports | Availability/enabled state is unconfirmed on the private repository; email reporting is available |
-| Release policy | Supported integrations/OS validation, version/release cadence, maintainers and privileged developer-tool policy |
-| Runtime operations | Container image pinning/network policy and camera-file retention are separate decisions; preparation has not changed the working deployment or deleted personal data |
+| Notarized download | Developer ID Application certificate and a local notarization Keychain profile; accepted app/image submissions, stapled tickets and final Gatekeeper validation |
+| WidgetKit gallery | Matching macOS provisioning and App Group entitlements; registration and installed-gallery validation. This does not block desktop widgets |
+| Device and OS coverage | Connected-device workflows, Intel runtime behavior, older supported macOS versions and assistive interactions require separate checks |
+| Runtime operations | Container image pinning/network policy and camera-file retention require an installation-specific operational decision; source publication does not change live containers or erase personal data |
+| Ongoing review | New source/assets, dependency changes, security settings and each release artifact need their own review and accurate evidence record |
 
-See [source release preparation](source-release.md), [DMG packaging](../releases/dmg/README.md) and [security boundaries](../SECURITY.md).
+See the [0.1.1 verification record](release-verification-0.1.1.md), [source release preparation](source-release.md), [DMG packaging](../releases/dmg/README.md), [map lighting](map-lighting.md), [model regressions](model-regressions.md) and [security boundaries](../SECURITY.md).

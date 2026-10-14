@@ -1,6 +1,6 @@
 # Preparing a source release
 
-This is a publication checklist, not approval to publish. A source release and a downloadable Mac app are separate deliverables.
+Hearth's [public repository](https://github.com/obileonardo/hearth-macos) was created from a reviewed source snapshot with independent history. Its first hosted build and regression run passed. This checklist describes how to prepare subsequent source and app releases while preserving the working installation. Preview downloads are ad-hoc signed; Developer ID signing and notarization remain separate distribution requirements.
 
 ## Preserve the working installation
 
@@ -8,17 +8,17 @@ Prepare the public tree in a separate directory. Keep the current repository, un
 
 Use sample data for public screenshots. An export must exclude `.git`, `.claude`, `.build`, `build`, private transcripts and screen recordings, local `.env` files, Home Assistant runtime data, scans, camera pictures, face samples and account exports. Copy only reviewed source files; do not distribute a zip of the working directory.
 
-## Owner decisions
+## Release decisions
 
-| Decision | Preparation recommendation |
+| Decision | Current policy |
 |---|---|
-| Public repository and history | Choose whether to retain reviewed history or publish a reviewed source snapshot to a separate repository. Do not rewrite the working repository. |
-| Name and ownership | Confirm the public project name, copyright ownership and rights to submitted code/art. |
-| Scope | Choose source-only first release or a separately signed and notarized binary release. The existing build script is for local development installation. |
-| Product artwork and attribution | Review recognizable product illustrations and third-party notices, and choose the public AI-assistance credit wording. |
-| Security contact | Enable private vulnerability reporting or provide a monitored private contact before inviting sensitive reports. |
-| Developer tools | Decide whether release builds should retain privileged command-line Home Assistant operations. |
-| Maintenance | Choose maintainers, supported versions and a release cadence. |
+| Public repository and history | Publish reviewed snapshots in `obileonardo/hearth-macos`; preserve the private development repository and its history. |
+| Name and maintenance | Hearth is maintained by Elvis Obi under the [release and maintenance policy](release-policy.md); no fixed release schedule is promised. |
+| Scope | Public source and clearly labeled preview downloads; a notarized Mac release additionally requires Developer ID credentials, accepted submissions and stapled tickets. |
+| Artwork and attribution | Keep artwork provenance, third-party notices, applicable brand/symbol terms and the README's Claude/Codex assistance credits. Review new contributed material before redistribution. |
+| Security contact | GitHub private vulnerability reporting is enabled; `contact@elvisobi.com` provides an email reporting channel. |
+| Developer tools | Retain the documented CLI features. They act only when explicitly invoked and may use the user's Home Assistant session. |
+| Compatibility | Target macOS 14 or later; record actual OS/integration checks and unverified combinations with every release. |
 
 ## Review the exact candidate
 
@@ -28,11 +28,11 @@ Use sample data for public screenshots. An export must exclude `.git`, `.claude`
 4. Review sample screens and core device workflows. Record hardware or OS combinations that have not been checked. Use an isolated development server for commands.
 5. Review MIT and third-party attribution. Ensure notices accompany any third-party material actually redistributed.
 6. Review documentation links, clean-clone instructions, screenshots and examples against that candidate's source, rather than unpublished local changes.
-7. Obtain the owner's final approval of the concrete candidate before changing visibility, publishing release assets or replacing history.
+7. Publish the reviewed candidate according to the release policy, with accurate signing/test status and recorded authorization. Preserve private history and the working installation.
 
 ## GitHub configuration
 
-Configure these on the chosen repository when available for its plan and visibility:
+As of 14 October 2026, the public repository has secret scanning, push protection, private vulnerability reporting and an active `main` ruleset requiring pull requests and the hosted build check while blocking force pushes and deletion. The workflow token is read-only and checkout credentials are not persisted. Keep these controls under review:
 
 - Private vulnerability reporting and a monitored response process.
 - Secret scanning and push protection; review any existing alerts.
@@ -41,7 +41,7 @@ Configure these on the chosen repository when available for its plan and visibil
 - Actions restricted to approved publishers; least-privilege default token permissions. Fork PRs must not receive credentials or run on the household Mac.
 - Maintainer two-factor authentication and a review of collaborators/deploy keys.
 
-The build workflow uses a fresh GitHub-hosted `macos-26` runner, a pinned checkout action and a read-only token. It compiles without launching Hearth or contacting a home. It does not sign, notarize, upload an app, install it or run hardware tests. Verify its first completed run before treating it as a required status check. GitHub documents [hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) and [repository rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets).
+The workflow uses a fresh GitHub-hosted `macos-26` runner and a pinned checkout action. It builds the executable, runs isolated XCTest regressions, checks shell syntax and compiles the optional universal WidgetKit extension. The [first public run](https://github.com/obileonardo/hearth-macos/actions/runs/38534020918) completed successfully: 36 tests, 2 GPU-dependent skips and no failures. It does not launch or install Hearth, contact a home, use Developer ID/notarization credentials or publish app assets. Fixture and optional GPU checks do not establish connected-device or every-supported-OS compatibility. GitHub documents [hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) and [repository rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets).
 
 ## Release record
 
