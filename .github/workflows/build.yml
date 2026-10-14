@@ -24,7 +24,11 @@ concurrency:
 jobs:
   build:
     name: macOS / Swift release build
-    runs-on: macos-26
+    # Xcode 26 SDK coverage on a stable supported host. Required check and
+    # complete regression suite are unchanged; do not bypass queued checks.
+    runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     timeout-minutes: 20
     steps:
       - name: Check out source
