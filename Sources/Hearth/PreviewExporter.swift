@@ -15,6 +15,7 @@ enum PreviewExporter {
         var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         arguments["homesFile"] = fixtures.appendingPathComponent("homes.json").path
         arguments["gadgetsFile"] = fixtures.appendingPathComponent("gadgets.json").path
+        arguments["facesFolder"] = fixtures.appendingPathComponent("faces", isDirectory: true).path
         arguments["activityFolder"] = fixtures.path
         arguments["mapsFolder"] = fixtures.appendingPathComponent("maps").path
         arguments["map.current"] = ""

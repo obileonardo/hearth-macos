@@ -7,7 +7,8 @@ Building requires Xcode 26 or compatible Command Line Tools with a macOS 26 SDK.
 1. Read the README and the documentation for the feature you are changing.
 2. Run `scripts/build.sh --debug`. It creates `build/Hearth.app` without installing it.
 3. Review sample screens with `build/Hearth.app/Contents/MacOS/Hearth --render-preview /tmp/hearth-previews -activityFolder /tmp/hearth-preview-activity`.
-4. Describe the change, the checks you performed and anything you could not check.
+4. Run `swift test` with full Xcode selected. The fixture tests isolate saved-data, widget, origin-boundary and map-lighting behavior; the current Command Line Tools setup alone lacks XCTest. See [model regressions](docs/model-regressions.md).
+5. Describe the change, the checks you performed and anything you could not check.
 
 Set `HEARTH_SDKROOT` if you need a particular installed SDK. The current Command Line Tools setup uses the macOS 26.5 SDK for SwiftUI macros; full Xcode may use its default SDK.
 
@@ -21,4 +22,4 @@ The illustrations are drawn in SwiftUI Canvas. Changes to their proportions shou
 
 Submit original contributions under the project's MIT license. Include attribution and the original license for any third-party material; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Describe substantial AI assistance in your pull request and review generated changes before submission. Contributor guidance does not require a separate copyright assignment.
 
-The build workflow uses a hosted macOS runner with read-only repository permissions. It compiles source without launching the app, installing it or connecting to a home; a successful compile does not establish device compatibility.
+The build workflow uses a hosted macOS runner with read-only repository permissions. It builds the executable, runs isolated XCTest regressions, checks shell syntax and compiles the optional universal widget extension. GPU-dependent cases skip when the runner lacks ray-tracing support. It does not launch or install Hearth, connect to a home, use distribution-signing credentials or publish a binary. A passing build and fixture suite do not establish physical-device compatibility.
