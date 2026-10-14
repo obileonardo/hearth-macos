@@ -107,3 +107,10 @@ The status capsule requests four extra points of height, safely bounded by the a
 | Climate navigation illustration | Snowflake matches the documented Climate navigation icon | Demo render reviewed |
 
 The installed 0.1.3 earlier preview is being updated to this final source after checks. Private PR #9 remains the first publication stage; public transfer, merge and refreshed download follow it. No public binary for this newest source has been published yet.
+
+
+## Floating navigation follow-up — review in progress
+
+The latest owner direction supersedes the fade experiment: scrolling content uses the full-height viewport behind the floating glass navigation capsule. There is no full-width fade or black footer band. Extra scroll padding keeps the last controls reachable; fixed climate controls and the demo exit stay clear of the dock. Native accessibility inspection confirmed the separate Open full map label and hint.
+
+Private PR #9 and public PR #4 are merged. Both hosted runs passed 107 XCTest cases with two GPU-dependent skips and no failures, plus release, contrast, shell and optional WidgetKit compilation checks. This small navigation/accessibility follow-up adds three isolated layout cases and refreshed demo guides; its hosted checks and final binary publication follow separately. No public 0.1.3 binary has been published yet.

@@ -144,10 +144,10 @@ struct PanelView: View {
                 .padding(.horizontal, 22)
                 .padding(.top, 22)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                // Text and controls end above the dock, at full contrast. A
-                // gradient over the timeline was dimming entire readable rows.
+                // Scrolling content continues behind the floating capsule.
+                // Only the dock itself has glass; there is no full-width footer mask.
                 .clipped()
-                .padding(.bottom, Self.footerHeight + 8)
+                .contentShape(Rectangle())
             }
             .overlay(alignment: .bottom) { footer }
         }
@@ -215,13 +215,14 @@ struct PanelView: View {
         switch page {
         case .climate(let id):
             ClimatePage(entityID: id, shown: shown)
+                .padding(.bottom, Self.fixedContentBottomInset)
         case .security:
             scrolling { SecurityPage(alarms: alarms, cameras: cameras, shown: shown, visible: visible) }
         case .rooms:
             scrolling { RoomsPage(shown: shown, path: $roomPath) }
         case .devices:
             scrolling { DevicesPage(hub: hub, shown: shown, visible: visible) }
-                .overlay(alignment: .bottom) { DemoPill(hub: hub) }
+                .overlay(alignment: .bottom) { DemoPill(hub: hub).padding(.bottom, Self.fixedContentBottomInset) }
                 .animation(.glide, value: hub.demo == nil)
         case .map:
             scrolling { MapPage(shown: shown, visible: visible) }
@@ -237,14 +238,18 @@ struct PanelView: View {
         if Self.snapshotMode {
             content()
         } else {
-            ScrollView { content().padding(.bottom, 8) }
+            ScrollView { content().padding(.bottom, Self.scrollBottomPadding) }
                 .scrollIndicators(.never)
                 .coordinateSpace(name: PinnedTitleBar.space)
                 .overlayPreferenceValue(PinnedTitleKey.self, alignment: .top) { PinnedTitleBar(info: $0) }
         }
     }
 
-    /// The dock's band at the bottom; pages leave this much room so their last row can scroll clear.
+    /// Fixed climate controls and the demo pill remain clear of the floating dock.
+    static let fixedContentBottomInset: CGFloat = 64
+    /// Scrollable pages use the full viewport; this trailing space only appears at the end.
+    static let scrollBottomPadding: CGFloat = footerHeight + 8
+    /// Extra breathing room around the dock, independent of the scrolling viewport.
     static let footerTopExtra: CGFloat = 32
     static let footerBottomExtra: CGFloat = 6
     static let footerHeight: CGFloat = 64 + footerTopExtra + footerBottomExtra

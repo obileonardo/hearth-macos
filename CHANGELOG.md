@@ -14,7 +14,7 @@
 - Give large appliances clearer proportions on the map and add native 3D device models with an illustration fallback.
 - Add recognizable electric-car illustrations and remembered paint choices without changing vehicle control behavior.
 - Improve Devices grid sizing and shared selection animations.
-- Add device-themed navigation glyphs, soften dock highlights, reserve content space above the dock and remove fading masks that obscured text.
+- Add device-themed navigation glyphs, soften dock highlights, reserve content space above the dock and keep text clear as it scrolls.
 - Replace Activity feed height folding with a short filter fade, retaining existing event categories, counts and settings.
 - Smooth overview-to-detail and back navigation across devices, rooms, Settings and panel pages with scoped surface fades, short directional motion, and nonanimated layout swaps. Respect Reduce Motion and cancel stale navigation callbacks.
 - Draw the menu-bar capsule in an owned status view to bypass the native button bezel, keeping the existing anchored panel and live status content.
@@ -49,6 +49,8 @@ The app retains its macOS 14 deployment target and existing bundle identity. Thi
 - Add one state-checked retry for the specifically observed intermittent vendor mode rejection; persistent failures remain visible.
 - Add 48 points of panel height with 32 points more space above navigation and 6 below; use clear native selection glass, white-on-deeper-blue map marks and a gentler power halo.
 - Use a snowflake for Climate navigation.
+- Float navigation over the full-height scrolling viewport, with no full-width fade or blur band. Extra trailing scroll space keeps final controls reachable; fixed climate controls and the demo exit stay clear of the dock.
+- Give the full-map button its own VoiceOver label and hint.
 - Restore the animated temperature digits; modes without a setpoint show an em dash and no temperature slider.
 - Add four points of menu-pill height where the menu bar allows, and remove whole-notification blur and scaling from flash alerts.
 - Refine the game-console illustration and refresh demo-only documentation guides.

@@ -222,10 +222,18 @@ private struct PreviewScreenshotPanel<Content: View>: View {
     @ViewBuilder let content: () -> Content
     private let pages: [Page] = [.climate("climate.preview_living_room"), .security, .rooms, .devices, .map, .activity]
 
+    private var contentBottomInset: CGFloat {
+        if case .climate = selected { return PanelView.fixedContentBottomInset }
+        return 0
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
             content().fixedSize(horizontal: false, vertical: true)
-                .frame(width: 404, height: Theme.panelSize.height - PanelView.footerHeight - 44, alignment: .top).padding(22).clipped()
+                .frame(width: 404, height: Theme.panelSize.height - contentBottomInset - 44, alignment: .top)
+                .padding(22).clipped()
+                .frame(maxHeight: .infinity, alignment: .top)
+                .padding(.bottom, contentBottomInset)
             Dock(pages: pages, selected: selected, label: { page in
                 switch page {
                 case .climate: ("snowflake", "Workspace")

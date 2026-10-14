@@ -43,11 +43,38 @@ final class MenuPanelGeometryTests: XCTestCase {
         XCTAssertEqual(PanelView.footerTopExtra, 32)
         XCTAssertEqual(PanelView.footerBottomExtra, 6)
         XCTAssertEqual(PanelView.footerHeight, 64 + 32 + 6)
+        XCTAssertEqual(PanelView.fixedContentBottomInset, 64)
+        let dockHeight = Dock.tab.height + 8
+        let dockTop = Theme.panelSize.height - PanelView.footerHeight + PanelView.footerTopExtra + (64 - dockHeight) / 2
+        XCTAssertLessThan(Theme.panelSize.height - PanelView.fixedContentBottomInset, dockTop)
         let small = CGRect(x: 0, y: 0, width: 1024, height: 650)
         let result = MenuPanelGeometry.frame(anchor: CGRect(x: 700, y: 650, width: 160, height: 24),
                                              visibleFrame: small, panelSize: Theme.panelSize)
         XCTAssertEqual(result.height, 634)
         XCTAssertTrue(small.contains(result))
+    }
+
+    @MainActor
+    func testLastScrollableControlCanClearFloatingDock() {
+        for height: CGFloat in [Theme.panelSize.height, 634, 484] {
+            let dockHeight = Dock.tab.height + 8
+            let dockTop = height - PanelView.footerHeight + PanelView.footerTopExtra + (64 - dockHeight) / 2
+            let lastControlBottom = height - PanelView.scrollBottomPadding
+            XCTAssertLessThanOrEqual(lastControlBottom, dockTop - 12)
+        }
+    }
+    @MainActor
+    func testFixedClimateControlsRemainAboveDock() {
+        let dockHeight = Dock.tab.height + 8
+        let dockBottomInset = PanelView.footerBottomExtra + (64 - dockHeight) / 2
+        XCTAssertGreaterThan(PanelView.fixedContentBottomInset, dockHeight + dockBottomInset)
+    }
+    @MainActor
+    func testFloatingDemoActionRemainsSeparateFromNavigation() {
+        let dockHeight = Dock.tab.height + 8
+        let dockTopInset = PanelView.footerBottomExtra + (64 - dockHeight) / 2 + dockHeight
+        let demoBottomInset = PanelView.fixedContentBottomInset + 8
+        XCTAssertGreaterThanOrEqual(demoBottomInset, dockTopInset + 8)
     }
 
 }

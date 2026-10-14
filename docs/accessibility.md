@@ -102,3 +102,7 @@ A selected segment (Appearance, air conditioner modes, alarm modes, filters) is 
 ## Privacy blur
 
 The eye in the Security header (and in the camera window) blurs every camera picture and live feed for screen sharing, leaving labels and controls sharp. It doesn't stop the cameras. With Reduce Motion on, the blur switches without animating.
+
+## Floating navigation
+
+Scrolling pages continue behind the floating navigation capsule without a full-width fade or blur band. Extra trailing scroll padding lets the last control move fully above the dock. Fixed climate controls and the demo exit stay above it. Only the capsule has a glass surface; its transparent surrounding space allows scrolling. Reduce Transparency retains the existing solid dock fallback. The map container groups its controls without replacing their individual labels; Open full map has a separate label and hint.
