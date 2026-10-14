@@ -247,7 +247,7 @@ private struct DevicesGrid: View {
             VStack(spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
                     HubTile(section: .energy, art: [.solarPanel, .battery], line: summary.energy,
-                            live: summary.energyLive, tint: EnergyPalette.solar) { open(.energy) }
+                            live: summary.energyLive, tint: Theme.homeEnergy) { open(.energy) }
                     HubTile(section: .vehicles, art: [.electricCar], line: summary.vehicles, live: summary.vehiclesLive,
                             tint: HomeDevice.vehicleAccent(.electricCar)) { open(.vehicles) }
                 }
@@ -410,16 +410,17 @@ private struct DemoBanner: View {
     let exit: () -> Void
 
     static let tint = Theme.brand
+    private var surfaceTint: Color { engine.kind == .energy ? Theme.homeEnergy : Self.tint }
 
     var body: some View {
-        Bezel(radius: 20, inset: 3, lit: true, tint: Self.tint) {
+        Bezel(radius: 20, inset: 3, lit: true, tint: surfaceTint) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Text("DEMO")
                         .font(.system(size: 11, weight: .heavy)).tracking(1.4)
                         .foregroundStyle(Theme.onAccent)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Capsule().fill(Self.tint))
+                        .background(Capsule().fill(surfaceTint))
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Sample data, nothing is connected").font(.system(size: 13, weight: .semibold))
                         Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)

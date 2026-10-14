@@ -9,7 +9,7 @@ struct HomeArt: View {
     var glow: Double = 0
     var size: CGFloat = 64
 
-    static let light = Color.accent(1.0, 0.78, 0.45)
+    static let light = Theme.homeEnergy
 
     /// How brightly the windows burn for a load in watts.
     static func glow(for watts: Double?) -> Double {
@@ -39,7 +39,7 @@ struct HomeArt: View {
                         startPoint: CGPoint(x: rect.minX, y: rect.minY), endPoint: CGPoint(x: rect.maxX, y: rect.maxY))
     }
 
-    /// A lit window: warm glass with a halo when the home is using power, dark glass when not.
+    /// Green glass with a halo represents home consumption; dark glass means no draw.
     private func window(_ ctx: inout GraphicsContext, _ r: CGRect, lit: Double) {
         let shape = Path(roundedRect: r, cornerRadius: r.width * 0.12)
         if lit > 0 {
@@ -47,7 +47,7 @@ struct HomeArt: View {
             halo.addFilter(.blur(radius: r.width * 0.6))
             halo.fill(Path(roundedRect: r.insetBy(dx: -r.width * 0.2, dy: -r.height * 0.2), cornerRadius: r.width * 0.3),
                       with: .color(Self.light.opacity(0.55 * lit)))
-            ctx.fill(shape, with: .linearGradient(Gradient(colors: [Self.light.opacity(0.65 + 0.35 * lit), Color(red: 1, green: 0.6, blue: 0.3).opacity(0.7 + 0.3 * lit)]),
+            ctx.fill(shape, with: .linearGradient(Gradient(colors: [Self.light.opacity(0.65 + 0.35 * lit), Theme.homeEnergyEnd.opacity(0.7 + 0.3 * lit)]),
                                                   startPoint: CGPoint(x: r.midX, y: r.minY), endPoint: CGPoint(x: r.midX, y: r.maxY)))
         } else {
             ctx.fill(shape, with: .linearGradient(Gradient(colors: [Color(white: 0.32), Color(white: 0.16)]),
@@ -454,7 +454,8 @@ struct ShareBar: View {
         GeometryReader { g in
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.fg.opacity(0.07))
-                Capsule().fill(tint.opacity(0.85)).frame(width: max(g.size.width * value, value > 0 ? 4 : 0))
+                Capsule().fill(LinearGradient(colors: [tint, tint.opacity(0.7)], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(g.size.width * value, value > 0 ? 4 : 0))
             }
         }
         .frame(height: 5)

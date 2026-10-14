@@ -40,6 +40,17 @@
 
 The app retains its macOS 14 deployment target and existing bundle identity. This branch does not change Home Assistant deployment, reset pairing, delete local data or provide a notarized binary release. Source builds and sample previews do not establish live hardware compatibility; public publication remains a separate reviewed step.
 
+## 0.1.3 preview candidate
+
+- Richer blue accents, green home energy surfaces, consistent navigation glyphs and clearer Settings spacing.
+- Local editable help and bug-report drafts with preserved edits, optional version details and mail/copy actions.
+- Scoped map cursor ownership prevents hidden or overlapping scenes from changing the pointer.
+- Per-device climate command sequencing, authoritative refresh after errors, and cancellation of unsent temperature requests before mode changes.
+- Restore the animated temperature digits; modes without a setpoint show an em dash and no temperature slider.
+- Add four points of menu-pill height where the menu bar allows, and remove whole-notification blur and scaling from flash alerts.
+- Refine the game-console illustration and refresh demo-only documentation guides.
+- Add isolated regression coverage for cursor ownership, support drafts, climate commands, queue behavior and pill geometry, plus a source-linked contrast check in CI.
+
 ## 0.1.2 preview
 
 - Adaptive blue accents, reliable appearance switching and cleaner Settings, widget, notification and Help layouts.

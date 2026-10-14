@@ -53,15 +53,24 @@ enum Theme {
     /// A hover wash on rows and quiet buttons.
     static let hover = Color.adaptive(dark: .white.withAlphaComponent(0.05), light: .black.withAlphaComponent(0.04))
 
-    /// Accents. Pale and luminous on black; deeper in the light so they still read as text.
+    /// Accents retain their hue in both appearances and read against the panel and cards.
     static let live = Color.adaptive(dark: .rgb(1.0, 0.36, 0.32), light: .rgb(0.78, 0.13, 0.11))
     static let ok = Color.adaptive(dark: .rgb(0.5, 0.9, 0.62), light: .rgb(0.09, 0.47, 0.24))
-    static let brand = Color.adaptive(dark: .rgb(0.58, 0.77, 0.99), light: .rgb(0.08, 0.33, 0.66),
-                                      darkHC: .rgb(0.72, 0.86, 1.0), lightHC: .rgb(0.04, 0.24, 0.53))
-    static let brandEnd = Color.adaptive(dark: .rgb(0.34, 0.62, 0.93), light: .rgb(0.08, 0.25, 0.55))
+    static let brand = Color.adaptive(dark: .rgb(0.26, 0.61, 0.99), light: .rgb(0.07, 0.30, 0.65),
+                                      darkHC: .rgb(0.48, 0.75, 1.0), lightHC: .rgb(0.04, 0.24, 0.53))
+    static let brandEnd = Color.adaptive(dark: .rgb(0.22, 0.55, 0.94), light: .rgb(0.06, 0.24, 0.54),
+                                         darkHC: .rgb(0.42, 0.70, 0.99), lightHC: .rgb(0.03, 0.18, 0.44))
     static let brandGradient = LinearGradient(colors: [brand, brandEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
     /// Compatibility name for existing artwork and view accents.
     static let sand = brand
+
+    /// Home consumption uses green; solar, grid, battery, warnings and AC modes keep
+    /// their own semantic colours. Endpoints also support text on an accent fill.
+    static let homeEnergy = Color.adaptive(dark: .rgb(0.27, 0.82, 0.56), light: .rgb(0.04, 0.42, 0.25),
+                                           darkHC: .rgb(0.46, 0.92, 0.69), lightHC: .rgb(0.02, 0.32, 0.18))
+    static let homeEnergyEnd = Color.adaptive(dark: .rgb(0.21, 0.72, 0.46), light: .rgb(0.03, 0.33, 0.19),
+                                              darkHC: .rgb(0.38, 0.84, 0.60), lightHC: .rgb(0.01, 0.25, 0.13))
+    static let homeEnergyGradient = LinearGradient(colors: [homeEnergy, homeEnergyEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
 
     /// The colour of the air for each mode: pale and luminous in the dark, the same hue deep
     /// enough to see against paper in the light.

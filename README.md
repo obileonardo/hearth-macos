@@ -49,7 +49,9 @@ The [full artwork sheet](docs/art/devices.png) includes every device and its on/
 
 ### Demo views and illustrated setup steps
 
-The views below use offline sample data, with no personal camera pictures, household configuration or account information. The setup guide's address, username and password fields, and its version-information switch, are static illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
+The views below use offline sample data, with no personal camera pictures, household configuration or account information. Sign-in fields, the bug draft's **Subject** and **Message** fields, and the optional version-information switch are static documentation illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
+
+These refreshed guides show the current source revision. The download above remains the released 0.1.2 preview until the next preview is published.
 
 <table>
   <tr>
@@ -173,13 +175,30 @@ Use **Devices** to browse families, **Rooms** to browse by location, or **3D Map
 
 ### 7. Get help or report a problem
 
-Open **Settings → Help & Support**. Start with the connection and device checks, then choose **Get help** or **Report a bug**. Hearth opens an editable mail draft; you decide what to include and when to send it. App and macOS version numbers are optional and off by default.
+Open **Settings → Help & Support**. Start with the connection and device checks. App and macOS version numbers are optional and off by default.
 
-<p align="center">
-  <img src="docs/screenshots/guide-help-light.png" width="360" alt="Hearth Help and Support demo with email actions and optional version-information setting">
-</p>
+#### Edit a bug report before sending
 
-For a bug report, describe what you tried, what you expected and what happened. The page provides separate guidance for each detail.
+1. Choose **Report a bug** or **Get help** to open a local draft inside Hearth.
+2. Edit **Subject** and **Message**. For a bug report, describe what you tried, what you expected and what happened.
+3. Choose **Open mail app** to continue with that draft in your mail app, then send it yourself. Or choose **Copy draft** and paste it into a new email to `contact@elvisobi.com` in your preferred webmail service. Copy also works when no mail app is configured.
+
+Hearth does not send the report automatically or attach logs, account details or camera pictures. You review and decide what to include.
+
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Start with Help</h3>
+      <img src="docs/screenshots/guide-help-light.png" width="360" alt="Hearth Help and Support demo with request actions and optional version-information setting">
+      <p>Check your connection or device, then choose a request.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Review your draft</h3>
+      <img src="docs/screenshots/guide-bug-report-light.png" width="360" alt="Illustrated local bug draft with Subject, Message, Open mail app and Copy draft controls">
+      <p>Edit first. Continue in your mail app or copy into webmail.</p>
+    </td>
+  </tr>
+</table>
 
 ## Brand notes
 
@@ -206,7 +225,7 @@ For a bug report, describe what you tried, what you expected and what happened. 
 
 ## Help and support
 
-Open **Settings → Help & Support** to ask a question or report a bug. Hearth prepares an editable email to [contact@elvisobi.com](mailto:contact@elvisobi.com); you send it from your mail app. App and macOS version numbers are optional. Useful bug reports include the steps, expected result and actual result.
+Open **Settings → Help & Support** to ask a question or report a bug. The current source opens an editable local draft to [contact@elvisobi.com](mailto:contact@elvisobi.com), with **Subject** and **Message** fields. Choose **Open mail app** to continue in your mail app or **Copy draft** for webmail; you send it yourself. App and macOS version numbers are optional and off by default. Useful bug reports include the steps, expected result and actual result.
 
 For security concerns, follow [SECURITY.md](SECURITY.md).
 

@@ -6,6 +6,9 @@ import SwiftUI
 @MainActor
 enum ArtExporter {
     static func export(to dir: String) {
+        // Documentation artwork has a deterministic dark backdrop; this command
+        // exits before sign-in and never changes the saved appearance choice.
+        NSApp.appearance = NSAppearance(named: .darkAqua)
         let root = URL(fileURLWithPath: dir, isDirectory: true)
         let devices = root.appendingPathComponent("devices", isDirectory: true)
         try? FileManager.default.createDirectory(at: devices, withIntermediateDirectories: true)
@@ -27,7 +30,7 @@ enum ArtExporter {
     }
 
     private static func write(_ view: some View, to url: URL, scale: CGFloat = 2) {
-        let renderer = ImageRenderer(content: view)
+        let renderer = ImageRenderer(content: view.environment(\.colorScheme, .dark))
         renderer.scale = scale
         guard let cg = renderer.cgImage,
               let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]) else {

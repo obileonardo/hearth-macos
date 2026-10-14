@@ -40,6 +40,8 @@ jobs:
         run: swift build --configuration release
       - name: Run isolated regressions
         run: swift test
+      - name: Verify appearance contrast
+        run: python3 scripts/contrast.py --verify-source
       - name: Check release scripts
         run: zsh -n scripts/*.sh
       - name: Compile optional widget extension

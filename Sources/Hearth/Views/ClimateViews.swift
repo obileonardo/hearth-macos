@@ -113,6 +113,9 @@ struct ClimatePage: View {
 
     @State private var dragTarget: Double?
     @State private var sendTask: Task<Void, Never>?
+    @State private var pendingMode: String?
+    @State private var climateFailure: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let e = store.entities[entityID] {
@@ -121,7 +124,7 @@ struct ClimatePage: View {
     }
 
     private func page(_ c: Climate) -> some View {
-        let target = dragTarget ?? c.target ?? c.minTemp
+        let target = dragTarget ?? c.target
         let air = Theme.air(c.on ? c.mode : "off")
         let maker = store.device(of: entityID)?.manufacturer.map { $0 == "LGE" ? "LG" : $0 }
         let sensors = store.siblings(of: entityID, domain: "sensor")
@@ -145,7 +148,7 @@ struct ClimatePage: View {
 
             // The unit
             ACUnitView(power: c.on ? 1 : 0, mode: c.mode, intensity: c.intensity, swing: c.swinging,
-                       width: 246, display: c.on ? degrees(target) : nil, reach: 0.46)
+                       width: 246, display: c.on ? target.map(degrees) : nil, reach: 0.46)
                 .animation(.glide, value: c.on)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 2)
@@ -154,15 +157,20 @@ struct ClimatePage: View {
             // Temperature and status
             HStack(alignment: .lastTextBaseline) {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text(degrees(target))
+                    Text(target.map(degrees) ?? "—")
                         .font(.system(size: 76, weight: .thin))
                         .tracking(-3)
                         .monospacedDigit()
-                        .contentTransition(.numericText(value: target))
-                    Text("°")
-                        .font(.system(size: 40, weight: .ultraLight))
-                        .foregroundStyle(Theme.muted)
-                        .offset(y: -30)
+                        .contentTransition(reduceMotion || target == nil ? .opacity : .numericText(value: target ?? 0))
+                        // Own this transaction locally: page transitions clear
+                        // inherited animation, while the number should still roll.
+                        .animation(reduceMotion ? .easeOut(duration: 0.1) : .snap, value: target)
+                    if target != nil {
+                        Text("°")
+                            .font(.system(size: 40, weight: .ultraLight))
+                            .foregroundStyle(Theme.muted)
+                            .offset(y: -30)
+                    }
                 }
                 .foregroundStyle(c.on ? Theme.ink : Theme.faint)
                 Spacer()
@@ -187,7 +195,7 @@ struct ClimatePage: View {
 
             // Target slider
             if c.target != nil {
-                TemperatureControl(value: target, range: c.minTemp...c.maxTemp, step: c.step, tint: air, active: c.on) {
+                TemperatureControl(value: target ?? c.minTemp, range: c.minTemp...c.maxTemp, step: c.step, tint: air, active: c.on) {
                     setTarget(c, $0)
                 }
                 .reveal(shown, 3)
@@ -199,11 +207,19 @@ struct ClimatePage: View {
                     Image(systemName: Theme.modeSymbol(mode)).font(.system(size: 14, weight: .light))
                     Text(Theme.modeName(mode)).font(.system(size: 12, weight: .medium))
                 } onSelect: { mode in
-                    store.optimistic(entityID) { $0.state = mode }
-                    store.call("climate", "set_hvac_mode", entityID, ["hvac_mode": mode])
+                    setMode(c, mode)
                 }
                 .padding(.top, 10)
                 .reveal(shown, 4)
+                if let pendingMode {
+                    HStack(spacing: 7) {
+                        ProgressView().controlSize(.small)
+                        Text("Switching to \(Theme.modeName(pendingMode))…")
+                            .font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                    }
+                    .padding(.top, 8)
+                    .accessibilityElement(children: .combine)
+                }
             }
 
             // Fan speed: one bar to drag across.
@@ -252,7 +268,11 @@ struct ClimatePage: View {
             .padding(.top, 8)
             .reveal(shown, 6)
         }
-        .disabled(c.e.isUnavailable)
+        .disabled(c.e.isUnavailable || pendingMode != nil)
+        .alert("Couldn’t change the air conditioner", isPresented: Binding(get: { climateFailure != nil }, set: { if !$0 { climateFailure = nil } })) {
+            Button("OK") { climateFailure = nil }
+        } message: { Text(climateFailure ?? "") }
+        .onDisappear { sendTask?.cancel() }
     }
 
     /// Energy in the unit the sensor reports, stepping Wh up to kWh past a thousand.
@@ -269,17 +289,77 @@ struct ClimatePage: View {
         store.siblings(of: entityID, domain: domain)
     }
 
-    /// The number follows the finger at once; Home Assistant hears about it when it settles.
+    private func setMode(_ c: Climate, _ mode: String) {
+        guard pendingMode == nil, let action = ClimateCommand.mode(c.e, requested: mode) else { return }
+        let previousTemperature = sendTask
+        sendTask?.cancel()
+        dragTarget = nil
+        pendingMode = mode
+        Task {
+            // A temperature command already on the wire finishes first; a merely
+            // debounced value is cancelled before it can target the new mode.
+            await previousTemperature?.value
+            defer { pendingMode = nil }
+            do {
+                try await store.command(action.body)
+                if store.isDemo { store.optimistic(entityID) { $0.state = mode } }
+                for _ in 0..<20 {
+                    if store.entities[entityID]?.state == mode { return }
+                    try await Task.sleep(for: .milliseconds(250))
+                }
+                _ = await store.refreshEntity(entityID)
+                if store.entities[entityID]?.state != mode {
+                    climateFailure = "Home Assistant accepted the request but has not reported \(Theme.modeName(mode)). Check the unit before retrying."
+                }
+            } catch {
+                _ = await store.refreshEntity(entityID)
+                if store.entities[entityID]?.state != mode {
+                    climateFailure = "Home Assistant couldn’t switch to \(Theme.modeName(mode)). The last reported mode is still shown.\n\n\(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    /// Local preview responds immediately. Only the settled value is sent, and
+    /// actual Home Assistant attributes remain authoritative after a rejection.
     private func setTarget(_ c: Climate, _ value: Double) {
+        guard pendingMode == nil else { return }
         if value != dragTarget { Haptic.tick() }
         withAnimation(.snap) { dragTarget = value }
         sendTask?.cancel()
         sendTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            store.optimistic(entityID) { $0.attributes["temperature"] = value }
-            store.call("climate", "set_temperature", entityID, ["temperature": value])
-            dragTarget = nil
+            guard let current = store.entities[entityID],
+                  let action = ClimateCommand.temperature(current, value: value) else {
+                if dragTarget == value { dragTarget = nil }
+                return
+            }
+            do {
+                try await store.command(action.body)
+                if store.isDemo { store.optimistic(entityID) { $0.attributes["temperature"] = value } }
+                for _ in 0..<20 {
+                    if Task.isCancelled { return }
+                    if let reported = store.entities[entityID]?.num("temperature"), abs(reported - value) < 0.001 { break }
+                    try await Task.sleep(for: .milliseconds(250))
+                }
+                if !Task.isCancelled {
+                    _ = await store.refreshEntity(entityID)
+                    guard !Task.isCancelled, dragTarget == value else { return }
+                    if dragTarget == value,
+                       store.entities[entityID]?.num("temperature").map({ abs($0 - value) < 0.001 }) != true {
+                        climateFailure = "Home Assistant accepted the request but has not reported \(degrees(value))°. Check the unit before retrying."
+                    }
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                _ = await store.refreshEntity(entityID)
+                guard !Task.isCancelled, dragTarget == value else { return }
+                climateFailure = error.localizedDescription
+            }
+            // A newer drag owns its preview; finishing an older command cannot
+            // clear that value or reset the displayed number.
+            if !Task.isCancelled, dragTarget == value { dragTarget = nil }
         }
     }
 
@@ -323,7 +403,15 @@ struct PowerButton: View {
             }
             .frame(width: 42, height: 42)
             .cardShadow()
-            .glow(color: on ? tint.opacity(light ? 0.45 : 0.55) : .clear, radius: 14)
+            .background {
+                if on {
+                    // A radial halo has transparent edges instead of relying on
+                    // a shadow texture whose backing rectangle can show through.
+                    Circle().fill(RadialGradient(colors: [tint.opacity(light ? 0.14 : 0.24), .clear],
+                                                 center: .center, startRadius: 16, endRadius: 40))
+                        .frame(width: 80, height: 80).allowsHitTesting(false)
+                }
+            }
             .padding(3)
             .background {
                 if !light {

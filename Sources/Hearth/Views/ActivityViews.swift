@@ -106,7 +106,7 @@ struct ActivityPage: View {
                     showAlerts = true
                 } label: {
                     Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .light))
+                        .font(.system(size: 14, weight: .regular))
                         .frame(width: 34, height: 34)
                         .background(Circle().fill(Theme.fg.opacity(showAlerts ? 0.12 : 0.05)).overlay(Circle().strokeBorder(Theme.hairline)))
                 }
