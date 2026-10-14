@@ -7,6 +7,7 @@ import SwiftUI
 @MainActor
 enum HearthNavigation {
     static let pageRequested = Notification.Name("Hearth.pageRequested")
+    static let panelVisibilityChanged = Notification.Name("Hearth.panelVisibilityChanged")
     static weak var panel: NSWindow?
 
     static func open(_ page: String) {
@@ -148,6 +149,7 @@ final class HearthMenuController: NSObject {
         positionPanel()
         panel.makeKeyAndOrderFront(nil)
         HearthNavigation.panel = panel
+        NotificationCenter.default.post(name: HearthNavigation.panelVisibilityChanged, object: true)
         installDismissal()
         // Menu items slide when their text changes or another item appears.
         // Follow the actual screen rect rather than retaining the opening rect.
@@ -158,6 +160,7 @@ final class HearthMenuController: NSObject {
     }
 
     func close() {
+        NotificationCenter.default.post(name: HearthNavigation.panelVisibilityChanged, object: false)
         panel?.orderOut(nil)
         positioningTimer?.invalidate()
         positioningTimer = nil

@@ -190,12 +190,17 @@ struct PanelView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
             // Widget windows must not replay or suspend the menu panel's content.
             if let window = note.object as? NSWindow, window === HearthNavigation.panel {
+                if !visible { replayEntrance() }
                 visible = true
-                replayEntrance()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: HearthNavigation.panelVisibilityChanged)) { note in
+            guard let onscreen = note.object as? Bool else { return }
+            if onscreen && !visible { replayEntrance() }
+            visible = onscreen
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
-            if let window = note.object as? NSWindow, window === HearthNavigation.panel { visible = false }
+            if let window = note.object as? NSWindow, window === HearthNavigation.panel, !window.isVisible { visible = false }
         }
     }
 
