@@ -113,6 +113,8 @@ struct MapPage: View {
                     .background(Capsule().fill(Theme.cta))
                 }
                 .buttonStyle(PressStyle())
+                .accessibilityLabel("Open full map")
+                .accessibilityHint("Opens the map in a separate window")
             }
             .padding(10)
         }
@@ -122,7 +124,9 @@ struct MapPage: View {
         .padding(4)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Theme.fg.opacity(0.025))
             .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.75)))
-        .accessibilityLabel("3D map of \(maps.title). Scroll to zoom, drag to move or turn, double-click to fit.")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("3D map of \(maps.title)")
+        .accessibilityHint("Scroll to zoom, drag to move or turn, double-click to fit")
     }
 
     private func eyebrow(total: Double, count: Int) -> String {
