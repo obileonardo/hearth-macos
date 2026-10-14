@@ -1,0 +1,32 @@
+.build/
+build/
+.DS_Store
+.claude/
+homeassistant/.env
+homeassistant/*.env
+!homeassistant/*.env.example
+homeassistant/data/
+*screen-rec.txt
+
+# Local distribution outputs and signing credentials are never source assets.
+releases/dmg/*.dmg
+releases/dmg/*.sha256
+releases/dmg/*.zip
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile
+
+# Local handoff and credential stores stay on the developer's Mac.
+/CLAUDE_HANDOFF.md
+/.aws/
+/.codex/
+.env
+.env.*
+!.env.example
+
+# Reviewed public exports and private audit records are staged separately.
+/release-staging/
+
+# Owner task records contain private operational context.
+/Task Update/PRIVATE*

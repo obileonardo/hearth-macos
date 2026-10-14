@@ -1,0 +1,10 @@
+{
+  "domain": "hearth_vehicle_test",
+  "name": "Hearth vehicle test",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://github.com/obileonardo/hearth-macos",
+  "codeowners": [],
+  "iot_class": "local_push",
+  "requirements": []
+}

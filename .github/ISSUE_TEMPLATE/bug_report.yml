@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a problem using sample data and redacted diagnostics.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove tokens, addresses, device identifiers, household names and camera images before posting. Do not post security details in an issue; arrange a private reporting channel with the maintainer first.
+  - type: input
+    id: version
+    attributes:
+      label: Hearth version or commit
+      description: Include whether you built from source.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: macOS and Home Assistant versions
+      placeholder: macOS version; Home Assistant version; Xcode version if building
+    validations:
+      required: true
+  - type: input
+    id: integration
+    attributes:
+      label: Relevant integration and device type
+      description: Brand and model are useful; exclude account details and serial numbers.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Prefer demo data or an isolated development server. Explain expected and observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics or sample screenshot
+      description: Do not attach raw Home Assistant storage, .env files, transcripts, tokens or personal camera footage.

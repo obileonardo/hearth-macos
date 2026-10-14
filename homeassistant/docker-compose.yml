@@ -1,0 +1,61 @@
+# Home Assistant on a Mac, for Hearth. Runs in Docker (Colima works well).
+#
+#   docker-compose -f homeassistant/docker-compose.yml up -d
+#
+# Settings come from homeassistant/.env (copy .env.example): HEARTH_DATA is where
+# Home Assistant keeps its data, TZ is your time zone.
+#
+# The `dev` profile adds a second, throwaway Home Assistant on port 8124
+# filled with demo devices, for building the UI without touching the real one.
+
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    # Its own DNS servers: Colima's DNS relay is slow to warm up after a restart,
+    # long enough for cloud sign-ins (Amazon, LG) to fail.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "8123:8123"
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - type: bind
+        source: "${HEARTH_DATA:-./data}/config"
+        target: /config
+
+  # Optional bridge for Eufy cameras (Home Assistant's Eufy Security integration).
+  # Signs in with a second Eufy account your cameras are shared with; put its
+  # login in ${HEARTH_DATA}/eufy/eufy.env (see eufy.env.example), never in git.
+  #   docker-compose -f homeassistant/docker-compose.yml --profile eufy up -d eufy-security-ws
+  eufy-security-ws:
+    image: bropat/eufy-security-ws:latest
+    container_name: eufy-security-ws
+    profiles: [eufy]
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    env_file:
+      - "${HEARTH_DATA:-./data}/eufy/eufy.env"
+    volumes:
+      - type: bind
+        source: "${HEARTH_DATA:-./data}/eufy/data"
+        target: /data
+
+  homeassistant-dev:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant-dev
+    profiles: [dev]
+    restart: unless-stopped
+    ports:
+      - "8124:8123"
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - type: bind
+        source: "${HEARTH_DATA:-./data}/dev-config"
+        target: /config

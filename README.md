@@ -1,0 +1,188 @@
+<p align="center">
+  <img src="docs/art/AppIcon-1024.png" width="128" alt="Hearth icon">
+</p>
+
+<h1 align="center">Hearth</h1>
+
+<p align="center">
+  <b>Your whole home, one click away in the Mac menu bar.</b><br>
+  A native macOS app for Home Assistant: air conditioning you can feel, live cameras,<br>
+  every room and device, and an activity feed that tells you when someone's at the door.
+</p>
+
+<p align="center">
+  <img src="docs/art/hearth-showcase.png" width="960" alt="Hearth device families: climate, security, speakers, energy and vehicles">
+</p>
+
+---
+
+## What it does
+
+- **Climate.** Every air conditioner gets its own page: an illustrated unit whose louver opens when it runs, airflow that streams out in the colour of the mode, a set-point track with a tick for every degree, mode and fan speed controls, swing, sleep timer, display light and today's energy use.
+- **Security.** Your doorbell leads, streaming live (WebRTC, the same way Home Assistant's own app does it). Every other camera sits in a grid with its latest picture and when it last saw movement. Alarm systems arm and disarm in one tap.
+- **Rooms.** Hearth reads the rooms and floors you set up in Home Assistant. Open a room to see its devices, open a device to see everything it can do, explained in plain language and grouped into sections like Detection, Alerts, Camera and Sound.
+- **Gadgets.** 3D printers, games consoles and computers in one place. A Bambu Lab printer shows its progress, time left and temperatures, with a picture of what it's printing. Anything Home Assistant doesn't know about you can list by hand, with an address if you'd like Hearth to check it's on.
+- **Vehicles.** Electric cars, chargers, robot vacuums, robot mowers and anything else that moves on a battery. A car shows its charge, range, whether it's charging and how long until full, where it is and whether it's locked, with buttons to lock, charge and warm or cool it (unlocking asks twice). Vacuums and mowers start, pause and go home from their card. Aircraft and anything else without a Home Assistant integration you can list by hand.
+- **Energy.** Inverters, lithium batteries and solar panels. A live diagram shows power flowing between the sun, the battery, the grid and the house. The battery shows its charge, how fast it's charging and when it'll be full; solar shows what it's making now, today and over the last day; the inverter shows its mode, load, temperature and any faults; and a battery's BMS shows every cell. Hearth reads Home Assistant's Energy dashboard setup first.
+- **Homes.** Your home as a card with what it's using now and today, and room for more homes (a second house, a flat, the office). Link devices and hand-added gadgets to each one; everything not linked lives in your main home. A home's page ranks what's drawing the most power right now, adds up the devices that report their use against the whole-house figure, and lists everything in it. A demo home shows it all before anything is connected.
+- **Activity.** A timeline of people seen, doorbell rings, motion, the alarm and the air conditioning, with pictures. Choose what sends a Mac notification.
+- **Live pill and desktop widgets.** Optional event alerts beneath the menu bar, plus clickable, movable and resizable widgets for climate, recent activity and energy. Choose widgets and the climate source in Settings. The overview adapts to connected readings. See [widgets](docs/widgets.md).
+- **Car illustrations.** Recognisable electric car models with a remembered paint choice. The vehicle demo lets you change both car and paint without controlling a real vehicle.
+- **Speakers, faces and maps.** Speaker playback lives in Devices. Optional familiar-face matching runs on this Mac. Import a home scan for the 3D map, with floor selection, plan view, transparent walls and device placement.
+- **Light, dark or system.** Choose in Settings. Theme text tokens have documented contrast calculations for light and dark appearances; Hearth supports Increase Contrast, Reduce Transparency and Reduce Motion. See [docs/accessibility.md](docs/accessibility.md).
+- **Native.** Built in SwiftUI. Hearth signs in to your Home Assistant and keeps its refresh token in your Keychain. Hearth has no analytics or account service; see [Privacy](#privacy) for its network and local storage behaviour.
+
+<details>
+<summary><b>Explore the full device illustration library</b></summary>
+
+The [full artwork sheet](docs/art/devices.png) includes every device and its on/off variants. The introduction above is a composed illustration; see [artwork notes](docs/art/showcase.md).
+
+</details>
+
+## In the app
+
+These screenshots use Hearth's real views with offline sample data. They contain no personal camera pictures, household configuration or account information.
+
+<p align="center">
+  <img src="docs/screenshots/devices-dark.png" width="340" alt="Devices overview with home, energy, vehicles, gadgets and speakers">
+  <img src="docs/screenshots/speakers-grid-dark.png" width="340" alt="Speaker grid showing playing, paused, grouped and offline states">
+</p>
+<p align="center">
+  <img src="docs/screenshots/map-layout-dark.png" width="960" alt="Interactive two-floor demo house with transparent walls, device models and energy paths">
+</p>
+
+## Requirements
+
+- macOS 14 Sonoma or later
+- A Home Assistant server (2024.4 or later) on your network
+- To build from source: Xcode 26 or compatible Command Line Tools with a macOS 26 SDK. The app uses macOS 26 APIs behind availability guards while retaining a macOS 14 deployment target.
+
+## Get started
+
+### 1. Have Home Assistant running
+
+Hearth is a remote control for [Home Assistant](https://www.home-assistant.io), the open-source home automation platform. If you already run it, skip to step 2.
+
+If you don't, pick one:
+
+| Option | Good for |
+|---|---|
+| [Home Assistant Green](https://www.home-assistant.io/green) | The easiest: a small box that runs it 24/7 |
+| [Home Assistant OS on a Raspberry Pi or mini PC](https://www.home-assistant.io/installation/) | Always on, very capable |
+| **On this Mac with Docker** (below) | Trying it out today, free |
+
+<details>
+<summary><b>Run Home Assistant on your Mac</b></summary>
+
+```sh
+brew install colima docker docker-compose
+colima start --vm-type vz --cpu 2 --memory 3
+cp homeassistant/.env.example homeassistant/.env   # set HEARTH_DATA and TZ
+docker-compose -f homeassistant/docker-compose.yml up -d
+```
+
+Open <http://localhost:8123> and create your Home Assistant account. To start Colima at login, run `brew services start colima`. Home Assistant only runs while your Mac is awake; a dedicated box is better long-term.
+
+</details>
+
+### 2. Add your devices to Home Assistant
+
+In Home Assistant, go to **Settings → Devices & services → Add integration** and add each brand you own (LG ThinQ, Ring, Philips Hue, Sonos and thousands more). Some brands need the community store [HACS](https://hacs.xyz) first. See [Brand notes](#brand-notes) for a few that need extra steps.
+
+Then give your devices **rooms**: **Settings → Areas, labels & zones**. Create your rooms (and floors, if you like), and assign each device to one. Hearth shows them exactly as you arrange them here.
+
+### 3. Install Hearth
+
+```sh
+git clone https://github.com/obileonardo/hearth-macos.git
+cd hearth-macos
+scripts/build.sh            # builds Hearth.app and installs it in ~/Applications
+open ~/Applications/Hearth.app
+```
+
+### 4. Sign in
+
+Click the Hearth icon in your menu bar. Enter your Home Assistant address (for example `http://homeassistant.local:8123` or `http://localhost:8123`) and the **username and password you use for Home Assistant**. That's it: Hearth signs in like the Home Assistant app does and stays signed in. Your password is never stored; only a refresh token, in your Keychain.
+
+macOS will ask to allow notifications. Say yes if you want doorbell and people alerts.
+
+## Brand notes
+
+| Brand | How | Notes |
+|---|---|---|
+| **LG ThinQ** (air conditioners) | Built-in integration | Needs a personal token from [connect-pat.lgthinq.com](https://connect-pat.lgthinq.com). Pick the **country your LG account belongs to**; a token only works in its own region. If the display light switch does nothing, see [patches](homeassistant/patches). |
+| **Ring** (doorbells, cameras) | Built-in integration | Two-factor code once. Live view works through WebRTC. |
+| **Amazon Echo** | Built-in **Alexa Devices** | Needs Amazon 2-step verification with an **authenticator app**. Sign in with the email or phone number your Amazon account actually uses. If you see "Invalid authentication" with correct details, see [patches](homeassistant/patches). |
+| **Eufy** (cameras, HomeBase) | [Eufy Security](https://github.com/fuatakgun/eufy_security) from HACS, plus the `eufy-security-ws` bridge | Use a second Eufy account that your devices are shared with (Eufy allows one session per account). The bridge is in `homeassistant/docker-compose.yml` under the `eufy` profile. |
+| **Apple TV, HomePod** | Built-in **Apple TV** | Add by IP address. In the Home app, let anyone on the same network use your speakers and TVs, without a password. The Apple TV shows a PIN to type in once. In Docker, see [patches](homeassistant/patches). |
+| **Bambu Lab** (3D printers) | [Bambu Lab](https://github.com/greghesp/ha-bambulab) from HACS | Sign in with your Bambu account, or use LAN mode with the printer's access code. Prints show on the Gadgets page. |
+| **PlayStation** | Built-in **PlayStation Network** | Sign in with your PSN account. Shows when the console is on and what's playing. |
+| **Tesla** | Built-in **Tesla Fleet**, or **Teslemetry** or **Tessie** | Charge, range, charging, location, locks and climate show on the Vehicles page. |
+| **Other electric cars** | Built-in **BMW Connected Drive**, **Renault**, **Nissan Leaf**; HACS for Kia and Hyundai, Volkswagen, Polestar, Rivian, Mercedes | BYD has community integrations only. A charger integration shows charging for any car. |
+| **EV chargers** | Built-in **Wallbox**, **Easee**, **Tesla Wall Connector**; others such as Zaptec and ChargePoint where available | Charging state, power and energy this session. |
+| **Robot vacuums** | Built-in **Roborock**, **Ecovacs**, **iRobot Roomba**; Dreame from HACS | Start, pause and send home from the Vehicles page. |
+| **Robot mowers** | Built-in **Husqvarna Automower** | Mow, pause and dock. |
+| **Electric aircraft, drones** | No Home Assistant integration yet | Add them by hand on the Vehicles page. |
+| **Solar inverters** | Built in: Enphase Envoy, SolarEdge, Fronius, SMA, GoodWe, Growatt, Solax, APsystems | Then set up **Settings → Dashboards → Energy** with your solar, battery and grid sensors; Hearth reads that setup first. |
+| **Deye, Sunsynk and Wi-Fi logger inverters** | [Solarman](https://github.com/davidrapan/ha-solarman) from HACS | Reads the Solarman Wi-Fi stick directly on your network. Many hybrid inverters sold under other names use the same stick. |
+| **Voltronic, MUST and other off-grid inverters** | Community add-ons | Often rebranded (possibly including CWORTH). Connect over USB or serial with a community add-on, or through a Solarman-style Wi-Fi logger if yours has one. |
+| **Lithium batteries** | [BMS BLE](https://github.com/patman15/BMS_BLE-HA) from HACS, or ESPHome | Reads JK, Daly and many other BMSs over Bluetooth, including each cell's voltage. Tesla Powerwall and Victron over Bluetooth are built in. |
+| **Hisense / ConnectLife** | [ConnectLife](https://github.com/oyvindwe/connectlife-ha) from HACS | Uses your ConnectLife app login. |
+
+## Help and support
+
+Open **Settings → Help & Support** to ask a question or report a bug. Hearth prepares an editable email to [contact@elvisobi.com](mailto:contact@elvisobi.com); you send it from your mail app. App and macOS version numbers are optional. Useful bug reports include the steps, expected result and actual result.
+
+For security concerns, follow [SECURITY.md](SECURITY.md).
+
+## Privacy
+
+Hearth connects to your configured Home Assistant for state, commands and sign-in. It also fetches integration icons from `brands.home-assistant.io`, can load external album artwork supplied by Home Assistant, and opens the Home Assistant web interface in a temporary web session. Artwork requests send your Home Assistant bearer token only to the configured server's origin; cross-origin redirects have that token removed.
+
+Gadgets entered by hand can receive periodic TCP reachability checks at the address you supply. Camera streams follow Home Assistant's integration and signalling path; those integrations may use their vendors' cloud services. Hearth sends no analytics and runs no account server.
+
+The refresh token is stored in macOS Keychain. Homes, manual gadgets, maps, activity pictures and optional face samples are stored in `~/Library/Application Support/Hearth`; paint and display choices use UserDefaults. Face matching uses Apple's Vision framework on this Mac. Privacy blur covers camera images in the app, live pill and desktop widgets; it does not remove saved images. Clearing the activity timeline currently leaves its image files on disk.
+
+For a Home Assistant address across a shared network, prefer HTTPS. Plain HTTP exposes sign-in and session traffic to others who can inspect that network. Local development tools such as `--probe` act with the app's Home Assistant session; run them only with commands you understand. See [SECURITY.md](SECURITY.md).
+
+## Development
+
+```sh
+scripts/build.sh --debug                     # debug build in build/
+scripts/build.sh --no-install                # release build in build/, leaves installed app intact
+HA_URL=http://localhost:8124 HA_TOKEN=... build/Hearth.app/Contents/MacOS/Hearth --window
+```
+
+- `--window` opens the panel in a normal window; `--snapshot out.png` renders it to an image.
+- `-open <page>` opens a page (`security`, `rooms`, `devices`, `speakers`, `map`, `gadgets`, `energy`, `vehicles`, `activity` or a climate entity id); `-openDevice <id>` opens a device.
+- `-gadgetsFile <path>` reads and writes the hand-made gadget list somewhere else, so tests leave yours alone.
+- `-homesFile <path>` does the same for the homes list; `-openHome main|demo` opens a home straight away.
+- `-activityFolder <path>` isolates the activity index and its pictures for development.
+- `--render-preview <folder>` exports sample-data car, Devices, pill, settings and widget previews, then exits before connecting or asking for notification permission. Supply `-activityFolder <temporary-folder>` to isolate the app delegate's initial activity load too.
+- `--render-cars <folder>` exports the car contact sheets. `HEARTH_SDKROOT` selects an installed SDK; build scripts otherwise discover it, retaining the working macOS 26.5 SDK with Command Line Tools when available.
+- `--probe "find climate.; call climate.set_temperature climate.bedroom {\"temperature\":22}"` checks a real Home Assistant through the app's own sign-in and prints what happened. Steps: `dump`, `find`, `call`, `cmd`, `rest`, `energy`, `snap`, `wait`.
+- `docker-compose -f homeassistant/docker-compose.yml --profile dev up -d homeassistant-dev` runs a demo Home Assistant on port 8124, full of sample devices.
+
+How it fits together:
+
+| Area | Where |
+|---|---|
+| Connection, sign-in, live state | `Sources/Hearth/HomeStore.swift` (Home Assistant WebSocket API) |
+| Plain-language names for settings | `Sources/Hearth/EntityCatalog.swift` |
+| Activity feed and notifications | `Sources/Hearth/ActivityLog.swift` |
+| Pages and controls | `Sources/Hearth/Views/` |
+| Live video | `Sources/Hearth/Views/LiveVideoView.swift`, see [docs/live-video.md](docs/live-video.md) |
+
+Contributions are welcome. Adding friendly names for another brand's settings is a great first change: it's a table in `EntityCatalog.swift`.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [open-source preparation status](docs/open-source-readiness.md) and [source-release checklist](docs/source-release.md) for publication and distribution requirements. The GitHub workflow compiles the executable on a hosted macOS runner; it does not exercise connected devices or publish a binary.
+
+## Credits
+
+Developed by Elvis Obi with AI assistance from Claude and Codex.
+
+Inspired by [Ilter Canberk](https://x.com/icanberk)'s menu bar air conditioner. Built on the excellent [Home Assistant](https://www.home-assistant.io) and its community integrations.
+
+## License
+
+[MIT](LICENSE). Third-party excerpts and runtime resources retain their own terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Hearth is an independent project. Brand and product names identify compatible devices and belong to their respective owners; no affiliation or endorsement is implied.

@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'scripts/**'
+      - 'WidgetExtension/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - '.github/workflows/build.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: macOS / Swift release build
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-path
+      - name: Build executable
+        run: swift build --configuration release
+      - name: Run isolated regressions
+        run: swift test
+      - name: Check release scripts
+        run: zsh -n scripts/*.sh
+      - name: Compile optional widget extension
+        run: scripts/build-widgets.sh --universal
+
+# Compiles source only. No app launch, Home Assistant session, signing secrets,
+# installation, uploads, or public binary release is part of this workflow.

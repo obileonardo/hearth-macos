@@ -1,0 +1,21 @@
+name: Feature or integration request
+description: Suggest an improvement or device integration.
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What would you like to do?
+      description: Describe the task and how the current app handles it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include relevant Home Assistant integration documentation and brand/model, without credentials or personal identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: existing
+    attributes:
+      label: Existing controls or workflows to preserve
