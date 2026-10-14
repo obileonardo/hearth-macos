@@ -362,6 +362,7 @@ struct CameraPauseButton: View {
     var compact = true
     @State private var waitingFor: String?
     @State private var unanswered = false
+    @State private var commandFailure: String?
 
     var body: some View {
         let on = entity.state == "on"
@@ -387,11 +388,11 @@ struct CameraPauseButton: View {
         }
         .buttonStyle(PressStyle())
         .disabled(waitingFor != nil || entity.isUnavailable)
-        .help(unanswered ? "\(cameraName) didn't respond. Its hub may not accept commands from Home Assistant."
+        .help(unanswered ? commandFailure ?? "\(cameraName) didn't respond. Its hub may not accept commands from Home Assistant."
               : on ? "Pause \(cameraName) (privacy mode)" : "Turn \(cameraName) back on")
         .accessibilityLabel(on ? "Pause \(cameraName)" : "Turn \(cameraName) back on")
         .onChange(of: entity.state) { _, now in
-            if now == waitingFor { waitingFor = nil }
+            if now == waitingFor { waitingFor = nil; unanswered = false; commandFailure = nil }
         }
         .animation(.snap, value: waitingFor)
         .animation(.snap, value: unanswered)
@@ -401,7 +402,13 @@ struct CameraPauseButton: View {
         let target = entity.state == "on" ? "off" : "on"
         waitingFor = target
         unanswered = false
-        store.call("switch", target == "on" ? "turn_on" : "turn_off", entity.id)
+        commandFailure = nil
+        guard let action = DeviceCommand.power(entity, on: target == "on") else { waitingFor = nil; return }
+        store.call(action) { result in
+            if case .failure(let error) = result, waitingFor == target {
+                waitingFor = nil; unanswered = true; commandFailure = error.localizedDescription
+            }
+        }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(15))
             guard waitingFor == target else { return }

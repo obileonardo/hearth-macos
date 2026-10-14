@@ -19,16 +19,21 @@ enum HearthNavigation {
 /// Own the menu button and its one anchored panel. Widget links can open this
 /// directly without searching private SwiftUI status-window implementation types.
 @MainActor
-final class HearthMenuController: NSObject, NSPopoverDelegate {
+final class HearthMenuController: NSObject {
     static let shared = HearthMenuController()
     private(set) var statusItem: NSStatusItem?
-    private let popover = NSPopover()
+    private var panel: HearthMenuPanel?
     private weak var store: HomeStore?
     private weak var log: ActivityLog?
     private var subscriptions = Set<AnyCancellable>()
     private var ticker: StatusTicker?
     private(set) var windowAction: OpenWindowAction?
     private var statusView: HearthStatusView?
+    private var localMonitor: Any?
+    private var globalMonitor: Any?
+    private var positioningTimer: Timer?
+    private var refreshQueued = false
+    private let layout = HearthPanelLayout()
 
     var button: NSStatusBarButton? { statusItem?.button }
     var anchorView: NSView? { statusView ?? button }
@@ -40,10 +45,6 @@ final class HearthMenuController: NSObject, NSPopoverDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = "Hearth.status"
         statusItem = item
-        // Own the drawing as well as the input. Disabling a button cell's
-        // highlight leaves the system's outer glass surface on recent macOS.
-        // The public custom-view path displays only our single capsule. It is
-        // deprecated in the 26 SDK and restored in 27; supported on our older OSes.
         let view = HearthStatusView(frame: NSRect(x: 0, y: 0, width: 80,
                                                   height: NSStatusBar.system.thickness))
         view.press = { [weak self] in self?.toggle(nil) }
@@ -52,30 +53,24 @@ final class HearthMenuController: NSObject, NSPopoverDelegate {
         view.setAccessibilityLabel("Hearth")
         item.view = view
         statusView = view
-        popover.behavior = .transient
-        popover.animates = true
-        popover.contentSize = Theme.panelSize
-        popover.delegate = self
         makePanelIfReady()
         let ticker = StatusTicker()
         self.ticker = ticker
-        ticker.$tick.sink { [weak self] _ in self?.refresh() }.store(in: &subscriptions)
-        // objectWillChange precedes the new values, so read on the next main turn.
-        store.objectWillChange.sink { [weak self] _ in
-            DispatchQueue.main.async { self?.refresh() }
-        }.store(in: &subscriptions)
-        log.objectWillChange.sink { [weak self] _ in
-            DispatchQueue.main.async { self?.refresh() }
-        }.store(in: &subscriptions)
+        ticker.$tick.sink { [weak self] _ in self?.requestRefresh() }.store(in: &subscriptions)
+        store.objectWillChange.sink { [weak self] _ in self?.requestRefresh() }.store(in: &subscriptions)
+        log.objectWillChange.sink { [weak self] _ in self?.requestRefresh() }.store(in: &subscriptions)
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.refresh() }.store(in: &subscriptions)
+            .sink { [weak self] _ in self?.requestRefresh() }.store(in: &subscriptions)
+        NotificationCenter.default.publisher(for: AppearanceChoice.didChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.applyAppearance() }.store(in: &subscriptions)
+        NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.positionPanel() }.store(in: &subscriptions)
         refresh()
     }
 
-    /// Capture the action inside SwiftUI's scene/commands environment, then
-    /// use it for actions originating in the AppKit host. Camera, map and setup windows
-    /// continue to be created by their original SwiftUI scenes.
     func captureOpenWindow(_ action: OpenWindowAction) {
         guard windowAction == nil else { return }
         windowAction = action
@@ -83,38 +78,167 @@ final class HearthMenuController: NSObject, NSPopoverDelegate {
     }
 
     private func makePanelIfReady() {
-        guard popover.contentViewController == nil,
-              let store, let log, windowAction != nil else { return }
-        popover.contentViewController = NSHostingController(rootView:
-            PanelView().environmentObject(store).environmentObject(log))
+        guard panel == nil, let store, let log, windowAction != nil else { return }
+        let panel = HearthMenuPanel(contentRect: NSRect(origin: .zero, size: Theme.panelSize),
+                                    styleMask: [.borderless, .nonactivatingPanel],
+                                    backing: .buffered, defer: false)
+        panel.title = "Hearth"
+        panel.isReleasedWhenClosed = false
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.level = .popUpMenu
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.transient, .fullScreenAuxiliary]
+        panel.contentView = NSHostingView(rootView:
+            HearthPanelSurface(layout: layout).environmentObject(store).environmentObject(log))
+        panel.cancel = { [weak self] in self?.close() }
+        self.panel = panel
+        applyAppearance()
+    }
+
+    /// One entity update can invalidate many publishers. Coalesce the resulting
+    /// status scans instead of rendering/repositioning repeatedly in one turn.
+    private func requestRefresh() {
+        guard !refreshQueued else { return }
+        refreshQueued = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { [weak self] in
+            guard let self else { return }
+            self.refreshQueued = false
+            self.refresh()
+        }
+    }
+
+    private func applyAppearance() {
+        let appearance: NSAppearance? = switch AppearanceChoice.saved {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+        panel?.appearance = appearance
+        panel?.contentView?.appearance = appearance
+        panel?.contentView?.needsDisplay = true
     }
 
     private func refresh() {
+        applyAppearance()
         guard let store, let log, let view = statusView, let item = statusItem else { return }
         let lines = StatusFeed.lines(store: store, log: log)
         let line = lines.first(where: \.urgent) ?? (lines.isEmpty ? nil : lines[(ticker?.tick ?? 0) % lines.count])
         let showsName = UserDefaults.standard.object(forKey: "pill.showsName") as? Bool ?? true
         let image = MenuBarPill.image(line: line, showsName: showsName)
-        view.image = image
-        item.length = image.size.width
-        view.setFrameSize(NSSize(width: image.size.width, height: NSStatusBar.system.thickness))
+        if view.image !== image { view.image = image }
+        if abs(item.length - image.size.width) > 0.5 {
+            item.length = image.size.width
+            view.setFrameSize(NSSize(width: image.size.width, height: NSStatusBar.system.thickness))
+        }
         view.setAccessibilityLabel(line.map { "Hearth, \($0.text)" } ?? "Hearth")
         view.toolTip = line.map { "Hearth · \($0.text)" } ?? "Open Hearth"
-        LivePill.shared.statusLine = line
+        if LivePill.shared.statusLine != line { LivePill.shared.statusLine = line }
+        positionPanel()
     }
 
     @objc private func toggle(_ sender: Any?) {
-        if popover.isShown { popover.performClose(sender) } else { open() }
+        if panel?.isVisible == true { close() } else { open() }
     }
 
     func open() {
-        guard let anchor = anchorView, popover.contentViewController != nil else { return }
-        if !popover.isShown {
-            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+        guard let panel else { return }
+        applyAppearance()
+        positionPanel()
+        panel.makeKeyAndOrderFront(nil)
+        HearthNavigation.panel = panel
+        installDismissal()
+        // Menu items slide when their text changes or another item appears.
+        // Follow the actual screen rect rather than retaining the opening rect.
+        positioningTimer?.invalidate()
+        positioningTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.positionPanel() }
         }
-        NSApp.activate(ignoringOtherApps: true)
-        popover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
     }
+
+    func close() {
+        panel?.orderOut(nil)
+        positioningTimer?.invalidate()
+        positioningTimer = nil
+        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
+        if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
+        localMonitor = nil
+        globalMonitor = nil
+    }
+
+    private func positionPanel() {
+        guard let anchor = anchorView, let statusWindow = anchor.window, let panel else { return }
+        let rect = statusWindow.convertToScreen(anchor.convert(anchor.bounds, to: nil))
+        guard let screen = statusWindow.screen ?? NSScreen.screens.first(where: { $0.frame.intersects(rect) }) else { return }
+        let frame = MenuPanelGeometry.frame(anchor: rect, visibleFrame: screen.visibleFrame, panelSize: Theme.panelSize)
+        if layout.size != frame.size { layout.size = frame.size }
+        if abs(frame.origin.x - panel.frame.origin.x) > 0.5 || abs(frame.origin.y - panel.frame.origin.y) > 0.5 || panel.frame.size != frame.size {
+            panel.setFrame(frame, display: true)
+        }
+    }
+
+    private func installDismissal() {
+        guard localMonitor == nil else { return }
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
+            guard let self else { return event }
+            if event.type == .keyDown && event.keyCode == 53 && event.window === self.panel {
+                self.close()
+                return nil
+            }
+            if event.type != .keyDown {
+                let insidePanel = self.panel?.frame.contains(NSEvent.mouseLocation) == true
+                let insideStatus = self.anchorView?.window?.frame.contains(NSEvent.mouseLocation) == true
+                var ancestor = event.window
+                var child = false
+                while let window = ancestor {
+                    if window === self.panel { child = true; break }
+                    ancestor = window.parent
+                }
+                // Native popup menus and child popovers belong to the current flow.
+                let nativeMenu = event.window.map { $0.level.rawValue >= NSWindow.Level.popUpMenu.rawValue } ?? true
+                if !insidePanel && !insideStatus && !child && !nativeMenu { self.close() }
+            }
+            return event
+        }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.close() }
+        }
+    }
+}
+
+@MainActor
+private final class HearthPanelLayout: ObservableObject {
+    @Published var size = Theme.panelSize
+}
+
+private struct HearthPanelSurface: View {
+    @ObservedObject var layout: HearthPanelLayout
+    var body: some View {
+        PanelView()
+            .environment(\.hearthPanelSize, layout.size)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Theme.fg.opacity(0.12), lineWidth: 0.5))
+    }
+}
+
+private struct HearthPanelSizeKey: EnvironmentKey {
+    static let defaultValue: CGSize? = nil
+}
+
+extension EnvironmentValues {
+    var hearthPanelSize: CGSize? {
+        get { self[HearthPanelSizeKey.self] }
+        set { self[HearthPanelSizeKey.self] = newValue }
+    }
+}
+
+private final class HearthMenuPanel: NSPanel {
+    var cancel: (() -> Void)?
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+    override func cancelOperation(_ sender: Any?) { cancel?() }
 }
 
 /// Draws exactly one image; there is no NSStatusBarButton bezel or glass layer.

@@ -64,6 +64,8 @@ struct DeviceInfo: Identifiable {
     var areaID: String?
     /// Home Assistant's own services (Backup, Sun, HACS) register as devices; they aren't hardware.
     var isService = false
+    /// Integration domains from the device registry identifiers, not inferred from its name.
+    var integrations: Set<String> = []
 }
 
 /// A room, from Home Assistant's area registry.
@@ -101,6 +103,10 @@ final class HomeStore: ObservableObject {
     @Published private(set) var status: Status = .connecting
     /// Service calls that haven't come back yet, so the footer can say "Syncing".
     @Published private(set) var inFlight = 0
+    /// Service metadata is optional: discovery must never prevent the state feed connecting.
+    @Published private(set) var services: JSON?
+    /// Legacy callers still receive a visible error; controls with callbacks own their error presentation.
+    @Published var actionError: String?
     @Published private(set) var temperatureUnit = "°C"
     /// The latest picture from each camera, so tiles have something to show the moment the panel opens.
     @Published private(set) var snapshots: [String: NSImage] = [:]
@@ -213,6 +219,7 @@ final class HomeStore: ObservableObject {
         let gen = generation
         socket?.cancel(with: .goingAway, reason: nil)
         failPending(ProviderError("Reconnecting"))
+        services = nil
 
         guard let base = baseURL, isSignedIn else {
             status = .needsSetup
@@ -334,7 +341,8 @@ final class HomeStore: ObservableObject {
                         manufacturer: row["manufacturer"] as? String,
                         model: row["model"] as? String,
                         areaID: row["area_id"] as? String,
-                        isService: row["entry_type"] as? String == "service"
+                        isService: row["entry_type"] as? String == "service",
+                        integrations: DeviceCommand.integrationDomains(row["identifiers"])
                     )
                 }
                 devices = found
@@ -363,6 +371,12 @@ final class HomeStore: ObservableObject {
             }
             guard gen == generation else { return }
             status = .connected
+            services = nil
+            Task { [weak self] in
+                guard let self, let found = try? await self.command(["type": "get_services"]) as? JSON,
+                      self.generation == gen else { return }
+                self.services = found
+            }
             retryDelay = 1
             onConnected?()
         } catch {
@@ -423,7 +437,8 @@ final class HomeStore: ObservableObject {
                 guard let id = row["id"] as? String else { return nil }
                 return (id, DeviceInfo(id: id, name: row["name_by_user"] as? String ?? row["name"] as? String ?? "",
                                       manufacturer: row["manufacturer"] as? String, model: row["model"] as? String,
-                                      areaID: row["area_id"] as? String, isService: row["entry_type"] as? String == "service"))
+                                      areaID: row["area_id"] as? String, isService: row["entry_type"] as? String == "service",
+                                      integrations: DeviceCommand.integrationDomains(row["identifiers"])))
             })
         }
     }
@@ -487,7 +502,7 @@ final class HomeStore: ObservableObject {
 
     @discardableResult
     func command(_ body: JSON, id fixedID: Int? = nil) async throws -> Any? {
-        if let simulator { return simulator(body) }
+        if let simulator { return try simulator(body) }
         for _ in 0..<100 where signedInSocket == nil || signedInSocket !== socket {
             try? await Task.sleep(for: .milliseconds(100))
         }
@@ -498,6 +513,12 @@ final class HomeStore: ObservableObject {
         msg["id"] = id
         return try await withCheckedThrowingContinuation { cont in
             pending[id] = cont
+            if body["type"] as? String == "call_service" {
+                Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(30))
+                    self?.pending.removeValue(forKey: id)?.resume(throwing: ProviderError("Home Assistant has not confirmed this action. Check the device before retrying."))
+                }
+            }
             Task {
                 do { try await self.sendJSON(msg, on: socket) } catch {
                     self.pending.removeValue(forKey: id)?.resume(throwing: error)
@@ -506,23 +527,30 @@ final class HomeStore: ObservableObject {
         }
     }
 
-    /// Calls a service and shows "Syncing" until Home Assistant answers.
-    func call(_ domain: String, _ service: String, _ entityID: String, _ data: JSON = [:]) {
+    /// Calls a service and reports whether Home Assistant accepted it. A success is
+    /// acknowledgement, not proof of physical playback or a camera changing state.
+    func call(_ domain: String, _ service: String, _ entityID: String, _ data: JSON = [:],
+              completion: ((Result<Void, Error>) -> Void)? = nil) {
+        call(DeviceCommand(domain: domain, service: service, entityID: entityID, data: data), completion: completion)
+    }
+
+    func call(_ action: DeviceCommand, completion: ((Result<Void, Error>) -> Void)? = nil) {
         inFlight += 1
         Task {
             defer { inFlight -= 1 }
             do {
-                try await command([
-                    "type": "call_service",
-                    "domain": domain,
-                    "service": service,
-                    "service_data": data,
-                    "target": ["entity_id": entityID],
-                ])
+                try await command(action.body)
+                completion?(.success(()))
             } catch {
-                NSLog("Hearth: \(domain).\(service) failed: \(error.localizedDescription)")
+                NSLog("Hearth: \(action.domain).\(action.service) failed: \(error.localizedDescription)")
+                if completion == nil { actionError = error.localizedDescription }
+                completion?(.failure(error))
             }
         }
+    }
+
+    func hasService(_ domain: String, _ service: String) -> Bool {
+        (services?[domain] as? JSON)?[service] != nil
     }
 
     /// Shows a change straight away, before Home Assistant confirms it.
@@ -536,11 +564,11 @@ final class HomeStore: ObservableObject {
 
     /// Set only on a store that plays a demo: it never connects to Home Assistant, and every
     /// command it would have sent (service calls included) is answered here instead.
-    private(set) var simulator: ((JSON) -> Any?)?
+    private(set) var simulator: ((JSON) throws -> Any?)?
     var isDemo: Bool { simulator != nil }
 
     /// Turns this store into a demo: sample devices, no connection, commands answered locally.
-    func playDemo(devices: [DeviceInfo], entities: [Entity], deviceOf: [String: String], areas: [Area] = [], simulator: @escaping (JSON) -> Any?) {
+    func playDemo(devices: [DeviceInfo], entities: [Entity], deviceOf: [String: String], areas: [Area] = [], simulator: @escaping (JSON) throws -> Any?) {
         self.simulator = simulator
         self.devices = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
         self.entities = Dictionary(uniqueKeysWithValues: entities.map { ($0.id, $0) })

@@ -31,6 +31,7 @@ struct PanelView: View {
     @EnvironmentObject var store: HomeStore
     @EnvironmentObject var log: ActivityLog
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.hearthPanelSize) private var nativePanelSize
     @AppStorage("page") private var savedPage = ""
     @State private var showSettings = UserDefaults.standard.bool(forKey: "openSettings")
     @State private var shown = false
@@ -150,11 +151,21 @@ struct PanelView: View {
             }
             .overlay(alignment: .bottom) { footer }
         }
-        .frame(width: Theme.panelSize.width, height: Self.snapshotHeight ?? Theme.panelSize.height)
+        .frame(width: nativePanelSize?.width ?? Theme.panelSize.width,
+               height: Self.snapshotHeight ?? nativePanelSize?.height ?? Theme.panelSize.height)
         // Figures that change (temperatures, watts, times) keep their width, so nothing jitters.
         .monospacedDigit()
         .foregroundStyle(Theme.ink)
+        .modifier(HearthAppearancePreference())
         .background(PanelWindowReader())
+        .alert("Couldn’t complete action", isPresented: Binding(
+            get: { store.actionError != nil },
+            set: { if !$0 { store.actionError = nil } }
+        )) {
+            Button("OK") { store.actionError = nil }
+        } message: {
+            Text(store.actionError ?? "")
+        }
         .onReceive(NotificationCenter.default.publisher(for: HearthNavigation.pageRequested)) { note in
             guard let requested = note.object as? String else { return }
             showSettings = false
@@ -177,14 +188,14 @@ struct PanelView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
-            // The menu bar panel is the only untitled window; replay the entrance each time it opens.
-            if let window = note.object as? NSWindow, !window.styleMask.contains(.titled) {
+            // Widget windows must not replay or suspend the menu panel's content.
+            if let window = note.object as? NSWindow, window === HearthNavigation.panel {
                 visible = true
                 replayEntrance()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
-            if let window = note.object as? NSWindow, !window.styleMask.contains(.titled) { visible = false }
+            if let window = note.object as? NSWindow, window === HearthNavigation.panel { visible = false }
         }
     }
 
@@ -330,6 +341,8 @@ private enum SettingsRoute: Equatable {
 
 struct SettingsView: View {
     @EnvironmentObject var store: HomeStore
+    /// Offline guides can render either state without evaluating the Keychain-backed store.
+    var previewSignedIn: Bool? = nil
     var onDone: () -> Void
     @State private var url = UserDefaults.standard.string(forKey: "ha.url") ?? "http://localhost:8123"
     @State private var username = UserDefaults.standard.string(forKey: "ha.username") ?? ""
@@ -339,7 +352,7 @@ struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("camera.refresh") private var refresh = 60.0
 
-    private var signedIn: Bool { store.isSignedIn && store.status != .rejected }
+    private var signedIn: Bool { previewSignedIn ?? (store.isSignedIn && store.status != .rejected) }
     /// Existing Account renders remain available; Help can be rendered with `-openHelp YES`.
     @State private var route: SettingsRoute = UserDefaults.standard.bool(forKey: "openHelp") ? .help
         : UserDefaults.standard.bool(forKey: "openAccount") ? .account : .settings
@@ -398,6 +411,7 @@ struct SettingsView: View {
                 LabeledField(label: "Home Assistant address", placeholder: "http://homeassistant.local:8123", text: $url)
                 LabeledField(label: "Username", placeholder: "The one you use for Home Assistant", text: $username, contentType: .username)
                 LabeledField(label: "Password", placeholder: "Password", text: $password, secure: true, contentType: .password, onSubmit: signIn)
+                signInButton.frame(maxWidth: .infinity, alignment: .trailing)
             }
 
             Button { route = .help } label: {
@@ -462,42 +476,43 @@ struct SettingsView: View {
                 }
             }
 
-            Spacer()
-
-            HStack {
-                Button("Quit Hearth") { NSApp.terminate(nil) }
-                    .buttonStyle(PressStyle())
-                    .font(.system(size: 13, weight: .medium))
+            Button { NSApp.terminate(nil) } label: {
+                Text("Quit Hearth").font(.system(size: 13, weight: .medium)).underline()
                     .foregroundStyle(Theme.muted)
-                Spacer()
-                if !signedIn {
-                    Button(action: signIn) {
-                        HStack(spacing: 10) {
-                            Text(working ? "Signing in" : "Sign in").font(.system(size: 13.5, weight: .semibold))
-                            ZStack {
-                                if working {
-                                    ProgressView().controlSize(.mini)
-                                } else {
-                                    Image(systemName: "arrow.right").font(.system(size: 11.5, weight: .semibold))
-                                }
-                            }
-                            .frame(width: 22, height: 22)
-                            .background(Circle().fill(Theme.onCTA.opacity(0.1)))
-                        }
-                        .foregroundStyle(Theme.onCTA)
-                        .padding(.leading, 16).padding(.trailing, 4)
-                        .frame(height: 30)
-                        .background(Capsule().fill(Theme.cta))
-                    }
-                    .buttonStyle(PressStyle())
-                    .disabled(working || username.isEmpty || password.isEmpty)
-                    .opacity(username.isEmpty || password.isEmpty ? 0.5 : 1)
-                }
+                    .padding(.horizontal, 12).frame(height: 24)
             }
-            .padding(.bottom, 4)
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Quit Hearth")
+            .frame(maxWidth: .infinity)
+            .padding(.top, 20)
+            .padding(.bottom, 10)
         }
         .animation(.glide, value: problem)
         .animation(.glide, value: signedIn)
+    }
+
+    private var signInButton: some View {
+        Button(action: signIn) {
+            HStack(spacing: 10) {
+                Text(working ? "Signing in" : "Sign in").font(.system(size: 13.5, weight: .semibold))
+                ZStack {
+                    if working {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "arrow.right").font(.system(size: 11.5, weight: .semibold))
+                    }
+                }
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(Theme.onCTA.opacity(0.1)))
+            }
+            .foregroundStyle(Theme.onCTA)
+            .padding(.leading, 16).padding(.trailing, 4)
+            .frame(height: 30)
+            .background(Capsule().fill(Theme.cta))
+        }
+        .buttonStyle(PressStyle())
+        .disabled(working || username.isEmpty || password.isEmpty)
+        .opacity(username.isEmpty || password.isEmpty ? 0.5 : 1)
     }
 
     private func signIn() {

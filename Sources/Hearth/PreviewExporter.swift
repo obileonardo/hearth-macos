@@ -15,6 +15,7 @@ enum PreviewExporter {
         var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         arguments["homesFile"] = fixtures.appendingPathComponent("homes.json").path
         arguments["gadgetsFile"] = fixtures.appendingPathComponent("gadgets.json").path
+        arguments["facesFolder"] = fixtures.appendingPathComponent("faces", isDirectory: true).path
         arguments["activityFolder"] = fixtures.path
         arguments["mapsFolder"] = fixtures.appendingPathComponent("maps").path
         arguments["map.current"] = ""
@@ -24,6 +25,13 @@ enum PreviewExporter {
         arguments["map.plan"] = false
         arguments["demo"] = ""
         arguments["openHome"] = ""
+        arguments["openAccount"] = false
+        arguments["openHelp"] = false
+        arguments["openFaces"] = false
+        arguments["ha.url"] = "http://homeassistant.local:8123"
+        arguments["ha.username"] = "demo"
+        arguments["appearance"] = "system"
+        arguments["desktopWidgets.climateEntity"] = "climate.preview_living_room"
         UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
         let engine = DemoEngine(.vehicles)
         let energy = DemoEngine(.energy)
@@ -52,6 +60,18 @@ enum PreviewExporter {
         }, entities: players, deviceOf: Dictionary(uniqueKeysWithValues: ids.map { ($0, $0) }), areas: rooms, simulator: { _ in nil })
         for scheme in [ColorScheme.dark, .light] {
             let suffix = scheme == .dark ? "dark" : "light"
+            try save(PreviewProductShowcase(), name: "product-showcase-\(suffix)", width: 1020,
+                     scheme: scheme, store: energy.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: .devices) { DevicesPage(hub: hub, shown: true, visible: false) },
+                     name: "guide-devices-\(suffix)", width: 448, scheme: scheme, store: engine.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: .devices) { MediaPage(players: players, shown: true, previewLayout: "grid") },
+                     name: "guide-speakers-\(suffix)", width: 448, scheme: scheme, store: speakers, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: .climate(climate.id)) { ClimatePage(entityID: climate.id, shown: true) },
+                     name: "guide-climate-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: nil, settings: true) { SettingsView(previewSignedIn: false) {} },
+                     name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport {} },
+                     name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(CarCard(device: car) { _ in }, name: "vehicle-\(suffix)", width: 368,
                      scheme: scheme, store: engine.store, log: log, out: out)
             try save(DevicesPage(hub: hub, shown: true, visible: false), name: "devices-\(suffix)", width: 368,
@@ -189,5 +209,89 @@ enum PreviewExporter {
             throw ProviderError("Couldn't render \(name)")
         }
         try png.write(to: out.appendingPathComponent("\(name).png"), options: .atomic)
+    }
+}
+
+/// Consistent viewport and native dock for documentation. Only sample views are
+/// hosted; this bypasses PanelView's saved-route initialization and never signs in.
+private struct PreviewScreenshotPanel<Content: View>: View {
+    let selected: Page?
+    var settings = false
+    @ViewBuilder let content: () -> Content
+    private let pages: [Page] = [.climate("climate.preview_living_room"), .security, .rooms, .devices, .map, .activity]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content().fixedSize(horizontal: false, vertical: true)
+                .frame(width: 404, height: 532, alignment: .top).clipped().padding(22)
+            Dock(pages: pages, selected: selected, label: { page in
+                switch page {
+                case .climate: ("snowflake", "Workspace")
+                case .security: ("video", "Security")
+                case .rooms: ("square.grid.2x2", "Rooms")
+                case .devices: ("plug", "Devices")
+                case .map: ("cube.transparent", "3D map")
+                case .activity: ("bell", "Activity")
+                case .media: ("speaker", "Speakers")
+                }
+            }, settingsOn: settings, status: (Theme.ok, "Demo"), onSelect: { _ in })
+                .padding(.horizontal, 18).frame(height: 72)
+        }
+        .frame(width: 448, height: 648)
+        .environment(\.hearthDocumentationPreview, true)
+        .foregroundStyle(Theme.ink).background(Theme.base)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 0.5))
+    }
+}
+
+/// Drawn with the app's own illustration and card components, without a
+/// generated raster scene or invented device artwork.
+private struct PreviewProductShowcase: View {
+    var body: some View {
+        HStack(spacing: 18) {
+            feature("Climate", detail: "Comfort, one degree at a time") {
+                ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: false, width: 196, display: "24°", previewTime: 1.4).scaleEffect(0.78)
+            }
+            feature("Security", detail: "A clearer view of your home") {
+                HStack(spacing: 12) {
+                    DeviceArtView(kind: .outdoorCamera, accent: Theme.brand, size: 116)
+                    DeviceArtView(kind: .doorbell, accent: Theme.brand, size: 90)
+                }
+            }
+            feature("Speakers", detail: "The right sound, in every room") {
+                HStack(spacing: 16) {
+                    DeviceArtView(kind: .smartSpeaker, accent: Theme.brand, size: 104)
+                    DeviceArtView(kind: .meshSpeaker, accent: Theme.brand, size: 104)
+                }
+            }
+        }
+        .padding(12)
+    }
+
+    private func feature<Illustration: View>(_ title: String, detail: String, @ViewBuilder illustration: () -> Illustration) -> some View {
+        Bezel(radius: 22, inset: 3, lit: true, tint: Theme.brand) {
+            VStack(spacing: 14) {
+                illustration().frame(height: 132)
+                VStack(spacing: 5) {
+                    Text(title).font(.system(size: 20, weight: .semibold))
+                    Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                }
+            }
+            .padding(22).frame(maxWidth: .infinity)
+        }
+    }
+}
+
+/// Explicitly opt-in static native-input illustrations for offline documentation.
+/// Normal application views keep real editable fields and system switches.
+private struct HearthDocumentationPreviewKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var hearthDocumentationPreview: Bool {
+        get { self[HearthDocumentationPreviewKey.self] }
+        set { self[HearthDocumentationPreviewKey.self] = newValue }
     }
 }

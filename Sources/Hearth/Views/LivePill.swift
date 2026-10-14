@@ -455,11 +455,12 @@ struct PillAndWidgetSettings: View {
     @AppStorage("desktopWidgets.climateEntity") private var widgetClimate = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("LIVE PILL").eyebrow().padding(.leading, 4)
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
                     toggleRow("Hearth's name in the menu bar", "textformat", $showsName)
+                    settingsDivider
                     toggleRow("Drop down when something happens", "capsule.inset.filled", $livePill)
                     if livePill {
                         ChipsRow(options: PillEvent.Kind.allCases.filter { $0 != .hearth }.map { ($0.rawValue, $0.title, $0.symbol) },
@@ -467,6 +468,7 @@ struct PillAndWidgetSettings: View {
                             .padding(.horizontal, 12).padding(.bottom, 10).padding(.top, 2)
                             .transition(.opacity)
                     }
+                    settingsDivider
                     HStack {
                         Text("See how it looks").font(.system(size: 13, weight: .medium))
                         Spacer()
@@ -481,31 +483,46 @@ struct PillAndWidgetSettings: View {
             }
             .animation(.settle, value: livePill)
 
-            Text("DESKTOP WIDGETS").eyebrow().padding(.leading, 4).padding(.top, 8)
+            Text("DESKTOP WIDGETS").eyebrow().padding(.leading, 4).padding(.top, 10)
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
                     toggleRow("Show widgets on the desktop", "rectangle.3.group", $widgets)
                     if widgets {
-                        ChipsRow(options: DesktopWidgetKind.allCases.map { ($0.rawValue, $0.title, $0.symbol) }, off: $widgetsOff)
-                            .padding(.horizontal, 12).padding(.bottom, 10).padding(.top, 2)
+                        settingsDivider
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                            ForEach(DesktopWidgetKind.allCases) { kind in widgetChoice(kind) }
+                        }
+                            .padding(12)
                             .transition(.opacity)
-                        HStack(spacing: 8) {
+                        settingsDivider
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Climate source").font(.system(size: 12.5, weight: .medium))
-                            Spacer(minLength: 4)
                             Picker("Climate source", selection: $widgetClimate) {
                                 Text("Automatic").tag("")
                                 ForEach(widgetClimates) { entity in Text(entity.name).tag(entity.id) }
+                                if !widgetClimate.isEmpty && !widgetClimates.contains(where: { $0.id == widgetClimate }) {
+                                    Text("Saved AC · unavailable").tag(widgetClimate)
+                                }
                             }
-                            .labelsHidden().pickerStyle(.menu).controlSize(.small)
-                            .frame(maxWidth: 170)
-                        }.padding(.horizontal, 12).padding(.bottom, 12)
+                            .labelsHidden().pickerStyle(.menu).controlSize(.regular)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("Automatic chooses an available, running AC first.")
+                                .font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }.padding(12)
                     }
                 }
             }
             .animation(.settle, value: widgets)
-            Text("Click to open. Drag the top handle to move, or the bottom-right grip to resize. Live values update while Hearth is open. Automatic follows an available, running AC first.")
-                .font(.system(size: 12)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
-                .fixedSize(horizontal: false, vertical: true)
+            if widgets {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Click a widget to open its page in Hearth.")
+                    Text("Move with the top handle. Resize with the corner grip.")
+                    Text("Live values update while Hearth is open.")
+                }
+                .font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                .padding(.horizontal, 4).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .onChange(of: widgets) { _, _ in DesktopWidgets.shared.refresh() }
         .onChange(of: widgetsOff) { _, _ in DesktopWidgets.shared.refresh() }
@@ -514,6 +531,44 @@ struct PillAndWidgetSettings: View {
     private var widgetClimates: [Entity] {
         store.entities.values.filter { $0.domain == "climate" && !DeviceKind.vehicles.contains(store.homeDevice(store.registry[$0.id]?.deviceID ?? "")?.kind ?? .generic) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var settingsDivider: some View {
+        Rectangle().fill(Theme.hairline).frame(height: 0.5).padding(.horizontal, 12)
+    }
+
+    private func widgetChoice(_ kind: DesktopWidgetKind) -> some View {
+        let disabled = Set(widgetsOff.split(separator: ",").map(String.init))
+        let selected = !disabled.contains(kind.rawValue)
+        return Button {
+            var next = disabled
+            if selected { next.insert(kind.rawValue) } else { next.remove(kind.rawValue) }
+            widgetsOff = next.sorted().joined(separator: ",")
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: kind.symbol)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(selected ? Theme.brand : Theme.muted)
+                    .frame(width: 18)
+                Text(kind.title).font(.system(size: 12, weight: .semibold))
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(selected ? Theme.brand : Theme.faint)
+            }
+            .padding(.horizontal, 10).frame(height: 46)
+            .foregroundStyle(selected ? Theme.ink : Theme.muted)
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(selected ? Theme.brand.opacity(0.09) : Theme.fg.opacity(0.025)))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(selected ? Theme.brand.opacity(0.28) : Theme.hairline, lineWidth: 0.75))
+            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityLabel(kind.title)
+        .accessibilityValue(selected ? "Shown" : "Hidden")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func toggleRow(_ title: String, _ symbol: String, _ on: Binding<Bool>) -> some View {

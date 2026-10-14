@@ -79,14 +79,8 @@ struct SpeakerGridCard: View {
                             .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.muted)
                         Spacer(minLength: 0)
                         if online {
-                            Button {
-                                store.call("media_player", playing || entity.state == "paused" ? "media_play_pause" : "media_play", entity.id)
-                            } label: {
-                                Image(systemName: playing ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 10)).frame(width: 25, height: 25)
-                                    .background(Circle().fill(Theme.fg.opacity(0.08)))
-                            }
-                            .buttonStyle(PressStyle()).accessibilityLabel(playing ? "Pause" : "Play")
+                            SpeakerPlayButton(entity: entity, size: 25)
+
                         }
                     }
                     .frame(height: 26)

@@ -107,18 +107,49 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
         }
     }
 
-    static var saved: AppearanceChoice {
-        AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: "appearance") ?? "") ?? .system
+    static let preferenceKey = "appearance"
+    static let didChange = Notification.Name("Hearth.appearanceDidChange")
+    static var saved: AppearanceChoice { saved(in: .standard) }
+    static func saved(in defaults: UserDefaults) -> AppearanceChoice {
+        AppearanceChoice(rawValue: defaults.string(forKey: preferenceKey) ?? "") ?? .system
+    }
+
+    var appearanceName: NSAppearance.Name? {
+        switch self {
+        case .system: nil
+        case .light: .aqua
+        case .dark: .darkAqua
+        }
+    }
+
+    var preferredColorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    @MainActor var nativeAppearance: NSAppearance? {
+        appearanceName.flatMap { NSAppearance(named: $0) }
     }
 
     /// Sets the whole app, the panel and every window, to this appearance.
     @MainActor
     func apply() {
-        switch self {
-        case .system: NSApp.appearance = nil
-        case .light: NSApp.appearance = NSAppearance(named: .aqua)
-        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
-        }
+        NSApp.appearance = nativeAppearance
+        // AppKit-owned panels do not necessarily inherit the application's
+        // appearance. Their controller observes this explicit update as well.
+        NotificationCenter.default.post(name: Self.didChange, object: self)
+    }
+}
+
+/// Keep the hosted SwiftUI tree's traits in step with the native panel override.
+/// System clears the preference rather than freezing the current system mode.
+struct HearthAppearancePreference: ViewModifier {
+    @AppStorage(AppearanceChoice.preferenceKey) private var appearance = AppearanceChoice.system.rawValue
+    func body(content: Content) -> some View {
+        content.preferredColorScheme((AppearanceChoice(rawValue: appearance) ?? .system).preferredColorScheme)
     }
 }
 

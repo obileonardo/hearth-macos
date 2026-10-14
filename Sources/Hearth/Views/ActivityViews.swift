@@ -77,12 +77,25 @@ struct ActivityPage: View {
         return out
     }
 
+    private enum Route: Equatable {
+        case timeline, preferences, face(UUID)
+    }
+
+    private var route: Route {
+        if let naming { return .face(naming) }
+        return showAlerts ? .preferences : .timeline
+    }
+
     var body: some View {
-        if let naming {
-            FacesPage(focus: naming, back: { withAnimation(.glide) { self.naming = nil } })
-                .transition(.dissolve)
-        } else {
-            timeline.transition(.dissolve)
+        ScreenFlow(route: route, depth: route == .timeline ? 0 : 1) { displayed in
+            switch displayed {
+            case .face(let id):
+                FacesPage(focus: id, back: { naming = nil })
+            case .preferences:
+                alertSettings
+            case .timeline:
+                timeline
+            }
         }
     }
 
@@ -90,19 +103,18 @@ struct ActivityPage: View {
         VStack(alignment: .leading, spacing: 14) {
             PageHeader(eyebrow: summary, title: "Activity") {
                 Button {
-                    withAnimation(.glide) { showAlerts.toggle() }
+                    showAlerts = true
                 } label: {
-                    Image(systemName: showAlerts ? "bell.fill" : "bell")
+                    Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 14, weight: .light))
                         .frame(width: 34, height: 34)
                         .background(Circle().fill(Theme.fg.opacity(showAlerts ? 0.12 : 0.05)).overlay(Circle().strokeBorder(Theme.hairline)))
                 }
                 .buttonStyle(PressStyle())
-                .help("Choose what notifies you")
+                .help("Notification preferences")
+                .accessibilityLabel("Notification preferences")
             }
             .reveal(shown, 0)
-
-            if showAlerts { alertSettings.transition(.dissolve) }
 
             // Keep text and selection fills intact. A fading mask made the end chips look dirty.
             ScrollView(.horizontal, showsIndicators: false) {
@@ -226,15 +238,31 @@ struct ActivityPage: View {
     }
 
     private var alertSettings: some View {
-        Bezel(radius: 20, inset: 3) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Notify me about").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.muted)
-                    .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 2)
-                ForEach(ActivityLog.Kind.allCases) { kind in
-                    ControlRow(symbol: kind.symbol, label: kind.label, lit: log.notifies(kind)) {
-                        GlowSwitch(isOn: log.notifies(kind)) { log.setNotifies(kind, !log.notifies(kind)) }
+        VStack(alignment: .leading, spacing: 18) {
+            SubpageHeader(eyebrow: "Activity", title: "Notifications", back: { showAlerts = false }) { EmptyView() }
+            Text("Choose which events notify you. All events still appear in Activity.")
+                .font(.system(size: 13)).foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            notificationGroup("PEOPLE & SECURITY", kinds: [.person, .doorbell, .security])
+            notificationGroup("AROUND THE HOME", kinds: [.motion, .pet, .sound, .climate])
+        }
+    }
+
+    private func notificationGroup(_ title: String, kinds: [ActivityLog.Kind]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).eyebrow().padding(.leading, 4)
+            Bezel(radius: 20, inset: 3) {
+                VStack(spacing: 0) {
+                    ForEach(Array(kinds.enumerated()), id: \.element.id) { index, kind in
+                        ControlRow(symbol: kind.symbol, label: kind.label, lit: log.notifies(kind)) {
+                            GlowSwitch(isOn: log.notifies(kind)) { log.setNotifies(kind, !log.notifies(kind)) }
+                        }
+                        if index < kinds.count - 1 {
+                            Rectangle().fill(Theme.hairline).frame(height: 0.5)
+                                .padding(.leading, 42).padding(.trailing, 12)
+                        }
                     }
-                }
+                }.padding(.vertical, 3)
             }
         }
     }
