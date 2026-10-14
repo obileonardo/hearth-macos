@@ -31,12 +31,12 @@ extension DeviceKind {
     }
 }
 
-/// The colours of the energy page: warm sun, green charge, cool grid, the room's own sand.
+/// Energy sources stay distinct: warm sun, battery, cool grid and green home consumption.
 enum EnergyPalette {
     static let solar = Color.accent(1.0, 0.78, 0.38)
     static let battery = Color.accent(0.5, 0.92, 0.64)
     static let grid = Color.accent(0.7, 0.72, 1.0)
-    static let home = Theme.sand
+    static let home = Theme.homeEnergy
 
     static func accent(_ kind: DeviceKind) -> Color {
         switch kind {

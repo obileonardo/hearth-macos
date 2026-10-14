@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Small, purpose-drawn navigation marks. The room and camera silhouettes describe the
-/// destination instead of borrowing a generic grid or a video-call symbol.
+/// Dock activation wraps the same quiet semantic drawings used in Settings.
 struct NavigationGlyph: View {
     let page: Page
     let fallback: String
@@ -12,30 +11,9 @@ struct NavigationGlyph: View {
     var body: some View {
         Group {
             switch page {
-            case .security:
+            case .security, .rooms, .devices:
                 animatedMark {
-                    ZStack {
-                        SecurityCameraFillGlyph().fill(style: FillStyle(eoFill: true)).opacity(selected ? 1 : 0)
-                        SecurityCameraGlyph().stroke(style: line)
-                    }
-                    .frame(width: 19, height: 19)
-                }
-            case .rooms:
-                animatedMark {
-                    ZStack {
-                        RoomFillGlyph(leftWall: true).fill().opacity(selected ? 0.45 : 0)
-                        RoomFillGlyph(leftWall: false).fill(style: FillStyle(eoFill: true)).opacity(selected ? 0.9 : 0)
-                        RoomGlyph().stroke(style: line)
-                    }
-                    .frame(width: 18, height: 18)
-                }
-            case .devices:
-                animatedMark {
-                    ZStack {
-                        DeviceCollectionFillGlyph().fill(style: FillStyle(eoFill: true)).opacity(selected ? 1 : 0)
-                        DeviceCollectionGlyph().stroke(style: line)
-                    }
-                    .frame(width: 19, height: 19)
+                    StaticSemanticNavigationGlyph(page: page, fallback: fallback, selected: selected)
                 }
             default:
                 if reduceMotion {
@@ -50,14 +28,11 @@ struct NavigationGlyph: View {
         .accessibilityHidden(true)
     }
 
-    private var line: StrokeStyle {
-        StrokeStyle(lineWidth: selected ? 1.45 : 1.25, lineCap: .round, lineJoin: .round)
-    }
-
     private var symbol: some View {
         Image(systemName: fallback)
             .symbolVariant(selected ? .fill : .none)
             .font(.system(size: 15, weight: selected ? .semibold : .regular))
+            .frame(width: 17, height: 17)
     }
 
     /// Custom marks receive the same brief activation movement as the native symbols.
@@ -75,6 +50,46 @@ struct NavigationGlyph: View {
                 .spring(response: lifted ? 0.2 : 0.32, dampingFraction: 0.85)
             }
         }
+    }
+}
+
+/// A static, colour-inheriting icon for section rows and other non-navigation uses.
+/// All custom marks share a 17pt drawing box and a 1.25pt rounded stroke. Selection
+/// adds fill rather than changing stroke weight; the dock owns motion and colour.
+struct StaticSemanticNavigationGlyph: View {
+    let page: Page
+    let fallback: String
+    var selected = false
+
+    private let line = StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
+
+    var body: some View {
+        Group {
+            switch page {
+            case .security:
+                ZStack {
+                    SecurityCameraFillGlyph().fill(style: FillStyle(eoFill: true)).opacity(selected ? 1 : 0)
+                    SecurityCameraGlyph().stroke(style: line)
+                }
+            case .rooms:
+                ZStack {
+                    RoomFillGlyph(leftWall: true).fill().opacity(selected ? 0.45 : 0)
+                    RoomFillGlyph(leftWall: false).fill(style: FillStyle(eoFill: true)).opacity(selected ? 0.9 : 0)
+                    RoomGlyph().stroke(style: line)
+                }
+            case .devices:
+                ZStack {
+                    DeviceCollectionFillGlyph().fill(style: FillStyle(eoFill: true)).opacity(selected ? 1 : 0)
+                    DeviceCollectionGlyph().stroke(style: line)
+                }
+            default:
+                Image(systemName: fallback)
+                    .symbolVariant(selected ? .fill : .none)
+                    .font(.system(size: 15, weight: selected ? .semibold : .regular))
+            }
+        }
+        .frame(width: 17, height: 17)
+        .accessibilityHidden(true)
     }
 }
 
@@ -112,11 +127,16 @@ private struct DeviceCollectionFillGlyph: Shape {
     func path(in rect: CGRect) -> Path {
         let t = GlyphCoordinates(rect)
         var p = Path()
-        let corner = CGSize(width: t.scale, height: t.scale)
-        p.addRoundedRect(in: t.rect(x: 2.5, y: 4, width: 12, height: 10.5), cornerSize: corner)
-        p.addRoundedRect(in: t.rect(x: 4.1, y: 5.6, width: 8.8, height: 6.9), cornerSize: corner)
-        p.addRoundedRect(in: t.rect(x: 16, y: 8, width: 6, height: 13), cornerSize: corner)
-        p.addRoundedRect(in: t.rect(x: 17.2, y: 9.5, width: 3.6, height: 8.3), cornerSize: corner)
+        for points in [
+            [(2.5, 5.4), (14.5, 3.4), (14.5, 14.3), (2.5, 16.2)],
+            [(4.1, 6.7), (12.9, 5.3), (12.9, 12.9), (4.1, 14.3)],
+            [(17.0, 8.0), (22.0, 7.4), (22.0, 20.3), (17.0, 21.0)],
+            [(18.2, 9.4), (20.8, 9.1), (20.8, 17.7), (18.2, 18.1)]
+        ] as [[(CGFloat, CGFloat)]] {
+            p.move(to: t(points[0].0, points[0].1))
+            for point in points.dropFirst() { p.addLine(to: t(point.0, point.1)) }
+            p.closeSubpath()
+        }
         return p
     }
 }
@@ -170,21 +190,19 @@ private struct RoomGlyph: Shape {
     }
 }
 
-/// A screen and a handheld device, with enough separation to read at dock scale.
+/// A screen and a handheld device, in the same shallow oblique view as the room
+/// and camera. Their separation remains readable in the smallest section rows.
 private struct DeviceCollectionGlyph: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
         let t = GlyphCoordinates(rect)
-        p.addRoundedRect(in: t.rect(x: 2.5, y: 4.0, width: 12.0, height: 10.5),
-                         cornerSize: CGSize(width: t.scale, height: t.scale))
-        p.move(to: t(9.0, 14.5))
-        p.addLine(to: t(9.0, 18.7))
-        p.move(to: t(5.4, 18.7))
-        p.addLine(to: t(12.6, 18.7))
-        p.addRoundedRect(in: t.rect(x: 16.0, y: 8.0, width: 6.0, height: 13.0),
-                         cornerSize: CGSize(width: t.scale, height: t.scale))
-        p.move(to: t(18.3, 18.7))
-        p.addLine(to: t(19.7, 18.7))
+        p.move(to: t(2.5, 5.4)); p.addLine(to: t(14.5, 3.4))
+        p.addLine(to: t(14.5, 14.3)); p.addLine(to: t(2.5, 16.2)); p.closeSubpath()
+        p.move(to: t(9, 15.2)); p.addLine(to: t(9, 20))
+        p.move(to: t(5.4, 20.6)); p.addLine(to: t(12.6, 19.4))
+        p.move(to: t(17, 8)); p.addLine(to: t(22, 7.4))
+        p.addLine(to: t(22, 20.3)); p.addLine(to: t(17, 21)); p.closeSubpath()
+        p.move(to: t(18.8, 19.2)); p.addLine(to: t(20.2, 19.0))
         return p
     }
 }

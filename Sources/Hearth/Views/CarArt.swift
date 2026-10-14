@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 
 // MARK: Models
@@ -844,6 +845,14 @@ private struct CarArt {
         wheelFace(ctx, c, r, overCalliper: false)
     }
 
+    /// Keep trig in Darwin's Double overload, then convert explicitly at the
+    /// drawing boundary. Preserve the original left-to-right rim/fraction math.
+    private func wheelPoint(_ center: CGPoint, angle: Double, rim: CGFloat, fraction: CGFloat = 1) -> CGPoint {
+        let x: CGFloat = CGFloat(Darwin.cos(angle)) * rim * fraction
+        let y: CGFloat = CGFloat(Darwin.sin(angle)) * rim * fraction
+        return CGPoint(x: center.x + x, y: center.y + y)
+    }
+
     private func wheelFace(_ ctx: GraphicsContext, _ c: CGPoint, _ r: CGFloat, overCalliper: Bool) {
         let rim = r * (look.model == .cybertruck ? 0.6 : 0.68)
         let metal = GraphicsContext.Shading.linearGradient(Gradient(colors: [Color(white: 0.9), Color(white: 0.55), Color(white: 0.25)]),
@@ -855,28 +864,34 @@ private struct CarArt {
             if !overCalliper { ctx.fill(circle(c, rim), with: metal) }
             var scoops = Path()
             for i in 0..<5 {
-                let a = Double(i) / 5 * 2 * .pi - .pi / 2
-                scoops.addEllipse(in: CGRect(x: c.x + cos(a) * rim * 0.58 - rim * 0.16, y: c.y + sin(a) * rim * 0.58 - rim * 0.16,
-                                             width: rim * 0.32, height: rim * 0.32))
+                let a: Double = Double(i) / 5 * 2 * Double.pi - Double.pi / 2
+                let scoopCenter = wheelPoint(c, angle: a, rim: rim, fraction: 0.58)
+                let scoopInset: CGFloat = rim * 0.16
+                let scoopSide: CGFloat = rim * 0.32
+                let bounds = CGRect(x: scoopCenter.x - scoopInset, y: scoopCenter.y - scoopInset,
+                                    width: scoopSide, height: scoopSide)
+                scoops.addEllipse(in: bounds)
             }
             ctx.fill(scoops, with: .color(dark.opacity(0.85)))
         case .turbine:
             if !overCalliper { ctx.fill(circle(c, rim), with: metal) }
             var blades = Path()
             for i in 0..<10 {
-                let a = Double(i) / 10 * 2 * .pi
-                blades.move(to: CGPoint(x: c.x + cos(a) * rim * 0.3, y: c.y + sin(a) * rim * 0.3))
-                blades.addQuadCurve(to: CGPoint(x: c.x + cos(a + 0.5) * rim * 0.92, y: c.y + sin(a + 0.5) * rim * 0.92),
-                                    control: CGPoint(x: c.x + cos(a + 0.05) * rim * 0.7, y: c.y + sin(a + 0.05) * rim * 0.7))
+                let a: Double = Double(i) / 10 * 2 * Double.pi
+                let start = wheelPoint(c, angle: a, rim: rim, fraction: 0.3)
+                let end = wheelPoint(c, angle: a + 0.5, rim: rim, fraction: 0.92)
+                let control = wheelPoint(c, angle: a + 0.05, rim: rim, fraction: 0.7)
+                blades.move(to: start)
+                blades.addQuadCurve(to: end, control: control)
             }
             ctx.stroke(blades, with: .color(dark.opacity(0.8)), lineWidth: max(u(0.35), rim * 0.07))
         case .spokes(let n):
             if !overCalliper { ctx.fill(circle(c, rim), with: .color(dark)) }
             var spokes = Path()
             for i in 0..<n {
-                let a = Double(i) / Double(n) * 2 * .pi - .pi / 2
+                let a: Double = Double(i) / Double(n) * 2 * Double.pi - Double.pi / 2
                 spokes.move(to: c)
-                spokes.addLine(to: CGPoint(x: c.x + cos(a) * rim * 0.97, y: c.y + sin(a) * rim * 0.97))
+                spokes.addLine(to: wheelPoint(c, angle: a, rim: rim, fraction: 0.97))
             }
             ctx.stroke(spokes, with: metal, style: StrokeStyle(lineWidth: rim * (n > 6 ? 0.12 : 0.22), lineCap: .round))
             ctx.stroke(circle(c, rim * 0.96), with: metal, lineWidth: rim * 0.08)
@@ -884,22 +899,22 @@ private struct CarArt {
             ctx.fill(circle(c, rim), with: .color(dark))
             var spokes = Path()
             for i in 0..<5 {
-                let a = Double(i) / 5 * 2 * .pi - .pi / 2
-                for d in [-0.13, 0.13] {
+                let a: Double = Double(i) / 5 * 2 * Double.pi - Double.pi / 2
+                for d: Double in [-0.13, 0.13] {
                     spokes.move(to: c)
-                    spokes.addLine(to: CGPoint(x: c.x + cos(a + d) * rim * 0.96, y: c.y + sin(a + d) * rim * 0.96))
+                    spokes.addLine(to: wheelPoint(c, angle: a + d, rim: rim, fraction: 0.96))
                 }
             }
             ctx.stroke(spokes, with: metal, style: StrokeStyle(lineWidth: rim * 0.1, lineCap: .round))
         case .pixel:
             // Ioniq 5's parametric pixel wheel: a disc cut with a ring of squares.
             ctx.fill(circle(c, rim), with: metal)
-            for ring in [0.42, 0.74] {
+            for ring: CGFloat in [0.42, 0.74] {
                 let count = ring < 0.5 ? 6 : 12
                 for i in 0..<count {
-                    let a = Double(i) / Double(count) * 2 * .pi
+                    let a: Double = Double(i) / Double(count) * 2 * Double.pi
                     let side = rim * (ring < 0.5 ? 0.2 : 0.16)
-                    let p = CGPoint(x: c.x + cos(a) * rim * ring, y: c.y + sin(a) * rim * ring)
+                    let p = wheelPoint(c, angle: a, rim: rim, fraction: ring)
                     ctx.fill(Path(CGRect(x: p.x - side / 2, y: p.y - side / 2, width: side, height: side)), with: .color(dark))
                 }
             }
@@ -907,8 +922,8 @@ private struct CarArt {
             // A flat aero cover, almost the tyre's size.
             var hex = Path()
             for i in 0..<6 {
-                let a = Double(i) / 6 * 2 * .pi
-                let p = CGPoint(x: c.x + cos(a) * rim, y: c.y + sin(a) * rim)
+                let a: Double = Double(i) / 6 * 2 * Double.pi
+                let p = wheelPoint(c, angle: a, rim: rim)
                 i == 0 ? hex.move(to: p) : hex.addLine(to: p)
             }
             hex.closeSubpath()

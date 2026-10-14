@@ -72,6 +72,8 @@ enum PreviewExporter {
                      name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport {} },
                      name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport(initialRequest: .bug) {} },
+                     name: "guide-bug-report-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(CarCard(device: car) { _ in }, name: "vehicle-\(suffix)", width: 368,
                      scheme: scheme, store: engine.store, log: log, out: out)
             try save(DevicesPage(hub: hub, shown: true, visible: false), name: "devices-\(suffix)", width: 368,
@@ -223,7 +225,7 @@ private struct PreviewScreenshotPanel<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             content().fixedSize(horizontal: false, vertical: true)
-                .frame(width: 404, height: 532, alignment: .top).clipped().padding(22)
+                .frame(width: 404, height: Theme.panelSize.height - PanelView.footerHeight - 44, alignment: .top).padding(22).clipped()
             Dock(pages: pages, selected: selected, label: { page in
                 switch page {
                 case .climate: ("snowflake", "Workspace")
@@ -235,9 +237,11 @@ private struct PreviewScreenshotPanel<Content: View>: View {
                 case .media: ("speaker", "Speakers")
                 }
             }, settingsOn: settings, status: (Theme.ok, "Demo"), onSelect: { _ in })
-                .padding(.horizontal, 18).frame(height: 72)
+                .padding(.horizontal, 18)
+                .padding(.top, PanelView.footerTopExtra).padding(.bottom, PanelView.footerBottomExtra)
+                .frame(height: PanelView.footerHeight)
         }
-        .frame(width: 448, height: 648)
+        .frame(width: Theme.panelSize.width, height: Theme.panelSize.height)
         .environment(\.hearthDocumentationPreview, true)
         .foregroundStyle(Theme.ink).background(Theme.base)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))

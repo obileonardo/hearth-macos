@@ -49,6 +49,8 @@ struct Dock: View {
                     .scaleEffect(x: stretch, y: 2 - stretch, anchor: .center)
                     .offset(x: CGFloat(index) * tabWidth + (index >= pages.count && !pages.isEmpty ? Self.gap : 0))
                     .animation(reduceMotion ? .easeOut(duration: 0.15) : Self.slide, value: index)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
         .padding(4)
@@ -68,6 +70,7 @@ struct Dock: View {
             Image(systemName: "gearshape")
                 .symbolVariant(settingsOn ? .fill : .none)
                 .font(.system(size: 15, weight: settingsOn ? .semibold : .regular))
+                .frame(width: 17, height: 17)
                 .foregroundStyle(settingsOn ? Theme.sand : Theme.muted)
                 .rotationEffect(.degrees(settingsOn && !reduceMotion ? 60 : 0))
                 .animation(.settle, value: settingsOn)
@@ -121,8 +124,8 @@ private struct Lens: View {
     @Environment(\.hearthDocumentationPreview) private var documentationPreview
     var body: some View {
         if #available(macOS 26.0, *), !reduceTransparency && !documentationPreview {
-            Capsule().fill(Theme.fg.opacity(0.065))
-                .glassEffect(.regular.tint(Theme.fg.opacity(0.06)).interactive(), in: Capsule())
+            Capsule().fill(.clear)
+                .glassEffect(.clear, in: Capsule())
                 .overlay(Capsule().strokeBorder(LinearGradient(colors: [Theme.fg.opacity(0.22), Theme.fg.opacity(0.03)],
                                                                startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
         } else {

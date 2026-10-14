@@ -1121,76 +1121,100 @@ private struct DeviceArt {
 
     // MARK: Games console
 
-    /// A PS5 style console standing upright, seen from the front: a glossy black core
-    /// between two white panels that sweep outward into wings at the top and taper to a
-    /// narrow waist at the base, a line of light down each seam when it is on, a round
-    /// stand, and a two-tone controller resting in front.
+    /// Upright PS5-style hardware in a shallow three-quarter view. Unequal curved
+    /// plates reveal the black centre and its vents; a low stand and a larger
+    /// two-tone controller keep the silhouette readable in small gadget avatars.
     private func gameConsole(_ ctx: GraphicsContext) {
         let cx: CGFloat = 41
-        ground(ctx, cx, 89, w: 34, h: 5)
-        ground(ctx, 75, 90, w: 30, h: 4, opacity: 0.7)
+        ground(ctx, cx, 90, w: 42, h: 5, opacity: 0.72)
+        ground(ctx, 71, 94, w: 37, h: 4.5, opacity: 0.65)
 
-        // The round stand under the waist.
-        let standRect = R(cx - 9, 85.2, 18, 4)
+        // A broad, thin base under both plates, with a fine front lip.
+        let standRect = R(cx - 14.5, 86.4, 29, 4.8)
         ctx.fill(Path(ellipseIn: standRect), with: vertical(standRect, [(Color(white: 0.24), 0), (Color(white: 0.04), 1)]))
         ctx.stroke(Path(ellipseIn: standRect), with: vertical(standRect, [(.white.opacity(0.3), 0), (.clear, 0.5)]), lineWidth: u(0.4))
 
-        // The black core, standing a little proud between the panels.
-        let core = R(cx - 5.2, 12, 10.4, 74.5)
+        // The visible black core has real width; it must not read as two white blades.
+        let core = R(cx - 7.7, 12, 16.2, 75.8)
         let coreShape = Path(roundedRect: core, cornerRadius: u(3), style: .continuous)
         blackGlass(ctx, coreShape, core, sheen: 0.18)
 
-        // One white panel: straight along the core, its outer edge sweeping out to a wing
-        // tip at the top and in to a narrow foot, its top edge rising toward the tip.
+        // The near plate is broader than the far plate. Both have a gently flared
+        // crown, a curved outer edge and a visible thickness, rather than mirrored fins.
         func panel(_ side: CGFloat) -> (Path, CGRect) {
             func X(_ d: CGFloat) -> CGFloat { cx + side * d }
+            let near = side < 0
+            let inner: CGFloat = near ? 7.5 : 8.5
+            let wing: CGFloat = near ? 20 : 15.8
+            let outside: CGFloat = near ? 22 : 17
+            let foot: CGFloat = near ? 13.5 : 10.8
             var p = Path()
-            p.move(to: P(X(5.6), 13))
-            p.addCurve(to: P(X(18.2), 7.6), control1: P(X(10), 11.6), control2: P(X(14.5), 8.6))
-            p.addCurve(to: P(X(20), 11.5), control1: P(X(20.4), 7), control2: P(X(20.6), 9.4))
-            p.addCurve(to: P(X(11.5), 84), control1: P(X(17.6), 32), control2: P(X(11.5), 56))
-            p.addCurve(to: P(X(5.6), 85.6), control1: P(X(11.6), 85.4), control2: P(X(8), 85.8))
+            p.move(to: P(X(inner), near ? 15 : 14))
+            p.addCurve(to: P(X(wing), near ? 6.5 : 9.1),
+                       control1: P(X(inner + 3), 12), control2: P(X(wing - 3), near ? 7.2 : 9.6))
+            p.addCurve(to: P(X(outside), near ? 10 : 13),
+                       control1: P(X(outside), near ? 5.9 : 8.4), control2: P(X(outside + 0.7), near ? 8 : 10.8))
+            p.addCurve(to: P(X(foot), 85.5),
+                       control1: P(X(outside - 1.4), 32), control2: P(X(foot - 0.7), 58))
+            p.addCurve(to: P(X(inner), 87.3), control1: P(X(foot), 87.1), control2: P(X(inner + 2), 87.5))
             p.closeSubpath()
-            let minX = min(X(5.6), X(22)), maxX = max(X(5.6), X(22))
-            return (p, R(minX, 5, maxX - minX, 81))
+            let minX = min(X(inner), X(outside + 1)), maxX = max(X(inner), X(outside + 1))
+            return (p, R(minX, 5, maxX - minX, 83))
         }
         for side in [-1, 1] as [CGFloat] {
             let (shape, rect) = panel(side)
-            ctx.layer(blur: u(1.4)) { $0.fill(shape.offsetBy(dx: u(side * 0.5), dy: u(1)), with: .color(.black.opacity(0.55))) }
+            ctx.layer(blur: u(1.4)) { $0.fill(shape.offsetBy(dx: u(side * 0.6), dy: u(1)), with: .color(.black.opacity(0.4))) }
+            ctx.fill(shape.offsetBy(dx: u(side * 0.65), dy: u(0.5)), with: .color(Color(white: side < 0 ? 0.62 : 0.5)))
             ctx.fill(shape, with: vertical(rect, [(Color(white: 1), 0), (Color(white: 0.96), 0.3), (Color(white: 0.86), 0.72), (Color(white: 0.74), 1)]))
             var inside = ctx
             inside.clip(to: shape)
             // The panel curves away from the light toward its outer edge, and the far one more.
             let away: [(Color, CGFloat)] = side < 0
-                ? [(.black.opacity(0.26), 0), (.black.opacity(0.06), 0.45), (.clear, 0.8)]
-                : [(.clear, 0.2), (.black.opacity(0.1), 0.6), (.black.opacity(0.34), 1)]
+                ? [(.black.opacity(0.18), 0), (.black.opacity(0.025), 0.45), (.clear, 0.8)]
+                : [(.clear, 0.1), (.black.opacity(0.14), 0.5), (.black.opacity(0.32), 1)]
             inside.fill(Path(rect), with: horizontal(rect, away))
             // A soft reflection running down the swell of the panel.
             inside.layer(blur: u(2.4)) {
                 var band = Path()
-                band.move(to: P(cx + side * 9, 12))
-                band.addLine(to: P(cx + side * 15, 9))
-                band.addLine(to: P(cx + side * 11, 60))
-                band.addLine(to: P(cx + side * 8, 60))
+                band.move(to: P(cx + side * 10, 15))
+                band.addLine(to: P(cx + side * 16, 10))
+                band.addCurve(to: P(cx + side * 11, 74), control1: P(cx + side * 14, 34), control2: P(cx + side * 10, 58))
+                band.addCurve(to: P(cx + side * 10, 15), control1: P(cx + side * 9, 62), control2: P(cx + side * 10, 31))
                 band.closeSubpath()
                 $0.fill(band, with: .linearGradient(Gradient(colors: [.white.opacity(0.95), .white.opacity(0)]),
                                                     startPoint: P(cx, 10), endPoint: P(cx, 60)))
             }
             // Where the panel meets the core, a fine shadow.
-            inside.fill(Path(R(side < 0 ? cx - 6.6 : cx + 5.6, 13, 1, 73)), with: .color(.black.opacity(0.12)))
+            inside.fill(Path(R(side < 0 ? cx - 8.3 : cx + 8.5, 14, 1, 72)), with: .color(.black.opacity(0.14)))
             rim(ctx, shape, rect, 0.95, reach: 0.06)
         }
 
-        // A line of light down each seam.
+        // Small recessed vents at the exposed top and two front ports.
+        for y in stride(from: CGFloat(18), through: 27, by: 2.6) {
+            let vent = Path(roundedRect: R(cx - 5.2, y, 3.1, 0.75), cornerRadius: u(0.35))
+            ctx.fill(vent, with: .color(Color(white: 0.26)))
+        }
+        for port in [R(cx + 1.1, 64, 2.8, 0.85), R(cx + 1.7, 69, 1.6, 0.65)] {
+            ctx.fill(Path(roundedRect: port, cornerRadius: u(0.25)), with: .color(Color(white: 0.02)))
+            ctx.stroke(Path(roundedRect: port, cornerRadius: u(0.25)), with: .color(.white.opacity(0.22)), lineWidth: u(0.25))
+        }
+
+        // The far plate's thin disc opening follows the surface, not a flat sticker.
+        var slot = Path()
+        slot.move(to: P(cx + 13, 55)); slot.addCurve(to: P(cx + 11.1, 78),
+            control1: P(cx + 12, 64), control2: P(cx + 11.3, 73))
+        ctx.stroke(slot, with: .color(Color(white: 0.28)), style: StrokeStyle(lineWidth: u(0.6), lineCap: .round))
+
+        // Quiet seam light when active, with the same complete off variant.
         for side in [-1, 1] as [CGFloat] {
-            let x = cx + side * 5.4
-            let seam = R(x - 0.42, 15, 0.84, 69)
+            let x = cx + (side < 0 ? -7.1 : 8)
+            let seam = R(x - 0.35, 16, 0.7, 66)
             if on {
-                ctx.layer(blur: u(1.8), additive: true) { $0.fill(Path(R(x - 1.5, 15, 3, 69)), with: .color(glow.opacity(0.65))) }
-                ctx.fill(Path(roundedRect: seam, cornerRadius: u(0.42)),
+                ctx.layer(blur: u(1.4), additive: true) { $0.fill(Path(R(x - 1.2, 16, 2.4, 66)), with: .color(glow.opacity(0.42))) }
+                ctx.fill(Path(roundedRect: seam, cornerRadius: u(0.35)),
                          with: vertical(seam, [(glow.opacity(0.35), 0), (Color(red: 0.85, green: 0.92, blue: 1), 0.45), (glow, 0.7), (glow.opacity(0.3), 1)]))
             } else {
-                ctx.fill(Path(roundedRect: seam, cornerRadius: u(0.42)), with: .color(Color(white: 0.2)))
+                ctx.fill(Path(roundedRect: seam, cornerRadius: u(0.35)), with: .color(Color(white: 0.2)))
             }
         }
         // The power light near the foot of the core.
@@ -1198,20 +1222,24 @@ private struct DeviceArt {
 
         // The controller: white grips and shell round a black middle, two sticks, a
         // light bar either side of the touchpad.
-        let px: CGFloat = 75, py: CGFloat = 80
+        let px: CGFloat = 71, py: CGFloat = 82
+        var controllerContext = ctx
+        controllerContext.translateBy(x: u(px), y: u(py))
+        controllerContext.scaleBy(x: 1.15, y: 1.15)
+        controllerContext.translateBy(x: -u(px), y: -u(py))
         var shell = Path()
         shell.move(to: P(px - 11, py - 4.5))
         shell.addCurve(to: P(px + 11, py - 4.5), control1: P(px - 5, py - 6.2), control2: P(px + 5, py - 6.2))
         shell.addCurve(to: P(px + 15, py + 7), control1: P(px + 14.5, py - 3.8), control2: P(px + 16.5, py + 3.5))
-        shell.addCurve(to: P(px + 10.5, py + 8.5), control1: P(px + 14, py + 9.6), control2: P(px + 11.5, py + 9.8))
-        shell.addCurve(to: P(px - 10.5, py + 8.5), control1: P(px + 5, py + 3.4), control2: P(px - 5, py + 3.4))
-        shell.addCurve(to: P(px - 15, py + 7), control1: P(px - 11.5, py + 9.8), control2: P(px - 14, py + 9.6))
+        shell.addCurve(to: P(px + 10.5, py + 10.5), control1: P(px + 14, py + 11.4), control2: P(px + 11.5, py + 11.8))
+        shell.addCurve(to: P(px - 10.5, py + 10.5), control1: P(px + 5, py + 3.4), control2: P(px - 5, py + 3.4))
+        shell.addCurve(to: P(px - 15, py + 7), control1: P(px - 11.5, py + 11.8), control2: P(px - 14, py + 11.4))
         shell.addCurve(to: P(px - 11, py - 4.5), control1: P(px - 16.5, py + 3.5), control2: P(px - 14.5, py - 3.8))
         shell.closeSubpath()
-        let padRect = R(px - 15.5, py - 6, 31, 16)
-        ctx.layer(blur: u(1.2)) { $0.fill(shell.offsetBy(dx: 0, dy: u(1)), with: .color(.black.opacity(0.6))) }
-        ctx.fill(shell, with: vertical(padRect, [(Color(white: 0.98), 0), (Color(white: 0.9), 0.5), (Color(white: 0.68), 1)]))
-        var pad = ctx
+        let padRect = R(px - 15.5, py - 6, 31, 18)
+        controllerContext.layer(blur: u(1.2)) { $0.fill(shell.offsetBy(dx: 0, dy: u(1)), with: .color(.black.opacity(0.5))) }
+        controllerContext.fill(shell, with: vertical(padRect, [(Color(white: 0.98), 0), (Color(white: 0.9), 0.5), (Color(white: 0.68), 1)]))
+        var pad = controllerContext
         pad.clip(to: shell)
         // The black middle, between the grips.
         var middle = Path()
@@ -1247,7 +1275,7 @@ private struct DeviceArt {
         for (bx, by) in [(10.5, py + 0.2), (9.3, py + 1.4), (11.7, py + 1.4), (10.5, py + 2.6)] as [(CGFloat, CGFloat)] {
             pad.fill(disc(px + bx, by, 0.55), with: .color(Color(white: 0.4)))
         }
-        rim(ctx, shell, padRect, 0.9, reach: 0.12)
+        rim(controllerContext, shell, padRect, 0.9, reach: 0.12)
     }
 
     // MARK: Computer

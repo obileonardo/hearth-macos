@@ -245,7 +245,9 @@ struct PanelView: View {
     }
 
     /// The dock's band at the bottom; pages leave this much room so their last row can scroll clear.
-    static let footerHeight: CGFloat = 64
+    static let footerTopExtra: CGFloat = 32
+    static let footerBottomExtra: CGFloat = 6
+    static let footerHeight: CGFloat = 64 + footerTopExtra + footerBottomExtra
 
     /// Image snapshots can't draw scroll views, so `--snapshot` lays pages out flat.
     private static let snapshotMode = CommandLine.arguments.contains("--snapshot")
@@ -303,6 +305,8 @@ struct PanelView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.top, Self.footerTopExtra)
+        .padding(.bottom, Self.footerBottomExtra)
         .frame(height: Self.footerHeight)
         .padding(.horizontal, 18)
     }
@@ -322,8 +326,7 @@ struct PanelView: View {
         switch page {
         case .climate(let id):
             let e = store.entities[id]
-            let on = e.map { Climate(e: $0).on } ?? false
-            return (on ? "air.conditioner.horizontal.fill" : "air.conditioner.horizontal",
+            return ("snowflake",
                     Climate.shortName(e?.name ?? "AC"))
         case .security: return ("video", "Security")
         case .rooms: return ("square.grid.2x2", "Rooms")
@@ -401,7 +404,7 @@ struct SettingsView: View {
                             PulseDot(color: Theme.ok, size: 6, live: store.status == .connected)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(username.isEmpty ? "Signed in" : "Signed in as \(username)").font(.system(size: 13, weight: .semibold))
-                                Text("Account, server and integrations").font(.system(size: 12)).foregroundStyle(Theme.muted)
+                                Text("Server & integrations").font(.system(size: 12)).foregroundStyle(Theme.muted)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.faint)
@@ -426,7 +429,7 @@ struct SettingsView: View {
                             .foregroundStyle(Theme.muted).frame(width: 24)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Help & Support").font(.system(size: 13, weight: .semibold))
-                            Text("Get help or report a problem").font(.system(size: 12)).foregroundStyle(Theme.muted)
+                            Text("Questions & bug reports").font(.system(size: 12)).foregroundStyle(Theme.muted)
                         }
                         Spacer()
                         Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.faint)
@@ -439,7 +442,7 @@ struct SettingsView: View {
 
             Bezel(radius: 18, inset: 3) {
                 HStack {
-                    Text("Refresh camera pictures").font(.system(size: 13, weight: .medium))
+                    Text("Camera refresh").font(.system(size: 13, weight: .medium))
                     Spacer()
                     Button {
                         PopupMenu.show(["30", "60", "90", "120"], selected: String(Int(refresh)), label: { "Every \($0) seconds" }) { refresh = Double($0) ?? 60 }
@@ -455,12 +458,12 @@ struct SettingsView: View {
 
             AppearanceSettings()
 
-            MenuBarSettings()
+            MenuBarSettings().padding(.top, 8)
 
             // The menu bar pill, the Live pill and desktop widgets (LivePill.swift, DesktopWidgets.swift).
             PillAndWidgetSettings()
 
-            SectionSettings()
+            SectionSettings().padding(.top, 8)
 
             FacesSettingsRow()
 
@@ -556,6 +559,7 @@ private extension Array {
 
 /// What the menu bar rotates through, and how often.
 private struct MenuBarSettings: View {
+    @AppStorage("pill.showsName") private var showsName = true
     @AppStorage("status.interval") private var interval = 6.0
     @AppStorage("status.climate") private var climate = true
     @AppStorage("status.cameras") private var cameras = true
@@ -570,6 +574,8 @@ private struct MenuBarSettings: View {
             Text("MENU BAR").eyebrow().padding(.leading, 4)
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
+                    row("Show Hearth name", "textformat", $showsName)
+                    Rectangle().fill(Theme.hairline).frame(height: 0.5).padding(.horizontal, 12).padding(.vertical, 6)
                     row("Air conditioning", "snowflake", $climate)
                     row("Camera events", "person.fill", $cameras)
                     row("Vehicle charge", "car.side.fill", $vehicles)
@@ -577,8 +583,9 @@ private struct MenuBarSettings: View {
                     row("Home use", "bolt.house", $homeUse)
                     row("Now playing", "music.note", $media)
                     row("Alarm", "exclamationmark.shield.fill", $alarm)
+                    Rectangle().fill(Theme.hairline).frame(height: 0.5).padding(.horizontal, 12).padding(.vertical, 6)
                     HStack {
-                        Text("Change every").font(.system(size: 13, weight: .medium))
+                        Text("Rotate every").font(.system(size: 13, weight: .medium))
                         Spacer()
                         Button {
                             PopupMenu.show(["4", "6", "10", "20"], selected: String(Int(interval)), label: { "\($0) seconds" }) { interval = Double($0) ?? 6 }
@@ -593,7 +600,7 @@ private struct MenuBarSettings: View {
                     .frame(height: 40)
                 }
             }
-            Text("The menu bar takes turns showing these. A doorbell ring or someone at a camera shows straight away.")
+            Text("Rotate selected updates. Camera alerts appear immediately.")
                 .font(.system(size: 12)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -616,21 +623,22 @@ private struct SectionSettings: View {
     @AppStorage("hiddenSections") private var hiddenSections = ""
 
     private static let sections: [(key: String, title: String, symbol: String)] = [
-        ("security", "Security", "video"),
-        ("rooms", "Rooms", "square.grid.2x2"),
-        ("devices", "Devices: energy, vehicles, gadgets, speakers", "powerplug"),
+        ("security", "Security", "web.camera"),
+        ("rooms", "Rooms", "door.left.hand.closed"),
+        ("devices", "Devices", "desktopcomputer"),
         ("map", "3D map", "cube.transparent"),
         ("activity", "Activity", "bell"),
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("SECTIONS").eyebrow().padding(.leading, 4)
+            Text("NAVIGATION").eyebrow().padding(.leading, 4)
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
                     ForEach(Self.sections, id: \.key) { section in
                         HStack(spacing: 10) {
-                            Image(systemName: section.symbol).font(.system(size: 12)).foregroundStyle(Theme.muted).frame(width: 18)
+                            StaticSemanticNavigationGlyph(page: Self.page(for: section.key), fallback: section.symbol)
+                                .foregroundStyle(Theme.muted).frame(width: 18)
                             Text(section.title).font(.system(size: 13, weight: .medium))
                             Spacer()
                             Toggle(section.title, isOn: binding(section.key)).labelsHidden().toggleStyle(.switch).controlSize(.small)
@@ -640,9 +648,19 @@ private struct SectionSettings: View {
                     }
                 }
             }
-            Text("Turn off what you don't use and its tab leaves the dock. Air conditioners always have one.")
+            Text("Choose dock sections. AC controls remain available.")
                 .font(.system(size: 12)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private static func page(for key: String) -> Page {
+        switch key {
+        case "security": .security
+        case "rooms": .rooms
+        case "devices": .devices
+        case "map": .map
+        default: .activity
         }
     }
 

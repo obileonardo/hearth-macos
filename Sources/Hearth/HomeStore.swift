@@ -9,6 +9,8 @@ struct Entity: Identifiable {
     var state: String
     var attributes: JSON
     var lastChanged: Date?
+    /// Attribute-only updates (temperature/fan) need last_updated, not just state changes.
+    var lastUpdated: Date?
 
     var domain: String { String(id.prefix { $0 != "." }) }
     var name: String { attributes["friendly_name"] as? String ?? id }
@@ -24,11 +26,12 @@ struct Entity: Identifiable {
         (attributes[key] as? [Any])?.map { "\($0)" } ?? []
     }
 
-    init(id: String, state: String, attributes: JSON, lastChanged: Date? = nil) {
+    init(id: String, state: String, attributes: JSON, lastChanged: Date? = nil, lastUpdated: Date? = nil) {
         self.id = id
         self.state = state
         self.attributes = attributes
         self.lastChanged = lastChanged
+        self.lastUpdated = lastUpdated
     }
 
     init?(_ raw: JSON) {
@@ -37,6 +40,15 @@ struct Entity: Identifiable {
         state = raw["state"] as? String ?? "unknown"
         attributes = raw["attributes"] as? JSON ?? [:]
         lastChanged = (raw["last_changed"] as? String).flatMap(Self.parseDate)
+        lastUpdated = (raw["last_updated"] as? String).flatMap(Self.parseDate)
+    }
+
+    /// A delayed read must not replace a newer push. Older payloads fall back to
+    /// last_changed; an undated incoming snapshot cannot establish freshness.
+    func isAtLeastAsRecent(as current: Entity) -> Bool {
+        guard let incoming = lastUpdated ?? lastChanged else { return false }
+        guard let existing = current.lastUpdated ?? current.lastChanged else { return true }
+        return incoming >= existing
     }
 
     private static func parseDate(_ s: String) -> Date? {
@@ -500,9 +512,21 @@ final class HomeStore: ObservableObject {
 
     // MARK: Commands
 
+    private let climateCommands = ClimateCommandQueue()
+
     @discardableResult
     func command(_ body: JSON, id fixedID: Int? = nil) async throws -> Any? {
         if let simulator { return try simulator(body) }
+        if let key = ClimateCommandScope.key(for: body, registry: registry, entities: entities) {
+            return try await climateCommands.run(key: key) { [self] in
+                try await sendCommand(body, id: fixedID)
+            }
+        }
+        return try await sendCommand(body, id: fixedID)
+    }
+
+    /// The existing transport stays shared by reads and all unrelated service calls.
+    private func sendCommand(_ body: JSON, id fixedID: Int? = nil) async throws -> Any? {
         for _ in 0..<100 where signedInSocket == nil || signedInSocket !== socket {
             try? await Task.sleep(for: .milliseconds(100))
         }
@@ -527,6 +551,23 @@ final class HomeStore: ObservableObject {
         }
     }
 
+    /// Read one entity out of HA's snapshot, retaining a newer state_changed push.
+    /// Demo refreshes remain in memory and a failed read never invents a rollback.
+    @discardableResult
+    func refreshEntity(_ entityID: String) async -> Entity? {
+        if isDemo { return entities[entityID] }
+        guard signedInSocket != nil, signedInSocket === socket,
+              let rows = try? await command(["type": "get_states"]) as? [JSON],
+              let raw = rows.first(where: { $0["entity_id"] as? String == entityID }),
+              let fresh = Entity(raw) else { return nil }
+        let current = entities[entityID]
+        if let current, !fresh.isAtLeastAsRecent(as: current) { return current }
+        entities[entityID] = fresh
+        // A read is reconciliation, not a new event. Comparing it with a legacy
+        // optimistic value could fabricate an Activity/Live pill transition.
+        return fresh
+    }
+
     /// Calls a service and reports whether Home Assistant accepted it. A success is
     /// acknowledgement, not proof of physical playback or a camera changing state.
     func call(_ domain: String, _ service: String, _ entityID: String, _ data: JSON = [:],
@@ -535,6 +576,8 @@ final class HomeStore: ObservableObject {
     }
 
     func call(_ action: DeviceCommand, completion: ((Result<Void, Error>) -> Void)? = nil) {
+        let refreshTarget = ClimateCommandScope.key(for: action.body, registry: registry, entities: entities) != nil
+            ? action.entityID : nil
         inFlight += 1
         Task {
             defer { inFlight -= 1 }
@@ -543,6 +586,9 @@ final class HomeStore: ObservableObject {
                 completion?(.success(()))
             } catch {
                 NSLog("Hearth: \(action.domain).\(action.service) failed: \(error.localizedDescription)")
+                // Legacy climate/sibling controls may have shown an optimistic value.
+                // Reconcile only their exact target, using the same freshness guard.
+                if let refreshTarget { await refreshEntity(refreshTarget) }
                 if completion == nil { actionError = error.localizedDescription }
                 completion?(.failure(error))
             }

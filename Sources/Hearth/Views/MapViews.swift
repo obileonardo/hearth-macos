@@ -139,9 +139,9 @@ private struct DemoNote: View {
         HStack(alignment: .top, spacing: 11) {
             Text("DEMO")
                 .font(.system(size: 11, weight: .bold)).tracking(1.1)
-                .foregroundStyle(Theme.onAccent)
+                .foregroundStyle(Theme.onBrand)
                 .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(Capsule().fill(Theme.sand))
+                .background(Capsule().fill(Theme.brandFill))
             VStack(alignment: .leading, spacing: 6) {
                 Text("This is a demo house with simulated devices, so you can see how the map works.")
                     .font(.system(size: 12.5, weight: .medium))
@@ -370,7 +370,9 @@ struct MapWindow: View {
                             }
                             Spacer(minLength: 6)
                             if placed {
-                                Image(systemName: "mappin.circle.fill").font(.system(size: 14)).foregroundStyle(Theme.sand)
+                                Image(systemName: "mappin").font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(Theme.onBrand).frame(width: 16, height: 16)
+                                    .background(Circle().fill(Theme.brandFill))
                                     .accessibilityLabel("On the map")
                             } else {
                                 Image(systemName: "line.3.horizontal").font(.system(size: 12)).foregroundStyle(Theme.faint)

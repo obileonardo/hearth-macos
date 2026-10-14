@@ -53,9 +53,9 @@ struct PillEvent: Equatable, Identifiable {
 final class LivePill: ObservableObject {
     static let shared = LivePill()
 
-    static func preview() -> some View {
+    static func preview(event: PillEvent? = nil) -> some View {
         let pill = LivePill()
-        pill.event = PillEvent(kind: .doorbell, place: "Front door", detail: "Someone's at the door",
+        pill.event = event ?? PillEvent(kind: .doorbell, place: "Front door", detail: "Someone's at the door",
                                symbol: "bell.fill", tint: Theme.sand, page: "security", urgent: true)
         pill.shown = true
         pill.remaining = duration
@@ -261,7 +261,7 @@ final class LivePill: ObservableObject {
     // MARK: Window
 
     /// The window leaves room all round so the pill's soft shadow is never clipped to a box.
-    static let size = CGSize(width: 456, height: 132)
+    static let size = CGSize(width: 456, height: FlashPillGeometry.panelHeight)
     static let pillWidth: CGFloat = 376
 
     private func ensurePanel() {
@@ -309,21 +309,21 @@ private struct LivePillView: View {
     @EnvironmentObject var pill: LivePill
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulse = false
 
     var body: some View {
         ZStack(alignment: .top) {
             if let event = pill.event {
                 content(event)
-                    .frame(width: LivePill.pillWidth, height: 68)
+                    .frame(width: FlashPillGeometry.interactionWidth(bodyWidth: LivePill.pillWidth), height: FlashPillGeometry.interactionHeight)
                     .opacity(pill.shown ? 1 : 0)
-                    .scaleEffect(pill.shown ? 1 : (reduceMotion ? 1 : 0.92), anchor: .top)
-                    .offset(y: pill.shown || reduceMotion ? 10 : -26)
-                    .blur(radius: pill.shown || reduceMotion ? 0 : 6)
+                    .offset(x: -FlashPillGeometry.dismissOverhang / 2,
+                            y: FlashPillGeometry.offset(shown: pill.shown, reduceMotion: reduceMotion) - FlashPillGeometry.dismissOverhang)
+                    .allowsHitTesting(pill.shown)
+                    .accessibilityHidden(!pill.shown)
             }
         }
+        .padding(.top, FlashPillGeometry.topPadding)
         .frame(width: LivePill.size.width, height: LivePill.size.height, alignment: .top)
-        .padding(.top, 2)
     }
 
     private func content(_ e: PillEvent) -> some View {
@@ -353,7 +353,7 @@ private struct LivePillView: View {
                                 style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .padding(1.5)
-                        .animation(.linear(duration: 0.1), value: pill.remaining)
+                        .animation(reduceMotion ? nil : .linear(duration: 0.1), value: pill.remaining)
                     Image(systemName: e.actionSymbol)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(e.urgent ? Color.white : Theme.ink)
@@ -366,29 +366,43 @@ private struct LivePillView: View {
         }
         .padding(.leading, 12)
         .padding(.trailing, 13)
-        .frame(maxHeight: .infinity)
-        .background(Capsule().fill(Theme.base.opacity(scheme == .dark ? 0.55 : 0.5)))
-        .liquidGlass(in: Capsule())
-        .overlay(Capsule().strokeBorder(LinearGradient(colors: [Theme.fg.opacity(0.2), Theme.fg.opacity(0.04)],
-                                                       startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
+        .frame(width: LivePill.pillWidth, height: FlashPillGeometry.bodyHeight)
+        .clipShape(Capsule())
+        .background {
+            // Isolate backdrop and its mask from foreground text and the dismiss
+            // badge. The shadow comes from the capsule silhouette, never a
+            // blurred snapshot of the entire notification rectangle.
+            Capsule().fill(Theme.base.opacity(scheme == .dark ? 0.55 : 0.5))
+                .liquidGlass(in: Capsule())
+                .clipShape(Capsule())
+                .overlay(Capsule().strokeBorder(LinearGradient(colors: [Theme.fg.opacity(0.2), Theme.fg.opacity(0.04)],
+                                                               startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
+                .shadow(color: .black.opacity(scheme == .dark ? 0.45 : 0.16), radius: FlashPillGeometry.shadowRadius, y: FlashPillGeometry.shadowOffset)
+                .shadow(color: .black.opacity(scheme == .dark ? 0.25 : 0.06), radius: 3, y: 1)
+                .allowsHitTesting(false)
+        }
+        // Only the capsule owns the Open gesture. Padding and the dismiss
+        // overlay are outside that gesture subtree, so pressing X cannot Open.
+        .contentShape(Capsule())
+        .onTapGesture(perform: pill.open)
+        .padding([.top, .leading], FlashPillGeometry.dismissOverhang)
         .overlay(alignment: .topLeading) {
             if pill.hovering {
                 Button(action: pill.dismiss) {
                     Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.ink)
-                        .frame(width: 20, height: 20)
+                        .frame(width: FlashPillGeometry.dismissSize, height: FlashPillGeometry.dismissSize)
                         .background(Circle().fill(Theme.raised).overlay(Circle().strokeBorder(Theme.hairline, lineWidth: 0.75)))
                 }
                 .buttonStyle(PressStyle())
-                .offset(x: -4, y: -4)
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
+                .contentShape(Rectangle())
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.9).combined(with: .opacity))
                 .accessibilityLabel("Dismiss")
             }
         }
-        .shadow(color: .black.opacity(scheme == .dark ? 0.45 : 0.16), radius: 18, y: 10)
-        .shadow(color: .black.opacity(scheme == .dark ? 0.25 : 0.06), radius: 3, y: 1)
-        .contentShape(Capsule())
-        .onTapGesture(perform: pill.open)
-        .onHover { inside in withAnimation(.snap) { pill.hovering = inside } }
+        // The bounded clear corner belongs to hover only. It keeps the badge
+        // visible while the pointer crosses from the capsule to the X button.
+        .contentShape(Rectangle())
+        .onHover { inside in withAnimation(reduceMotion ? nil : .snap) { pill.hovering = inside } }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Hearth, \(e.place): \(e.detail)")
     }
@@ -447,7 +461,6 @@ private struct Orb: View {
 /// The Live pill, the menu bar pill and the desktop widgets.
 struct PillAndWidgetSettings: View {
     @EnvironmentObject var store: HomeStore
-    @AppStorage("pill.showsName") private var showsName = true
     @AppStorage("livePill") private var livePill = true
     @AppStorage("livePill.off") private var off = ""
     @AppStorage("desktopWidgets") private var widgets = false
@@ -455,22 +468,20 @@ struct PillAndWidgetSettings: View {
     @AppStorage("desktopWidgets.climateEntity") private var widgetClimate = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("LIVE PILL").eyebrow().padding(.leading, 4)
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
-                    toggleRow("Hearth's name in the menu bar", "textformat", $showsName)
-                    settingsDivider
-                    toggleRow("Drop down when something happens", "capsule.inset.filled", $livePill)
+                    toggleRow("Show event updates", "capsule.inset.filled", $livePill)
                     if livePill {
                         ChipsRow(options: PillEvent.Kind.allCases.filter { $0 != .hearth }.map { ($0.rawValue, $0.title, $0.symbol) },
                                  off: $off)
-                            .padding(.horizontal, 12).padding(.bottom, 10).padding(.top, 2)
+                            .padding(.horizontal, 12).padding(.bottom, 12).padding(.top, 6)
                             .transition(.opacity)
                     }
                     settingsDivider
                     HStack {
-                        Text("See how it looks").font(.system(size: 13, weight: .medium))
+                        Text("Sample event").font(.system(size: 13, weight: .medium))
                         Spacer()
                         Button("Preview") { LivePill.shared.presentSummary(intro: true) }
                             .buttonStyle(PressStyle())
@@ -483,10 +494,10 @@ struct PillAndWidgetSettings: View {
             }
             .animation(.settle, value: livePill)
 
-            Text("DESKTOP WIDGETS").eyebrow().padding(.leading, 4).padding(.top, 10)
+            Text("DESKTOP WIDGETS").eyebrow().padding(.leading, 4).padding(.top, 12)
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
-                    toggleRow("Show widgets on the desktop", "rectangle.3.group", $widgets)
+                    toggleRow("Show desktop widgets", "rectangle.3.group", $widgets)
                     if widgets {
                         settingsDivider
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
@@ -506,7 +517,7 @@ struct PillAndWidgetSettings: View {
                             }
                             .labelsHidden().pickerStyle(.menu).controlSize(.regular)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            Text("Automatic chooses an available, running AC first.")
+                            Text("Automatic prefers a running AC.")
                                 .font(.system(size: 11.5)).foregroundStyle(Theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }.padding(12)
@@ -515,10 +526,9 @@ struct PillAndWidgetSettings: View {
             }
             .animation(.settle, value: widgets)
             if widgets {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Click a widget to open its page in Hearth.")
-                    Text("Move with the top handle. Resize with the corner grip.")
-                    Text("Live values update while Hearth is open.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Click to open. Drag the handle to move, or the corner to resize.")
+                    Text("Live while Hearth is open.")
                 }
                 .font(.system(size: 11.5)).foregroundStyle(Theme.muted)
                 .padding(.horizontal, 4).fixedSize(horizontal: false, vertical: true)
@@ -590,7 +600,7 @@ private struct ChipsRow: View {
 
     var body: some View {
         let set = Set(off.split(separator: ",").map(String.init))
-        FlowLayout(spacing: 6) {
+        FlowLayout(spacing: 8) {
             ForEach(options, id: \.key) { option in
                 let on = !set.contains(option.key)
                 Button {
@@ -603,7 +613,7 @@ private struct ChipsRow: View {
                         Text(option.title).font(.system(size: 12, weight: .semibold))
                     }
                     .foregroundStyle(on ? Theme.ink : Theme.muted)
-                    .padding(.horizontal, 10).frame(height: 26)
+                    .padding(.horizontal, 10).frame(height: 28)
                     .background(Capsule().fill(on ? Theme.fg.opacity(0.1) : Color.clear))
                     .overlay(Capsule().strokeBorder(on ? Theme.cardEdge : Theme.hairline, lineWidth: 0.75))
                 }

@@ -178,14 +178,16 @@ enum MenuBarPill {
     /// Widths settle to steps, so the pill doesn't twitch as figures change.
     private static let step: CGFloat = 12
 
-    static func image(line: StatusLine?, showsName: Bool) -> NSImage {
-        let key = "\(line?.symbol ?? "-")|\(line?.text ?? "-")|\(line?.urgent == true)|\(showsName)"
+    static func image(line: StatusLine?, showsName: Bool, availableHeight: CGFloat? = nil) -> NSImage {
+        let height = availableHeight ?? HearthMenuController.shared.anchorView?.bounds.height ?? NSStatusBar.system.thickness
+        let geometry = StatusPillGeometry(availableHeight: height)
+        let key = "\(line?.symbol ?? "-")|\(line?.text ?? "-")|\(line?.urgent == true)|\(showsName)|\(geometry.canvasHeight)|\(geometry.bodyHeight)"
         if let hit = cache[key] { return hit }
         if cache.count > 64 { cache.removeAll() }
         let urgent = line?.urgent == true
-        let natural = render(PillArt(line: line, showsName: showsName, urgent: urgent, minWidth: 0))
+        let natural = render(PillArt(line: line, showsName: showsName, urgent: urgent, minWidth: 0, geometry: geometry))
         let width = (natural.size.width / step).rounded(.up) * step
-        let image = render(PillArt(line: line, showsName: showsName, urgent: urgent, minWidth: width))
+        let image = render(PillArt(line: line, showsName: showsName, urgent: urgent, minWidth: width, geometry: geometry))
         image.isTemplate = false
         cache[key] = image
         return image
@@ -221,6 +223,7 @@ private struct PillArt: View {
     let showsName: Bool
     let urgent: Bool
     let minWidth: CGFloat
+    let geometry: StatusPillGeometry
 
     var body: some View {
         let ink = Color.white
@@ -240,7 +243,7 @@ private struct PillArt: View {
         .foregroundStyle(ink)
         .padding(.horizontal, 10)
         .frame(minWidth: minWidth)
-        .frame(height: 20)
+        .frame(height: geometry.bodyHeight)
         .background {
             Capsule().fill(urgent ? AnyShapeStyle(MenuBarPill.urgentFill) : AnyShapeStyle(
                 LinearGradient(colors: [Color(white: 0.14).opacity(0.92), Color(white: 0.06).opacity(0.9)],
@@ -248,6 +251,7 @@ private struct PillArt: View {
                 .overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(0.2), .white.opacity(0.055)],
                     startPoint: .top, endPoint: .bottom), lineWidth: 0.6))
         }
-        .frame(height: 22)
+        .frame(height: geometry.canvasHeight)
+        .clipped()
     }
 }

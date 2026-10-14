@@ -49,6 +49,7 @@ final class MapSceneController: NSObject, ObservableObject {
         didSet {
             guard active != oldValue else { return }
             scene.isPaused = !active
+            (view as? HearthMapView)?.setInteractionActive(active)
             if active { startTimer() } else {
                 timer?.invalidate(); timer = nil
                 contactGeneration += 1
@@ -1260,11 +1261,13 @@ final class HearthMapView: SCNView {
 
     private enum Drag { case pan(SIMD3<Float>), orbit }
     private var drag: Drag?
-    private var pushedDragCursor = false
+    private var dragCursor = MapDragCursorLease()
     private var downAt: CGPoint?
     private var moved = false
     private var settleWork: DispatchWorkItem?
     private var tracking: NSTrackingArea?
+    private var interactionActive = false
+    private var windowObservers: [NSObjectProtocol] = []
 
     override init(frame: NSRect, options: [String: Any]? = nil) {
         super.init(frame: frame, options: options)
@@ -1272,6 +1275,10 @@ final class HearthMapView: SCNView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    deinit {
+        for observer in windowObservers { NotificationCenter.default.removeObserver(observer) }
+    }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
@@ -1287,37 +1294,124 @@ final class HearthMapView: SCNView {
 
     // MARK: Pointer
 
+    func setInteractionActive(_ active: Bool) {
+        guard interactionActive != active else { return }
+        interactionActive = active
+        if !active { cancelMapInteraction() }
+        updateTrackingAreas()
+        window?.invalidateCursorRects(for: self)
+    }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let tracking { removeTrackingArea(tracking) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect], owner: self)
+        if let tracking { removeTrackingArea(tracking); self.tracking = nil }
+        guard interactionActive, window != nil, !isHiddenOrHasHiddenAncestor else { return }
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self)
         addTrackingArea(area)
         tracking = area
     }
 
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow !== window {
+            cancelMapInteraction()
+            if let tracking { removeTrackingArea(tracking); self.tracking = nil }
+            removeWindowObservers()
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        removeWindowObservers()
+        if let window {
+            for name in [NSWindow.didResignKeyNotification, NSWindow.willCloseNotification] {
+                windowObservers.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.cancelMapInteraction() }
+                })
+            }
+        }
+        updateTrackingAreas()
+    }
+
+    /// Called before the representable disappears. The scene can remain alive
+    /// for a fade, but its tracking areas and drag cursor must not remain active.
+    func retireInteraction() {
+        interactionActive = false
+        cancelMapInteraction()
+        if let tracking { removeTrackingArea(tracking); self.tracking = nil }
+        removeWindowObservers()
+        onClick = nil
+        onDrop = nil
+    }
+
+    private func removeWindowObservers() {
+        for observer in windowObservers { NotificationCenter.default.removeObserver(observer) }
+        windowObservers.removeAll()
+    }
+
+    private func cancelMapInteraction() {
+        if dragCursor.end() { NSCursor.pop() }
+        drag = nil
+        downAt = nil
+        moved = false
+        settleWork?.cancel()
+        settleWork = nil
+        // AppKit recalculates the native cursor at the pointer. Do not assign an
+        // arrow here: the pointer may now belong to a text field or another app.
+        window?.invalidateCursorRects(for: self)
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        if drag != nil || dragCursor.held { cancelMapInteraction() }
+        else { super.cancelOperation(sender) }
+    }
     override func cursorUpdate(with event: NSEvent) { updateCursor(event) }
     override func mouseMoved(with event: NSEvent) { updateCursor(event) }
     override func mouseEntered(with event: NSEvent) { updateCursor(event) }
     override func mouseExited(with event: NSEvent) {
-        if drag == nil { NSCursor.arrow.set() }
+        if drag == nil { window?.invalidateCursorRects(for: self) }
     }
 
-    /// SwiftUI's toolbar and inspector overlap the SceneKit view. A tracking area
-    /// over the whole viewport must not give those controls the map's grab cursor.
-    private func isCanvas(at event: NSEvent) -> Bool {
-        guard let root = window?.contentView,
-              let hit = root.hitTest(root.convert(event.locationInWindow, from: nil)) else { return false }
-        return hit === self || hit.isDescendant(of: self)
-    }
-
-    /// A grab cursor on the house; the arrow over controls and empty space.
-    private func updateCursor(_ event: NSEvent) {
-        guard drag == nil else { return }
+    /// SwiftUI controls can overlap the SceneKit bounds. Only the root hit test
+    /// identifies who actually owns this point; tracking bounds alone do not.
+    private func cursorContext(_ event: NSEvent) -> MapCursorPolicy.Context {
         let p = location(event)
-        if isCanvas(at: event), let controller,
-           controller.surfacePoint(at: p, in: self) != nil || controller.pinID(at: p, in: self) != nil {
-            NSCursor.openHand.set()
-        } else { NSCursor.arrow.set() }
+        let currentWindow = window
+        let hit = currentWindow?.contentView.flatMap { root in
+            root.hitTest(root.convert(event.locationInWindow, from: nil))
+        }
+        var visible = !isHiddenOrHasHiddenAncestor
+        var ancestor: NSView? = self
+        while let view = ancestor {
+            if view.alphaValue <= 0.001 { visible = false; break }
+            ancestor = view.superview
+        }
+        return MapCursorPolicy.Context(active: interactionActive && controller?.active == true,
+                                       visible: visible && currentWindow?.isVisible == true,
+                                       keyWindow: currentWindow?.isKeyWindow == true,
+                                       sameWindow: currentWindow != nil && event.window === currentWindow,
+                                       insideVisibleRect: visibleRect.contains(p),
+                                       canvasHit: hit === self || hit?.isDescendant(of: self) == true)
+    }
+
+    /// A grab cursor belongs to the house; blank canvas owns an arrow. Every
+    /// overlapping or inactive view inherits its own native cursor unchanged.
+    private func updateCursor(_ event: NSEvent) {
+        let context = cursorContext(event)
+        guard context.ownsPoint, drag == nil else { return }
+        let p = location(event)
+        let onHouse = controller.map { $0.surfacePoint(at: p, in: self) != nil || $0.pinID(at: p, in: self) != nil } ?? false
+        switch MapCursorPolicy.choice(context, dragging: false, hitHouseOrPin: onHouse) {
+        case .openHand: NSCursor.openHand.set()
+        case .arrow: NSCursor.arrow.set()
+        case .inherited: break
+        }
+    }
+
+    private func beginDragCursor() {
+        if dragCursor.begin() { NSCursor.closedHand.push() }
     }
 
     // MARK: Zoom and turn
@@ -1343,17 +1437,16 @@ final class HearthMapView: SCNView {
     // MARK: Drag to move, right-drag to turn
 
     override func mouseDown(with event: NSEvent) {
+        guard cursorContext(event).ownsPoint else { return }
         let p = location(event)
         downAt = p
         moved = false
         if event.modifierFlags.contains(.option) || controller?.maps.dragMode == .turn {
             drag = .orbit
-            NSCursor.closedHand.push()
-            pushedDragCursor = true
+            beginDragCursor()
         } else if let g = controller?.grab(at: p, in: self) {
             drag = .pan(g)
-            NSCursor.closedHand.push()
-            pushedDragCursor = true
+            beginDragCursor()
         }
     }
 
@@ -1369,7 +1462,8 @@ final class HearthMapView: SCNView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if pushedDragCursor { NSCursor.pop(); pushedDragCursor = false }
+        guard downAt != nil else { updateCursor(event); return }
+        if dragCursor.end() { NSCursor.pop() }
         drag = nil
         let p = location(event)
         if event.clickCount == 2 {
@@ -1383,13 +1477,19 @@ final class HearthMapView: SCNView {
         updateCursor(event)
     }
 
-    override func rightMouseDown(with event: NSEvent) { drag = .orbit }
+    override func rightMouseDown(with event: NSEvent) {
+        guard cursorContext(event).ownsPoint else { return }
+        drag = .orbit
+        beginDragCursor()
+    }
 
     override func rightMouseDragged(with event: NSEvent) {
+        guard interactionActive, case .orbit? = drag else { return }
         controller?.orbit(yaw: -Float(event.deltaX) * 0.008, pitch: Float(event.deltaY) * 0.006)
     }
 
     override func rightMouseUp(with event: NSEvent) {
+        if dragCursor.end() { NSCursor.pop() }
         drag = nil
         updateCursor(event)
     }
@@ -1435,11 +1535,22 @@ struct MapSceneView: NSViewRepresentable {
         view.pointOfView = controller.scene.rootNode.childNode(withName: "camera", recursively: false)
         view.controller = controller
         controller.view = view
+        view.setInteractionActive(controller.active)
         controller.syncCamera()
         if let script = UserDefaults.standard.string(forKey: "mapCam"), controller.full == UserDefaults.standard.bool(forKey: "mapCamFull") {
             controller.runScript(script, in: view)
         }
         return view
+    }
+
+    static func dismantleNSView(_ view: HearthMapView, coordinator: ()) {
+        if view.controller?.view === view {
+            view.controller?.active = false
+            view.controller?.view = nil
+        }
+        view.retireInteraction()
+        view.controller = nil
+        view.isPlaying = false
     }
 
     func updateNSView(_ view: HearthMapView, context: Context) {
@@ -1451,6 +1562,7 @@ struct MapSceneView: NSViewRepresentable {
         }
         view.isPlaying = controller.active
         view.controller = controller
+        view.setInteractionActive(controller.active)
         view.onClick = { [weak view] p in
             guard let view else { return }
             onPin?(controller.pinID(at: p, in: view))

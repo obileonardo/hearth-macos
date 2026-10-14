@@ -18,7 +18,7 @@ struct AccountPage: View {
     @State private var actionError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             SubpageHeader(eyebrow: "Settings", title: "Account", back: back) { EmptyView() }
 
             userCard
@@ -50,7 +50,7 @@ struct AccountPage: View {
         Bezel(radius: 20, inset: 3) {
             HStack(spacing: 14) {
                 LiveAvatar(name: admin.user?.name ?? "You", fallback: admin.avatar, size: 64)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(admin.user?.name ?? "Signed in").font(.system(size: 17, weight: .semibold))
                     if let username = admin.user?.username ?? UserDefaults.standard.string(forKey: "ha.username"), !username.isEmpty {
                         Text(username).font(.system(size: 13)).foregroundStyle(Theme.muted)
@@ -59,11 +59,11 @@ struct AccountPage: View {
                         if admin.user?.isOwner == true { Badge(text: "Owner") }
                         if admin.user?.isAdmin == true { Badge(text: "Administrator") }
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 4)
                 }
                 Spacer()
             }
-            .padding(14)
+            .padding(16)
         }
         .accessibilityElement(children: .combine)
     }
@@ -81,7 +81,7 @@ struct AccountPage: View {
                     }
                     Spacer()
                 }
-                .padding(.horizontal, 14).padding(.vertical, 12)
+                .padding(.horizontal, 16).padding(.vertical, 14)
                 divider
                 InfoRow(label: "Address", value: address)
                 divider
@@ -94,7 +94,9 @@ struct AccountPage: View {
         }
     }
 
-    private var divider: some View { Rectangle().fill(Theme.hairline).frame(height: 1).padding(.leading, 14) }
+    private var divider: some View {
+        Rectangle().fill(Theme.hairline).frame(height: 0.5).padding(.horizontal, 16)
+    }
 
     private var address: String {
         let real = admin.server?.externalURL ?? admin.server?.internalURL ?? store.baseURL?.absoluteString ?? ""
@@ -128,7 +130,7 @@ struct AccountPage: View {
 
     private var counts: some View {
         let devices = store.devices.values.filter { !$0.isService }.count
-        return LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+        return LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             CountTile(value: admin.entries.count, label: "Integrations", symbol: "puzzlepiece.extension",
                       note: failing.isEmpty ? nil : "\(failing.count) need attention") { openAdmin(.integrations) }
             CountTile(value: devices, label: "Devices", symbol: "cpu", note: nil) { openAdmin(.devices) }
@@ -172,13 +174,13 @@ struct AccountPage: View {
         Bezel(radius: 18, inset: 3) {
             VStack(spacing: 0) {
                 ActionRow(symbol: "puzzlepiece.extension", label: "Integrations and devices",
-                          detail: "Add, fix and organise what Home Assistant controls") { openAdmin(.integrations) }
+                          detail: "Manage connected devices") { openAdmin(.integrations) }
                 divider
                 ActionRow(symbol: "safari", label: "Open Home Assistant",
-                          detail: "Automations, dashboards and logs, already signed in") { openWeb() }
+                          detail: "Automations, dashboards & logs") { openWeb() }
                 divider
                 ActionRow(symbol: reloaded ? "checkmark" : "arrow.triangle.2.circlepath", label: reloaded ? "Reloaded" : "Reload integrations",
-                          detail: "Re-reads the setup without restarting", busy: reloading) {
+                          detail: "Refresh setup without a restart", busy: reloading) {
                     Task {
                         reloading = true
                         defer { reloading = false }
@@ -608,14 +610,14 @@ private struct IntegrationsView: View {
     var body: some View {
         let groups = grouped
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                AdminHeader(title: "Integrations", detail: "\(admin.entries.count) set up, \(admin.entries.filter(\.isFailing).count) need attention") {
+            VStack(alignment: .leading, spacing: 20) {
+                AdminHeader(title: "Integrations", detail: integrationSummary) {
                     PrimaryButton(title: "Add integration", symbol: "plus") { admin.section = .add }
                 }
                 HearthField(label: "Search integrations", placeholder: "Search", text: $search)
                 if let problem { Text(problem).font(.system(size: 12)).foregroundStyle(Theme.live) }
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                     ForEach(groups, id: \.domain) { group in
                         card(group.domain, group.entries)
                     }
@@ -632,6 +634,12 @@ private struct IntegrationsView: View {
             Text("Its devices and entities are removed from Home Assistant. You can add it again later.")
         }
         .task { await admin.loadCatalog() }
+    }
+
+    private var integrationSummary: String {
+        let attention = admin.entries.filter(\.isFailing).count
+        return attention == 0 ? "\(admin.entries.count) integrations"
+            : "\(admin.entries.count) integrations · \(attention) need attention"
     }
 
     private var grouped: [(domain: String, entries: [HAEntry])] {
@@ -655,7 +663,7 @@ private struct IntegrationsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
                     BrandIcon(domain: domain, size: 36)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
                         if folded, let single {
                             status(single)
@@ -679,7 +687,7 @@ private struct IntegrationsView: View {
                 if single == nil {
                     VStack(spacing: 0) {
                         ForEach(entries) { entry in
-                            Rectangle().fill(Theme.hairline).frame(height: 0.5).padding(.vertical, 8)
+                            Rectangle().fill(Theme.hairline).frame(height: 0.5).padding(.vertical, 10)
                             HStack(spacing: 8) {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(IntegrationTitle.display(entry.title, integration: name) ?? name)
@@ -694,10 +702,10 @@ private struct IntegrationsView: View {
                     }
                     .padding(.leading, 48)
                 } else if let single {
-                    reason(single).padding(.leading, 48)
+                    reason(single).padding(.leading, 48).padding(.top, 2)
                 }
             }
-            .padding(12)
+            .padding(16)
         }
     }
 
