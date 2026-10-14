@@ -30,9 +30,9 @@ struct PageHeader<Trailing: View>: View {
                         Image(systemName: chrome.demoOn ? "stop.fill" : "play.fill").font(.system(size: 9.5, weight: .bold))
                         Text("Demo").font(.system(size: 12.5, weight: .semibold))
                     }
-                    .foregroundStyle(chrome.demoOn ? Theme.onAccent : Theme.ink)
+                    .foregroundStyle(chrome.demoOn ? Theme.onBrand : Theme.ink)
                     .padding(.horizontal, 11).frame(height: 30)
-                    .background(Capsule().fill(chrome.demoOn ? AnyShapeStyle(Theme.brandGradient) : AnyShapeStyle(Theme.fg.opacity(0.06)))
+                    .background(Capsule().fill(chrome.demoOn ? AnyShapeStyle(Theme.brandFill) : AnyShapeStyle(Theme.fg.opacity(0.06)))
                         .overlay(Capsule().strokeBorder(Theme.hairline)))
                 }
                 .buttonStyle(PressStyle())

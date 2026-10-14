@@ -37,4 +37,17 @@ final class MenuPanelGeometryTests: XCTestCase {
         XCTAssertEqual(result.height, 484)
         XCTAssertTrue(small.contains(result))
     }
+    @MainActor
+    func testRequestedBreathingRoomRetainsScreenClamping() {
+        XCTAssertEqual(Theme.panelSize.height, 648 + 48)
+        XCTAssertEqual(PanelView.footerTopExtra, 32)
+        XCTAssertEqual(PanelView.footerBottomExtra, 6)
+        XCTAssertEqual(PanelView.footerHeight, 64 + 32 + 6)
+        let small = CGRect(x: 0, y: 0, width: 1024, height: 650)
+        let result = MenuPanelGeometry.frame(anchor: CGRect(x: 700, y: 650, width: 160, height: 24),
+                                             visibleFrame: small, panelSize: Theme.panelSize)
+        XCTAssertEqual(result.height, 634)
+        XCTAssertTrue(small.contains(result))
+    }
+
 }

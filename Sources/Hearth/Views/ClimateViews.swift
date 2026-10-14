@@ -301,7 +301,9 @@ struct ClimatePage: View {
             await previousTemperature?.value
             defer { pendingMode = nil }
             do {
-                try await store.command(action.body)
+                try await ClimateModeRecovery.perform(action, initial: c.e, send: { request in
+                    _ = try await store.command(request.body)
+                }, refresh: { await store.refreshEntity(entityID) })
                 if store.isDemo { store.optimistic(entityID) { $0.state = mode } }
                 for _ in 0..<20 {
                     if store.entities[entityID]?.state == mode { return }
@@ -407,9 +409,9 @@ struct PowerButton: View {
                 if on {
                     // A radial halo has transparent edges instead of relying on
                     // a shadow texture whose backing rectangle can show through.
-                    Circle().fill(RadialGradient(colors: [tint.opacity(light ? 0.14 : 0.24), .clear],
-                                                 center: .center, startRadius: 16, endRadius: 40))
-                        .frame(width: 80, height: 80).allowsHitTesting(false)
+                    Circle().fill(RadialGradient(colors: [tint.opacity(light ? 0.08 : 0.13), .clear],
+                                                 center: .center, startRadius: 18, endRadius: 30))
+                        .frame(width: 60, height: 60).allowsHitTesting(false)
                 }
             }
             .padding(3)

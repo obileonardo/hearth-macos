@@ -5,7 +5,7 @@ import SwiftUI
 /// devices themselves. Every colour here follows the appearance (Settings: System, Light or
 /// Dark) and the system's Increase Contrast setting, live.
 enum Theme {
-    static let panelSize = CGSize(width: 448, height: 648)
+    static let panelSize = CGSize(width: 448, height: 696)
 
     /// The panel itself.
     static let base = Color.adaptive(dark: .rgb(0.027, 0.027, 0.034), light: .rgb(0.957, 0.957, 0.965))
@@ -63,6 +63,10 @@ enum Theme {
     static let brandGradient = LinearGradient(colors: [brand, brandEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
     /// Compatibility name for existing artwork and view accents.
     static let sand = brand
+    /// Solid blue fills use white text; luminous brand remains for marks on dark surfaces.
+    static let brandFill = Color.adaptive(dark: .rgb(0.10, 0.36, 0.72), light: .rgb(0.07, 0.30, 0.65),
+                                          darkHC: .rgb(0.06, 0.28, 0.60), lightHC: .rgb(0.04, 0.24, 0.53))
+    static let onBrand = Color.white
 
     /// Home consumption uses green; solar, grid, battery, warnings and AC modes keep
     /// their own semantic colours. Endpoints also support text on an accent fill.

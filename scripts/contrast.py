@@ -52,6 +52,7 @@ def deepened(c, target):
 INK = (0.07, 0.07, 0.09)
 BRAND_DARK, BRAND_LIGHT = (0.26, 0.61, 0.99), (0.07, 0.30, 0.65)
 BRAND_END_DARK, BRAND_END_LIGHT = (0.22, 0.55, 0.94), (0.06, 0.24, 0.54)
+BRAND_FILL_DARK, BRAND_FILL_LIGHT = (0.10, 0.36, 0.72), (0.07, 0.30, 0.65)
 HOME_DARK, HOME_LIGHT = (0.27, 0.82, 0.56), (0.04, 0.42, 0.25)
 HOME_END_DARK, HOME_END_LIGHT = (0.21, 0.72, 0.46), (0.03, 0.33, 0.19)
 tokens = [
@@ -100,6 +101,7 @@ print("| Pairing | Dark | Light |")
 print("|---|---|---|")
 pairs = [
     ("Main button text (onCTA on cta)", (BLACK, WHITE), (WHITE, (0.09, 0.09, 0.11))),
+    ("White marks/text on solid blue (onBrand)", (WHITE, BRAND_FILL_DARK), (WHITE, BRAND_FILL_LIGHT)),
     ("Text on blue (onAccent)", (over(BLACK, 0.88, BRAND_DARK), BRAND_DARK), (WHITE, BRAND_LIGHT)),
     ("Text on blue endpoint", (over(BLACK, 0.88, BRAND_END_DARK), BRAND_END_DARK), (WHITE, BRAND_END_LIGHT)),
     ("Text on home green", (over(BLACK, 0.88, HOME_DARK), HOME_DARK), (WHITE, HOME_LIGHT)),
@@ -147,6 +149,7 @@ if "--verify-source" in sys.argv:
     source = (Path(__file__).resolve().parent.parent / "Sources/Hearth/Views/Theme.swift").read_text()
     expected = {
         "brand": (BRAND_DARK, BRAND_LIGHT, gradients[2][0], gradients[2][2]),
+        "brandFill": (BRAND_FILL_DARK, BRAND_FILL_LIGHT, (0.06, 0.28, 0.60), (0.04, 0.24, 0.53)),
         "brandEnd": (BRAND_END_DARK, BRAND_END_LIGHT, gradients[2][1], gradients[2][3]),
         "homeEnergy": (HOME_DARK, HOME_LIGHT, gradients[3][0], gradients[3][2]),
         "homeEnergyEnd": (HOME_END_DARK, HOME_END_LIGHT, gradients[3][1], gradients[3][3]),
@@ -158,5 +161,10 @@ if "--verify-source" in sys.argv:
             actual = tuple(float(component.strip()) for component in match[1].split(",")) if match else ()
             if actual != value:
                 raise SystemExit(f"FAIL: Theme.{name} {key} differs from mirrored contrast value")
+    if "static let onBrand = Color.white" not in source:
+        raise SystemExit("FAIL: solid-blue foreground must match the verified white token")
+    for fill in [(0.06, 0.28, 0.60), (0.04, 0.24, 0.53)]:
+        if ratio(WHITE, fill) < 4.5:
+            raise SystemExit("FAIL: white-on-blue Increase Contrast pair is below 4.5:1")
     print("PASS: blue/green normal and Increase Contrast values match Theme.swift", file=sys.stderr)
 print(f"PASS: minimum calculated text contrast {worst:.3f}:1", file=sys.stderr)

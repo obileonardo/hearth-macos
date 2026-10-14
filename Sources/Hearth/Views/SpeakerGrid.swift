@@ -1,4 +1,5 @@
 import SwiftUI
+import Darwin
 
 /// Group membership comes from HA. Matching metadata is labelled as the same
 /// track, never used as evidence that the devices' clocks are synchronized.
@@ -104,20 +105,25 @@ struct SpeakerWaves: View {
         TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || previewTime != nil)) { timeline in
             let time = reduceMotion ? 1.0 : previewTime ?? timeline.date.timeIntervalSinceReferenceDate
             Canvas { context, size in
-                for i in 0..<3 {
-                    let age = (time * 0.45 + phase + Double(i) / 3).truncatingRemainder(dividingBy: 1)
-                    let width = size.width * (0.16 + age * 0.8)
-                    let height = 4 + age * (size.height - 7)
-                    let oval = Path(ellipseIn: CGRect(x: (size.width - width) / 2, y: (size.height - height) / 2,
-                                                    width: width, height: height))
-                    let opacity = sin(age * .pi) * (1 - age) * 0.5
-                    var glow = context
-                    glow.addFilter(.blur(radius: 2))
-                    glow.stroke(oval, with: .color(color.opacity(opacity * 0.5)), lineWidth: 3)
-                    context.stroke(oval, with: .color(color.opacity(opacity)), lineWidth: 0.9)
-                }
+                drawWaves(context: &context, size: size, time: time)
             }
         }
         .accessibilityHidden(true)
+    }
+
+    private func drawWaves(context: inout GraphicsContext, size: CGSize, time: Double) {
+        for i in 0..<3 {
+            let age: Double = (time * 0.45 + phase + Double(i) / 3).truncatingRemainder(dividingBy: 1)
+            let progress = CGFloat(age)
+            let width: CGFloat = size.width * (0.16 + progress * 0.8)
+            let height: CGFloat = 4 + progress * (size.height - 7)
+            let rect = CGRect(x: (size.width - width) / 2, y: (size.height - height) / 2, width: width, height: height)
+            let oval = Path(ellipseIn: rect)
+            let opacity: Double = Darwin.sin(age * Double.pi) * (1 - age) * 0.5
+            var glow = context
+            glow.addFilter(.blur(radius: 2))
+            glow.stroke(oval, with: .color(color.opacity(opacity * 0.5)), lineWidth: 3)
+            context.stroke(oval, with: .color(color.opacity(opacity)), lineWidth: 0.9)
+        }
     }
 }

@@ -418,9 +418,9 @@ private struct DemoBanner: View {
                 HStack(spacing: 10) {
                     Text("DEMO")
                         .font(.system(size: 11, weight: .heavy)).tracking(1.4)
-                        .foregroundStyle(Theme.onAccent)
+                        .foregroundStyle(engine.kind == .energy ? Theme.onAccent : Theme.onBrand)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Capsule().fill(surfaceTint))
+                        .background(Capsule().fill(engine.kind == .energy ? surfaceTint : Theme.brandFill))
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Sample data, nothing is connected").font(.system(size: 13, weight: .semibold))
                         Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
@@ -543,9 +543,9 @@ struct TryDemoCard: View {
             Button(action: chrome.toggleDemo) {
                 HStack(spacing: 12) {
                     Image(systemName: "play.fill").font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Theme.onAccent)
+                        .foregroundStyle(Theme.onBrand)
                         .frame(width: 30, height: 30)
-                        .background(Circle().fill(Theme.brand))
+                        .background(Circle().fill(Theme.brandFill))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Try the demo").font(.system(size: 13.5, weight: .semibold))
                         Text(message).font(.system(size: 12)).foregroundStyle(Theme.muted)

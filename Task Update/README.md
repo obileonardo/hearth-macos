@@ -93,3 +93,17 @@ The nine feedback items received at 11:01 on 14 October now have changes in the 
 Climate commands now run serially per device, cancel unsent temperature changes before a mode switch, and refresh authoritative state after failures. A scoped approved live check accepted Auto, Dry and Fan and restored the prior operating mode. No vendor-required delay or universal hardware compatibility is claimed. Temperature digits own their smooth local animation; modes without a setpoint no longer display an invented temperature. The climate guide images have been refreshed from isolated demo data.
 
 The status capsule requests four extra points of height, safely bounded by the actual menu bar. Flash alerts retain crisp text and separate masked glass from shadows; the dismiss button has its own bounded hover region. Integrated build and final hosted checks, installation and publication are tracked separately.
+
+
+## Latest owner feedback — 14 October, evening
+
+| Feedback | Source work | Evidence / remaining review |
+|---|---|---|
+| Intermittent AC mode rejection remains | One guarded retry only for the observed vendor rejection, with fresh-state checks before resend; changed power/mode, unrelated errors and temperatures are never retried | Prior 95-case CI passed; new isolated recovery fixtures await this PR's final run. Direct vendor checks accepted all requested modes and restored prior power, but intermittent vendor behavior is not declared permanently fixed |
+| Navigation feels crowded | Panel height+48, space above dock+32 and below+6; small-screen clamping retained | Local build passed; final native review pending |
+| Selected lens hides icon colour | Native clear glass selection, with existing accessibility fallback | Local build passed; final native review pending |
+| Dark pins/demo labels on blue | White symbols/text on a deeper blue solid fill, also used by blue demo controls | Source-linked contrast checks pass, including Increase Contrast |
+| Power-button halo too large/busy | Smaller 60pt halo, lower opacity and shorter falloff | Demo render reviewed |
+| Climate navigation illustration | Snowflake matches the documented Climate navigation icon | Demo render reviewed |
+
+The installed 0.1.3 earlier preview is being updated to this final source after checks. Private PR #9 remains the first publication stage; public transfer, merge and refreshed download follow it. No public binary for this newest source has been published yet.

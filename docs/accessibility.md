@@ -21,6 +21,7 @@ the appearance it's drawn in (`Color.adaptive` in `Appearance.swift`):
   and card backgrounds. **Home energy** (`homeEnergy`, `homeEnergyEnd`) uses green for home
   consumption, home illustrations, and demo-home surfaces. Solar, grid, battery, warning and
   AC heat colors retain their separate meanings.
+- **Solid blue marks** (`brandFill`, `onBrand`): deeper blue with white text and symbols, including placed-device pins and blue demo badges; both appearances and Increase Contrast fills exceed 4.5:1.
 - **Other accents** (`ok`, `live`, the air colours, and colours made with `Color.accent`) resolve
   for their appearance. Generated accents deepen their light variant to at least 4.5:1 on paper.
 - **Camera tiles, the live view and the camera window** are screens. They stay dark in either
@@ -67,6 +68,7 @@ normal and Increase Contrast values still match `Theme.swift` exactly.
 | Pairing | Dark | Light |
 |---|---|---|
 | Main button text (onCTA on cta) | 21.0:1 | 17.9:1 |
+| White marks/text on solid blue (onBrand) | 6.5:1 | 8.0:1 |
 | Text on blue (onAccent) | 6.6:1 | 8.0:1 |
 | Text on blue endpoint | 5.6:1 | 10.2:1 |
 | Text on home green | 9.3:1 | 6.6:1 |
@@ -76,7 +78,6 @@ normal and Increase Contrast values still match `Theme.swift` exactly.
 
 | Non-text part (needs 3:1) | Dark | Light |
 |---|---|---|
-| Text field edge at rest | the field's dark well sets it apart | 3.2:1 |
 | Hairline, Increase Contrast on | 4.0:1 | 3.6:1 |
 | Text field outline while typing | 5.9:1 | 4.9:1 |
 

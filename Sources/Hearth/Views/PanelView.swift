@@ -245,7 +245,9 @@ struct PanelView: View {
     }
 
     /// The dock's band at the bottom; pages leave this much room so their last row can scroll clear.
-    static let footerHeight: CGFloat = 64
+    static let footerTopExtra: CGFloat = 32
+    static let footerBottomExtra: CGFloat = 6
+    static let footerHeight: CGFloat = 64 + footerTopExtra + footerBottomExtra
 
     /// Image snapshots can't draw scroll views, so `--snapshot` lays pages out flat.
     private static let snapshotMode = CommandLine.arguments.contains("--snapshot")
@@ -303,6 +305,8 @@ struct PanelView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.top, Self.footerTopExtra)
+        .padding(.bottom, Self.footerBottomExtra)
         .frame(height: Self.footerHeight)
         .padding(.horizontal, 18)
     }
@@ -322,8 +326,7 @@ struct PanelView: View {
         switch page {
         case .climate(let id):
             let e = store.entities[id]
-            let on = e.map { Climate(e: $0).on } ?? false
-            return (on ? "air.conditioner.horizontal.fill" : "air.conditioner.horizontal",
+            return ("snowflake",
                     Climate.shortName(e?.name ?? "AC"))
         case .security: return ("video", "Security")
         case .rooms: return ("square.grid.2x2", "Rooms")

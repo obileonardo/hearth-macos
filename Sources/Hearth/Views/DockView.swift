@@ -124,8 +124,8 @@ private struct Lens: View {
     @Environment(\.hearthDocumentationPreview) private var documentationPreview
     var body: some View {
         if #available(macOS 26.0, *), !reduceTransparency && !documentationPreview {
-            Capsule().fill(Theme.fg.opacity(0.065))
-                .glassEffect(.regular.tint(Theme.fg.opacity(0.06)), in: Capsule())
+            Capsule().fill(.clear)
+                .glassEffect(.clear, in: Capsule())
                 .overlay(Capsule().strokeBorder(LinearGradient(colors: [Theme.fg.opacity(0.22), Theme.fg.opacity(0.03)],
                                                                startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
         } else {

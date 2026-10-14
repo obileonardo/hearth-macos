@@ -225,7 +225,7 @@ private struct PreviewScreenshotPanel<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             content().fixedSize(horizontal: false, vertical: true)
-                .frame(width: 404, height: 532, alignment: .top).padding(22).clipped()
+                .frame(width: 404, height: Theme.panelSize.height - PanelView.footerHeight - 44, alignment: .top).padding(22).clipped()
             Dock(pages: pages, selected: selected, label: { page in
                 switch page {
                 case .climate: ("snowflake", "Workspace")
@@ -237,9 +237,11 @@ private struct PreviewScreenshotPanel<Content: View>: View {
                 case .media: ("speaker", "Speakers")
                 }
             }, settingsOn: settings, status: (Theme.ok, "Demo"), onSelect: { _ in })
-                .padding(.horizontal, 18).frame(height: 72)
+                .padding(.horizontal, 18)
+                .padding(.top, PanelView.footerTopExtra).padding(.bottom, PanelView.footerBottomExtra)
+                .frame(height: PanelView.footerHeight)
         }
-        .frame(width: 448, height: 648)
+        .frame(width: Theme.panelSize.width, height: Theme.panelSize.height)
         .environment(\.hearthDocumentationPreview, true)
         .foregroundStyle(Theme.ink).background(Theme.base)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))

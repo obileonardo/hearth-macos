@@ -46,6 +46,9 @@ The app retains its macOS 14 deployment target and existing bundle identity. Thi
 - Local editable help and bug-report drafts with preserved edits, optional version details and mail/copy actions.
 - Scoped map cursor ownership prevents hidden or overlapping scenes from changing the pointer.
 - Per-device climate command sequencing, authoritative refresh after errors, and cancellation of unsent temperature requests before mode changes.
+- Add one state-checked retry for the specifically observed intermittent vendor mode rejection; persistent failures remain visible.
+- Add 48 points of panel height with 32 points more space above navigation and 6 below; use clear native selection glass, white-on-deeper-blue map marks and a gentler power halo.
+- Use a snowflake for Climate navigation.
 - Restore the animated temperature digits; modes without a setpoint show an em dash and no temperature slider.
 - Add four points of menu-pill height where the menu bar allows, and remove whole-notification blur and scaling from flash alerts.
 - Refine the game-console illustration and refresh demo-only documentation guides.
