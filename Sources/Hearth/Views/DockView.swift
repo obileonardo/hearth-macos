@@ -68,7 +68,7 @@ struct Dock: View {
             Image(systemName: "gearshape")
                 .symbolVariant(settingsOn ? .fill : .none)
                 .font(.system(size: 15, weight: settingsOn ? .semibold : .regular))
-                .foregroundStyle(settingsOn ? Theme.ink : Theme.muted)
+                .foregroundStyle(settingsOn ? Theme.sand : Theme.muted)
                 .rotationEffect(.degrees(settingsOn && !reduceMotion ? 60 : 0))
                 .animation(.settle, value: settingsOn)
                 .frame(width: tabWidth, height: Self.tab.height)
@@ -117,8 +117,10 @@ struct Dock: View {
 
 /// The selected tab's lens: a bead of clearer, brighter glass with light caught on its rim.
 private struct Lens: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !reduceTransparency && !documentationPreview {
             Capsule().fill(Theme.fg.opacity(0.065))
                 .glassEffect(.regular.tint(Theme.fg.opacity(0.06)).interactive(), in: Capsule())
                 .overlay(Capsule().strokeBorder(LinearGradient(colors: [Theme.fg.opacity(0.22), Theme.fg.opacity(0.03)],
@@ -144,9 +146,10 @@ extension View {
 private struct LiquidGlass<S: Shape>: ViewModifier {
     let shape: S
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
 
     func body(content: Content) -> some View {
-        if reduceTransparency {
+        if reduceTransparency || documentationPreview {
             content
                 .background(shape.fill(Theme.raised))
                 .overlay(shape.stroke(Theme.hairline, lineWidth: 1))

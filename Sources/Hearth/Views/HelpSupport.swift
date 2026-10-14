@@ -8,18 +8,17 @@ struct HelpAndSupport: View {
     @State private var includeVersions = false
     @State private var mailUnavailable = false
     @State private var copied = false
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
 
     private static let address = "contact@elvisobi.com"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             SubpageHeader(eyebrow: "Settings", title: "Help & Support", back: back) { EmptyView() }
 
             Bezel(radius: 20, inset: 3) {
                 HStack(spacing: 12) {
-                    Image(systemName: "envelope").font(.system(size: 20, weight: .light))
-                        .foregroundStyle(Theme.sand).frame(width: 42, height: 42)
-                        .background(Circle().fill(Theme.sand.opacity(0.1)))
+                    supportMark("envelope", size: 42)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Here to help").font(.system(size: 16, weight: .semibold))
                         Button(Self.address) { compose(.support) }
@@ -37,49 +36,77 @@ struct HelpAndSupport: View {
                     .accessibilityLabel(copied ? "Email address copied" : "Copy support email address")
                     .help(copied ? "Copied" : "Copy email address")
                 }
-                .padding(14)
+                .padding(16)
             }
 
-            VStack(spacing: 10) {
-                emailAction("Get help", detail: "Questions about setup or using Hearth", symbol: "bubble.left", kind: .support)
-                emailAction("Report a bug", detail: "Tell us what didn’t work as expected", symbol: "ladybug", kind: .bug)
+            HStack(alignment: .top, spacing: 10) {
+                emailAction("Get help", detail: "Setup questions or help using Hearth", symbol: "lifepreserver", kind: .support)
+                emailAction("Report a bug", detail: "Something didn’t work as expected", symbol: "ladybug", kind: .bug)
             }
-
-            Text("Your mail app opens with a draft you can edit before sending.")
-                .font(.system(size: 12)).foregroundStyle(Theme.muted)
-                .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
 
             if mailUnavailable {
-                Text("Couldn’t open your mail app. Copy the email address above and contact us from your preferred email service.")
-                    .font(.system(size: 12)).foregroundStyle(Theme.live)
-                    .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
-                    .accessibilityLabel("Could not open your mail app. Copy the support email address to use another email service.")
-            }
-
-            Bezel(radius: 18, inset: 3) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Include app and macOS versions", isOn: $includeVersions)
-                        .font(.system(size: 13, weight: .medium)).toggleStyle(.switch).controlSize(.small)
-                    Text("Optional version numbers help us understand your setup.")
-                        .font(.system(size: 12)).foregroundStyle(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("A HELPFUL BUG REPORT").eyebrow().padding(.leading, 4)
                 Bezel(radius: 18, inset: 3) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        guidance("1", title: "What you tried", detail: "The steps that led to the problem")
-                        guidance("2", title: "What you expected", detail: "What you thought would happen")
-                        guidance("3", title: "What happened", detail: "What appeared on screen or stopped working")
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.circle").font(.system(size: 16)).foregroundStyle(Theme.live)
+                        Text("Couldn’t open your mail app. Copy the address above to use your preferred email service.")
+                            .font(.system(size: 12)).foregroundStyle(Theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(14)
                 }
+                .accessibilityLabel("Could not open your mail app. Copy the support email address to use another email service.")
+            }
+
+            Bezel(radius: 18, inset: 3) {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Label("Before you send", systemImage: "square.and.pencil")
+                            .font(.system(size: 12.5, weight: .semibold))
+                        Text("Both buttons open an editable draft in your mail app. You choose when to send it.")
+                            .font(.system(size: 12)).foregroundStyle(Theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Rectangle().fill(Theme.hairline).frame(height: 0.5)
+                    if documentationPreview {
+                        HStack {
+                            Text("Include app and macOS versions").font(.system(size: 12.5, weight: .medium))
+                            Spacer()
+                            Capsule().fill(Theme.fg.opacity(0.18)).frame(width: 26, height: 16)
+                                .overlay(alignment: .leading) { Circle().fill(Theme.ink.opacity(0.65)).frame(width: 12, height: 12).padding(2) }
+                        }
+                    } else {
+                        Toggle("Include app and macOS versions", isOn: $includeVersions)
+                            .font(.system(size: 12.5, weight: .medium)).toggleStyle(.switch).controlSize(.small)
+                            .tint(Theme.sand)
+                    }
+                    Text("Version numbers are optional. No logs, account details or device information are attached.")
+                        .font(.system(size: 11.5)).foregroundStyle(Theme.faint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("QUICK CHECKS").eyebrow().padding(.horizontal, 4).padding(.bottom, 2)
+                troubleshooting("network", title: "Check the connection", detail: "In Hearth Settings, confirm Home Assistant is connected.")
+                troubleshooting("switch.2", title: "Check the device", detail: "Try the same control in Home Assistant. If the device is unavailable there, reconnect it there first.")
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("A HELPFUL BUG REPORT").eyebrow()
+                    Text("Three details make it easier to help.")
+                        .font(.system(size: 12)).foregroundStyle(Theme.muted)
+                }
+                .padding(.horizontal, 4).padding(.bottom, 2)
+                guidance("1", title: "What you tried", detail: "The steps that led to the problem")
+                guidance("2", title: "What you expected", detail: "What you thought would happen")
+                guidance("3", title: "What happened", detail: "What appeared on screen or stopped working")
                 Text("A screenshot or recording can help explain a visual issue.")
-                    .font(.system(size: 12)).foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
+                    .font(.system(size: 11.5)).foregroundStyle(Theme.faint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4).padding(.top, 4)
             }
         }
     }
@@ -87,20 +114,23 @@ struct HelpAndSupport: View {
     private func emailAction(_ title: String, detail: String, symbol: String, kind: RequestKind) -> some View {
         Button { compose(kind) } label: {
             Bezel(radius: 18, inset: 3) {
-                HStack(spacing: 11) {
-                    Image(systemName: symbol).font(.system(size: 16, weight: .light))
-                        .foregroundStyle(Theme.muted).frame(width: 28)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title).font(.system(size: 13, weight: .semibold))
-                        Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
-                            .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        supportMark(symbol, size: 34)
+                        Spacer(minLength: 6)
+                        Image(systemName: "arrow.up.right").font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(Theme.muted).frame(width: 24, height: 24)
+                            .background(Circle().fill(Theme.fg.opacity(0.045)))
                     }
-                    Spacer(minLength: 8)
-                    Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.muted).frame(width: 28, height: 28)
-                        .background(Circle().fill(Theme.fg.opacity(0.06)))
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(title).font(.system(size: 13, weight: .semibold))
+                        Text(detail).font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(minHeight: 32, alignment: .topLeading)
+                    }
                 }
-                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
             }
         }
         .buttonStyle(PressStyle())
@@ -108,14 +138,43 @@ struct HelpAndSupport: View {
     }
 
     private func guidance(_ number: String, title: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(number).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.muted)
-                .frame(width: 22, height: 22).background(Circle().fill(Theme.fg.opacity(0.06)))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 12.5, weight: .semibold))
-                Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
+        Bezel(radius: 18, inset: 3) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(number).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.sand)
+                    .frame(width: 26, height: 26)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Theme.sand.opacity(0.1)))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.system(size: 12.5, weight: .semibold))
+                    Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(14)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func supportMark(_ symbol: String, size: CGFloat) -> some View {
+        Image(systemName: symbol).font(.system(size: size * 0.47, weight: .light))
+            .foregroundStyle(Theme.sand).frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.32, style: .continuous).fill(Theme.sand.opacity(0.1)))
+            .overlay(RoundedRectangle(cornerRadius: size * 0.32, style: .continuous).strokeBorder(Theme.sand.opacity(0.12), lineWidth: 0.5))
+            .accessibilityHidden(true)
+    }
+
+    private func troubleshooting(_ symbol: String, title: String, detail: String) -> some View {
+        Bezel(radius: 18, inset: 3) {
+            HStack(alignment: .top, spacing: 12) {
+                supportMark(symbol, size: 28)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title).font(.system(size: 12.5, weight: .semibold))
+                    Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(14)
         }
         .accessibilityElement(children: .combine)
     }

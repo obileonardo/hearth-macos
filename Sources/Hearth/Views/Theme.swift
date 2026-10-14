@@ -27,7 +27,7 @@ enum Theme {
     /// The main button: a white pill in the dark, an ink pill on paper, and the text on it.
     static let cta = Color.adaptive(dark: .white, light: .rgb(0.09, 0.09, 0.11))
     static let onCTA = Color.adaptive(dark: .black, light: .white)
-    /// Text on an accent fill (a sand DEMO badge, a lit button): dark on the pale dark-mode
+    /// Text on an accent fill (a blue DEMO badge, a lit button): dark on the pale dark-mode
     /// accents, white on the deeper light-mode ones.
     static let onAccent = Color.adaptive(dark: .black.withAlphaComponent(0.88), light: .white)
     /// A raised, opaque disc or tile, like the plates behind device icons.
@@ -56,7 +56,12 @@ enum Theme {
     /// Accents. Pale and luminous on black; deeper in the light so they still read as text.
     static let live = Color.adaptive(dark: .rgb(1.0, 0.36, 0.32), light: .rgb(0.78, 0.13, 0.11))
     static let ok = Color.adaptive(dark: .rgb(0.5, 0.9, 0.62), light: .rgb(0.09, 0.47, 0.24))
-    static let sand = Color.adaptive(dark: .rgb(0.86, 0.78, 0.66), light: .rgb(0.52, 0.37, 0.13))
+    static let brand = Color.adaptive(dark: .rgb(0.58, 0.77, 0.99), light: .rgb(0.08, 0.33, 0.66),
+                                      darkHC: .rgb(0.72, 0.86, 1.0), lightHC: .rgb(0.04, 0.24, 0.53))
+    static let brandEnd = Color.adaptive(dark: .rgb(0.34, 0.62, 0.93), light: .rgb(0.08, 0.25, 0.55))
+    static let brandGradient = LinearGradient(colors: [brand, brandEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
+    /// Compatibility name for existing artwork and view accents.
+    static let sand = brand
 
     /// The colour of the air for each mode: pale and luminous in the dark, the same hue deep
     /// enough to see against paper in the light.
@@ -384,6 +389,7 @@ struct HearthField: View {
     var chrome = true
     var onSubmit: () -> Void = {}
     @FocusState private var focused: Bool
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -392,7 +398,9 @@ struct HearthField: View {
                     .accessibilityHidden(true)
             }
             Group {
-                if secure { SecureField("", text: $text) } else { TextField("", text: $text) }
+                if documentationPreview {
+                    Text(secure ? String(repeating: "•", count: text.count) : text).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                } else if secure { SecureField("", text: $text) } else { TextField("", text: $text) }
             }
             .textFieldStyle(.plain)
             .textContentType(contentType)

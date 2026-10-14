@@ -150,17 +150,58 @@ struct EntityControl: View {
 
     @State private var draft: Double?
     @State private var message = ""
+    @State private var pending = false
+    @State private var waitingFor: String?
+    @State private var failure: String?
+    @State private var notice: String?
+
+    private var cameraControlUnavailable: Bool {
+        guard let deviceID = store.registry[entity.id]?.deviceID,
+              let device = store.devices[deviceID],
+              EntityCatalog.key(entity, deviceName: device.name) == "camera_enabled" else { return false }
+        return store.isOnUnreachableHub(deviceID)
+    }
+
+    private var announcementWarning: String? {
+        guard entity.domain == "notify", let deviceID = store.registry[entity.id]?.deviceID,
+              let device = store.devices[deviceID],
+              store.entities(ofDevice: deviceID).contains(where: {
+                  $0.domain == "switch" && $0.state == "on" && EntityCatalog.key($0, deviceName: device.name) == "do_not_disturb"
+              }) else { return nil }
+        return "Do not disturb is on. The speaker may not announce."
+    }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+            if let warning = announcementWarning {
+                Text(warning).font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 14).padding(.bottom, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let notice {
+                Text(notice).font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 14).padding(.bottom, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .alert("Action could not be confirmed", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+            Button("OK") { failure = nil }
+        } message: { Text(failure ?? "") }
+        .onChange(of: entity.state) { _, state in
+            if state == waitingFor { waitingFor = nil; pending = false; notice = nil }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
         switch entity.domain {
         case "switch", "input_boolean", "light", "fan", "siren":
             let on = entity.state == "on"
-            ControlRow(symbol: copy.symbol, label: copy.label, detail: copy.detail, tint: tint, lit: on) {
+            ControlRow(symbol: copy.symbol, label: copy.label, detail: cameraControlUnavailable ? "This hub does not support camera controls through Home Assistant." : copy.detail, tint: tint, lit: on) {
                 GlowSwitch(isOn: on, tint: tint) {
-                    store.optimistic(entity.id) { $0.state = on ? "off" : "on" }
-                    store.call(entity.domain, on ? "turn_off" : "turn_on", entity.id)
+                    changePower(on: !on)
                 }
-                .disabled(entity.isUnavailable)
+                .disabled(entity.isUnavailable || pending || waitingFor != nil || cameraControlUnavailable)
             }
         case "number":
             numberRow
@@ -168,8 +209,7 @@ struct EntityControl: View {
             ControlRow(symbol: copy.symbol, label: copy.label, detail: copy.detail, tint: tint) {
                 Button {
                     PopupMenu.show(entity.list("options"), selected: entity.state) { option in
-                        store.optimistic(entity.id) { $0.state = option }
-                        store.call(entity.domain, "select_option", entity.id, ["option": option])
+                        perform(DeviceCommand(domain: entity.domain, service: "select_option", entityID: entity.id, data: ["option": option]))
                     }
                 } label: {
                     HStack(spacing: 5) {
@@ -179,11 +219,12 @@ struct EntityControl: View {
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(Capsule().fill(Theme.fg.opacity(0.07)))
                 }
-                .buttonStyle(PressStyle())
+                .buttonStyle(PressStyle()).disabled(entity.isUnavailable || pending)
             }
         case "button":
             ControlRow(symbol: copy.symbol, label: copy.label, detail: copy.detail, tint: tint) {
-                Button("Run") { store.call("button", "press", entity.id) }
+                Button(pending ? "Running…" : "Run") { perform(DeviceCommand(domain: "button", service: "press", entityID: entity.id)) }
+                    .disabled(entity.state == "unavailable" || pending)
                     .buttonStyle(PressStyle())
                     .font(.system(size: 13, weight: .semibold))
                     .padding(.horizontal, 12).padding(.vertical, 5)
@@ -200,7 +241,7 @@ struct EntityControl: View {
                     }
                     .buttonStyle(PressStyle())
                     .accessibilityLabel("Send")
-                    .disabled(message.isEmpty)
+                    .disabled(pending || DeviceCommand.announcement(entity, message: message) == nil)
                 }
                 .padding(.leading, 10).padding(.trailing, 3).padding(.vertical, 3)
                 .background(Capsule().fill(Theme.fg.opacity(0.07)))
@@ -217,10 +258,48 @@ struct EntityControl: View {
     }
 
     private func send() {
-        guard !message.isEmpty else { return }
-        store.call("notify", "send_message", entity.id, ["message": message])
-        message = ""
-        Haptic.tick()
+        guard !pending, let action = DeviceCommand.announcement(entity, message: message) else { return }
+        let submitted = message
+        pending = true; notice = "Sending…"
+        store.call(action) { result in
+            pending = false
+            switch result {
+            case .success:
+                if message == submitted { message = "" }
+                notice = "Accepted by Home Assistant."
+                Haptic.tick()
+            case .failure(let error): notice = nil; failure = error.localizedDescription
+            }
+        }
+    }
+
+    private func perform(_ action: DeviceCommand) {
+        guard !pending else { return }
+        pending = true; notice = "Requesting…"
+        store.call(action) { result in
+            pending = false
+            switch result {
+            case .success: notice = "Accepted by Home Assistant."
+            case .failure(let error): notice = nil; failure = error.localizedDescription
+            }
+        }
+    }
+
+    private func changePower(on: Bool) {
+        guard !pending, !cameraControlUnavailable, let action = DeviceCommand.power(entity, on: on) else { return }
+        let target = on ? "on" : "off"
+        waitingFor = target; pending = true; notice = "Waiting for device…"
+        store.call(action) { result in
+            if case .failure(let error) = result, waitingFor == target {
+                waitingFor = nil; pending = false; notice = nil; failure = error.localizedDescription
+            }
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(15))
+            guard waitingFor == target else { return }
+            waitingFor = nil; pending = false; notice = nil
+            failure = "Home Assistant has not reported this device changing state. Its connection or hub may be unavailable. Check the device before trying again."
+        }
     }
 
     @ViewBuilder private var numberRow: some View {
@@ -235,12 +314,12 @@ struct EntityControl: View {
             ThinSlider(value: value, range: lo...max(hi, lo + step), step: step, tint: tint) { v in
                 draft = v
             } onEnd: { v in
-                store.optimistic(entity.id) { $0.state = String(v) }
-                store.call("number", "set_value", entity.id, ["value": v])
+                perform(DeviceCommand(domain: "number", service: "set_value", entityID: entity.id, data: ["value": v]))
                 draft = nil
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 8)
+            .disabled(entity.isUnavailable || pending)
         }
     }
 }
@@ -287,26 +366,26 @@ struct MediaRow: View {
     let entity: Entity
     var tint: Color = Theme.sand
     @State private var volume: Double?
+    @State private var commandError: String?
 
     var body: some View {
         let playing = entity.state == "playing"
         VStack(spacing: 6) {
             ControlRow(symbol: playing ? "waveform" : "music.note", label: entity.str("media_title") ?? (playing ? "Playing" : "Nothing playing"),
                        detail: entity.str("media_artist"), tint: tint, lit: playing) {
-                Button {
-                    store.call("media_player", "media_play_pause", entity.id)
-                } label: {
-                    Image(systemName: playing ? "pause.fill" : "play.fill").font(.system(size: 12.5))
-                        .frame(width: 28, height: 28).background(Circle().fill(Theme.fg.opacity(0.08)))
+                HStack(spacing: 4) {
+                    SpeakerChooseMusicButton(entity: entity)
+                    SpeakerPlayButton(entity: entity)
                 }
-                .buttonStyle(PressStyle())
-                .accessibilityLabel(playing ? "Pause" : "Play")
+
             }
             if let v = entity.num("volume_level") {
                 HStack(spacing: 8) {
                     Image(systemName: "speaker.fill").font(.system(size: 10.5)).foregroundStyle(Theme.faint)
                     ThinSlider(value: volume ?? v, range: 0...1, step: 0.05, tint: tint) { volume = $0 } onEnd: { v in
-                        store.call("media_player", "volume_set", entity.id, ["volume_level": v])
+                        store.call("media_player", "volume_set", entity.id, ["volume_level": v]) { result in
+                            if case .failure(let error) = result { commandError = error.localizedDescription }
+                        }
                         volume = nil
                     }
                     Image(systemName: "speaker.wave.3.fill").font(.system(size: 10.5)).foregroundStyle(Theme.faint)
@@ -314,6 +393,9 @@ struct MediaRow: View {
                 .padding(.horizontal, 14).padding(.bottom, 8)
             }
         }
+        .alert("Speaker action failed", isPresented: Binding(get: { commandError != nil }, set: { if !$0 { commandError = nil } })) {
+            Button("OK") { commandError = nil }
+        } message: { Text(commandError ?? "") }
     }
 }
 

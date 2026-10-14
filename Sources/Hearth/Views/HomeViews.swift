@@ -32,7 +32,7 @@ struct PageHeader<Trailing: View>: View {
                     }
                     .foregroundStyle(chrome.demoOn ? Theme.onAccent : Theme.ink)
                     .padding(.horizontal, 11).frame(height: 30)
-                    .background(Capsule().fill(chrome.demoOn ? AnyShapeStyle(Color.accent(0.98, 0.8, 0.42)) : AnyShapeStyle(Theme.fg.opacity(0.06)))
+                    .background(Capsule().fill(chrome.demoOn ? AnyShapeStyle(Theme.brandGradient) : AnyShapeStyle(Theme.fg.opacity(0.06)))
                         .overlay(Capsule().strokeBorder(Theme.hairline)))
                 }
                 .buttonStyle(PressStyle())
@@ -84,8 +84,14 @@ struct PinnedTitleBar: View {
 
     /// 0 while the page header is in view, 1 once it has gone.
     private var progress: CGFloat {
-        guard let bottom = info?.bottom else { return 0 }
-        return min(max((26 - bottom) / 34, 0), 1)
+        Self.progress(headerBottom: info?.bottom)
+    }
+
+    static func progress(headerBottom: CGFloat?) -> CGFloat {
+        guard let bottom = headerBottom else { return 0 }
+        // Wait until the original header has left the viewport. Starting the glass
+        // while its text was still visible dimmed the title beneath its own copy.
+        return min(max(-bottom / 18, 0), 1)
     }
 
     var body: some View {
@@ -96,9 +102,9 @@ struct PinnedTitleBar: View {
             // With Reduce Transparency it's the panel's own colour, solid.
             Rectangle().fill(reduceTransparency ? AnyShapeStyle(Theme.base) : AnyShapeStyle(.ultraThinMaterial))
                 .overlay(Theme.base.opacity(reduceTransparency ? 1 : 0.55))
-                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.62),
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.78),
                                             .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
-                .frame(height: Self.height + 22 + 14)
+                .frame(height: Self.height + 22)
                 .padding(.horizontal, -22)
                 .opacity(eased)
                 .allowsHitTesting(false)
@@ -123,7 +129,6 @@ struct PinnedTitleBar: View {
                 .padding(.top, 14)
                 .opacity(eased)
                 .offset(y: (1 - eased) * 10)
-                .blur(radius: (1 - eased) * 3)
                 .allowsHitTesting(p > 0.5)
             }
         }

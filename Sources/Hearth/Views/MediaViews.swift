@@ -81,6 +81,7 @@ struct PlayerCard: View {
     let entity: Entity
     @State private var artwork: NSImage?
     @State private var volume: Double?
+    @State private var commandError: String?
 
     var body: some View {
         let playing = entity.state == "playing"
@@ -103,7 +104,7 @@ struct PlayerCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(entity.str("media_title") ?? (playing ? "Playing" : "Paused"))
+                        Text(entity.str("media_title") ?? (playing ? "Playing" : entity.state == "paused" ? "Paused" : "Choose music"))
                             .font(.system(size: 14.5, weight: .semibold)).lineLimit(1)
                         Text(entity.str("media_artist") ?? entity.str("app_name") ?? "")
                             .font(.system(size: 13)).foregroundStyle(Theme.muted).lineLimit(1)
@@ -117,22 +118,14 @@ struct PlayerCard: View {
                 }
                 HStack(spacing: 18) {
                     transport("backward.fill", "media_previous_track", size: 12)
-                    Button { store.call("media_player", "media_play_pause", entity.id) } label: {
-                        Image(systemName: playing ? "pause.fill" : "play.fill")
-                            .font(.system(size: 15))
-                            .foregroundStyle(Theme.onCTA)
-                            .frame(width: 40, height: 40)
-                            .background(Circle().fill(Theme.cta))
-                            .glow(color: Theme.sand.opacity(playing ? 0.5 : 0), radius: 10)
-                    }
-                    .buttonStyle(PressStyle())
-                    .accessibilityLabel(playing ? "Pause" : "Play")
+                    SpeakerPlayButton(entity: entity, size: 40, prominent: true)
                     transport("forward.fill", "media_next_track", size: 12)
+                    SpeakerChooseMusicButton(entity: entity)
                     if let v = entity.num("volume_level") {
                         HStack(spacing: 6) {
                             Image(systemName: "speaker.fill").font(.system(size: 10.5)).foregroundStyle(Theme.faint)
                             ThinSlider(value: volume ?? v, range: 0...1, step: 0.02) { volume = $0 } onEnd: { v in
-                                store.call("media_player", "volume_set", entity.id, ["volume_level": v])
+                                send("volume_set", ["volume_level": v])
                                 volume = nil
                             }
                         }
@@ -142,15 +135,25 @@ struct PlayerCard: View {
             .padding(12)
         }
         .task(id: entity.str("entity_picture")) { await loadArtwork() }
+        .alert("Speaker action failed", isPresented: Binding(get: { commandError != nil }, set: { if !$0 { commandError = nil } })) {
+            Button("OK") { commandError = nil }
+        } message: { Text(commandError ?? "") }
     }
 
     private func transport(_ symbol: String, _ service: String, size: CGFloat) -> some View {
-        Button { store.call("media_player", service, entity.id) } label: {
+        Button { send(service) } label: {
             Image(systemName: symbol).font(.system(size: size)).foregroundStyle(Theme.ink)
                 .frame(width: 30, height: 30)
         }
         .buttonStyle(PressStyle())
+        .disabled(entity.isUnavailable || !SpeakerAction.supports(entity, feature: service == "media_next_track" ? 32 : 16))
         .accessibilityLabel(service == "media_next_track" ? "Next track" : service == "media_previous_track" ? "Previous track" : service.replacingOccurrences(of: "media_", with: "").pretty)
+    }
+
+    private func send(_ service: String, _ data: JSON = [:]) {
+        store.call("media_player", service, entity.id, data) { result in
+            if case .failure(let error) = result { commandError = error.localizedDescription }
+        }
     }
 
     /// Album art comes through Home Assistant's media proxy.
@@ -182,12 +185,8 @@ struct IdleSpeakerRow: View {
             }
             Spacer()
             if !entity.isUnavailable {
-                Button { store.call("media_player", "media_play", entity.id) } label: {
-                    Image(systemName: "play.fill").font(.system(size: 11.5))
-                        .frame(width: 28, height: 28).background(Circle().fill(Theme.fg.opacity(0.07)))
-                }
-                .buttonStyle(PressStyle())
-                .accessibilityLabel("Play")
+                SpeakerPlayButton(entity: entity)
+
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 7)

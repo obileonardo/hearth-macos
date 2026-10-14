@@ -62,3 +62,9 @@ Updated 14 October 2026. This register covers Claude's foundation, the interrupt
 | Final pill/camera visual feedback | Review latest build on the user's Mac | Appearance is implemented; further art direction is optional |
 
 See [release verification](../docs/release-verification-0.1.1.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private owner handoff files are deliberately excluded from public Git history.
+
+## Latest UI review — 14 October
+
+The next source update adds the adaptive blue brand palette, immediate Light/Dark switching, native menu-panel anchoring, clearer Settings/widget/notification/Help layouts, filled selected navigation glyphs and responsive identity transitions. Speaker actions use registered capabilities and authoritative Home Assistant responses; idle Alexa devices start music on the chosen device. An approved physical playback check was confirmed by Home Assistant and heard by the owner. Announcements were accepted; audible delivery can depend on Do Not Disturb and device behavior. Unsupported camera hubs remain explicitly unavailable.
+
+The expanded isolated suite contains 57 cases, including appearance, native-panel geometry and device-action routing. Current delivery evidence is recorded separately after hosted checks complete. No personal recordings, logs, device IDs or operational register files are included in the public tree.

@@ -409,7 +409,7 @@ private struct DemoBanner: View {
     @ObservedObject var engine: DemoEngine
     let exit: () -> Void
 
-    static let tint = Color.accent(0.98, 0.8, 0.42)
+    static let tint = Theme.brand
 
     var body: some View {
         Bezel(radius: 20, inset: 3, lit: true, tint: Self.tint) {
@@ -512,7 +512,7 @@ struct DemoPill: View {
     var body: some View {
         if hub.demo != nil {
             HStack(spacing: 8) {
-                Circle().fill(Color.accent(0.98, 0.8, 0.42)).frame(width: 6, height: 6)
+                Circle().fill(Theme.brand).frame(width: 6, height: 6)
                 Text("Demo · sample data").font(.system(size: 12, weight: .semibold))
                 Button { hub.toggleDemo() } label: {
                     Text("Exit").font(.system(size: 12, weight: .semibold))
@@ -544,7 +544,7 @@ struct TryDemoCard: View {
                     Image(systemName: "play.fill").font(.system(size: 12, weight: .bold))
                         .foregroundStyle(Theme.onAccent)
                         .frame(width: 30, height: 30)
-                        .background(Circle().fill(Color.accent(0.98, 0.8, 0.42)))
+                        .background(Circle().fill(Theme.brand))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Try the demo").font(.system(size: 13.5, weight: .semibold))
                         Text(message).font(.system(size: 12)).foregroundStyle(Theme.muted)
@@ -556,7 +556,7 @@ struct TryDemoCard: View {
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.fg.opacity(0.045))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(Color.accent(0.98, 0.8, 0.42).opacity(0.35), lineWidth: 0.75)))
+                        .strokeBorder(Theme.brand.opacity(0.35), lineWidth: 0.75)))
             }
             .buttonStyle(PressStyle())
             .accessibilityLabel("Try the demo. \(message)")

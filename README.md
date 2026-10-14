@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/art/hearth-showcase.png" width="960" alt="Hearth device families: climate, security, speakers, energy and vehicles">
+  <img src="docs/art/hearth-native-showcase.png" width="960" alt="Hearth's native blue-accented climate, security and speaker illustrations">
 </p>
 
 ---
@@ -41,21 +41,48 @@
 <details>
 <summary><b>Explore the full device illustration library</b></summary>
 
-The [full artwork sheet](docs/art/devices.png) includes every device and its on/off variants. The introduction above is a composed illustration; see [artwork notes](docs/art/showcase.md).
+The [full artwork sheet](docs/art/devices.png) includes every device and its on/off variants. The introduction above is rendered from Hearth's native device illustrations. See [artwork notes](docs/art/showcase.md) for the earlier device-family illustration.
 
 </details>
 
 ## In the app
 
-These screenshots use Hearth's real views with offline sample data. They contain no personal camera pictures, household configuration or account information.
+### Demo views and illustrated setup steps
 
-<p align="center">
-  <img src="docs/screenshots/devices-dark.png" width="340" alt="Devices overview with home, energy, vehicles, gadgets and speakers">
-  <img src="docs/screenshots/speakers-grid-dark.png" width="340" alt="Speaker grid showing playing, paused, grouped and offline states">
-</p>
+The views below use offline sample data, with no personal camera pictures, household configuration or account information. The setup guide's address, username and password fields, and its version-information switch, are static illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
+
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Devices · dark</h3>
+      <img src="docs/screenshots/guide-devices-dark.png" width="360" alt="Dark Devices overview with example home, energy and vehicle cards">
+      <p>Open your home or a device family from one overview.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Devices · light</h3>
+      <img src="docs/screenshots/guide-devices-light.png" width="360" alt="Light Devices overview with the same example device families">
+      <p>The same navigation, adapted for light appearance.</p>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Speakers · dark</h3>
+      <img src="docs/screenshots/guide-speakers-dark.png" width="360" alt="Dark speaker grid with sample playing, grouped, paused and offline states">
+      <p>See each speaker's room, playback state and group.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Climate · dark</h3>
+      <img src="docs/screenshots/guide-climate-dark.png" width="360" alt="Dark air conditioner view with illustrated airflow and sample temperature controls">
+      <p>Adjust the set point and mode on the unit's own page.</p>
+    </td>
+  </tr>
+</table>
+
 <p align="center">
   <img src="docs/screenshots/map-layout-dark.png" width="960" alt="Interactive two-floor demo house with transparent walls, device models and energy paths">
 </p>
+
+The demo map shows floor selection and device placement. Import your own scan to arrange your home.
 
 ## Requirements
 
@@ -95,8 +122,6 @@ Open <http://localhost:8123> and create your Home Assistant account. To start Co
 
 In Home Assistant, go to **Settings → Devices & services → Add integration** and add each brand you own (LG ThinQ, Ring, Philips Hue, Sonos and thousands more). Some brands need the community store [HACS](https://hacs.xyz) first. See [Brand notes](#brand-notes) for a few that need extra steps.
 
-Then give your devices **rooms**: **Settings → Areas, labels & zones**. Create your rooms (and floors, if you like), and assign each device to one. Hearth shows them exactly as you arrange them here.
-
 ### 3. Install Hearth
 
 ```sh
@@ -111,6 +136,50 @@ open ~/Applications/Hearth.app
 Click the Hearth icon in your menu bar. Enter your Home Assistant address (for example `http://homeassistant.local:8123` or `http://localhost:8123`) and the **username and password you use for Home Assistant**. That's it: Hearth signs in like the Home Assistant app does and stays signed in. Your password is never stored; only a refresh token, in your Keychain.
 
 macOS will ask to allow notifications. Say yes if you want doorbell and people alerts.
+
+<p align="center">
+  <img src="docs/screenshots/guide-connect-light.png" width="360" alt="Illustrated Hearth sign-in setup with a generic Home Assistant address, demo username and empty password">
+</p>
+
+The illustration uses a generic address and `demo` username, with an empty password. Enter your own Home Assistant details in the app.
+
+### 5. Put devices in rooms
+
+Rooms and floors come from Home Assistant:
+
+1. Open **Home Assistant → Settings → Areas, labels & zones**.
+2. Create your rooms, such as Kitchen or Living Room, and optional floors.
+3. Assign each device to its room in Home Assistant's device settings.
+4. Open **Rooms** in Hearth to browse that arrangement and its devices.
+
+### 6. Choose a view and use its controls
+
+Use **Devices** to browse families, **Rooms** to browse by location, or **3D Map** to place devices in a home scan. Open an air conditioner for temperature and mode controls. In **Devices → Speakers**, switch between grid and list, then use the playback controls on a connected speaker. Available controls depend on what its Home Assistant integration exposes.
+
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Adjust the climate</h3>
+      <img src="docs/screenshots/guide-climate-light.png" width="360" alt="Light air conditioner demo with temperature adjustment and cooling mode">
+      <p>Choose a set point and mode; illustrated airflow follows the unit's state.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Browse your speakers</h3>
+      <img src="docs/screenshots/guide-speakers-light.png" width="360" alt="Light speaker grid demo showing room labels and playback controls">
+      <p>Grid and list show the same speakers. Playing speakers display sound waves.</p>
+    </td>
+  </tr>
+</table>
+
+### 7. Get help or report a problem
+
+Open **Settings → Help & Support**. Start with the connection and device checks, then choose **Get help** or **Report a bug**. Hearth opens an editable mail draft; you decide what to include and when to send it. App and macOS version numbers are optional and off by default.
+
+<p align="center">
+  <img src="docs/screenshots/guide-help-light.png" width="360" alt="Hearth Help and Support demo with email actions and optional version-information setting">
+</p>
+
+For a bug report, describe what you tried, what you expected and what happened. The page provides separate guidance for each detail.
 
 ## Brand notes
 
