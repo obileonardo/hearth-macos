@@ -26,19 +26,22 @@ Updated 14 October 2026. This register covers Claude's foundation, the interrupt
 | See-through collapsed map and consolidated full-map toolbar | Codex | Complete |
 | Moving selection pills, smoother map and page transitions | Codex | Complete; reduced-motion behavior preserved |
 | Activity filter transition, text gradients and dock polish | Codex | Complete |
-| Semantic navigation icons | Codex agent | Complete |
-| Menu-bar pill rendering without the native selection bezel | Codex | Implemented; final appearance on the user's menu bar still welcomes visual confirmation |
+| Semantic navigation icons | Codex agent | Complete; selected security, room and device glyphs fill blue and animate, respecting Reduce Motion |
+| Menu-bar pill rendering and native panel anchoring | Codex | Complete in 0.1.2; owned status view avoids the native selection bezel, panel follows its menu-item anchor; later visual feedback remains queued below |
 | Map placement and widget accessibility actions | Codex agents | Complete; named actions and keyboard placement included; full VoiceOver review remains separate |
-| Help and bug-report email drafts | Codex | Complete; contact@elvisobi.com, optional diagnostic fields, no automatic sending |
-| README illustration, artwork provenance and app screenshots | Codex | Complete; sample-data screenshots and full library retained |
+| Help and bug-report email drafts | Codex | Complete; contact@elvisobi.com, separate action/guidance cards, optional version fields off by default, no automatic sending |
+| README illustration, artwork provenance and app screenshots | Codex | Complete; native showcase, consistent light/dark demo guides, explicit static setup-control illustrations and full artwork library |
+| Adaptive blue brand and appearance preferences | Codex agents | Complete in 0.1.2; immediate Light/Dark/System switching and documented accessibility behavior |
+| Settings, widget and notification preference layouts | Codex agents | Complete in 0.1.2; clearer grouping and a distinct preferences entry icon |
+| Speaker capability routing and playback actions | Codex agents | Complete in 0.1.2; registered capabilities and authoritative Home Assistant responses used; approved local playback heard by owner |
 | Credential-origin and redirect boundaries | Codex | Complete; regression checks pass |
 | Home identity, scan import and saved map compatibility | Codex | Complete; regression checks pass |
 | Source license, notices, contributor/security guidance and issue templates | Codex agent | Complete |
 | Open-source publication | Codex agents | Complete; independent reviewed history at [hearth-macos](https://github.com/obileonardo/hearth-macos); private development history preserved |
 | GitHub security and branch rules | Codex | Complete; secret scanning/push protection, private security reports, dependency updates, pinned Actions, PR/build requirements and force-push/deletion protection |
-| Automated regression CI | Codex agents | Complete; 36 XCTest cases, zero failures, two hosted GPU skips; shell and widget checks pass |
+| Automated regression CI | Codex agents | Complete; [0.1.2 public run](https://github.com/obileonardo/hearth-macos/actions/runs/38549884465): 57 XCTest cases, zero failures, two hosted GPU skips; shell checks and optional universal WidgetKit compile pass |
 | Universal app and DMG packaging | Codex agents | Complete; Apple Silicon/Intel payload and checksum verified |
-| Public preview download | Codex | Complete; [0.1.1 preview](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.1-preview), explicitly not notarized |
+| Public preview download | Codex | Complete; [0.1.2 preview](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.2-preview), explicitly not notarized; fresh unauthenticated download matched the recorded checksum |
 | Project relocation to external storage | Codex | Complete; working files/history retained, old paths linked; drive must remain connected |
 | Task register and Claude handoff | Codex | Complete; detailed owner records stay private |
 
@@ -61,10 +64,14 @@ Updated 14 October 2026. This register covers Claude's foundation, the interrupt
 | Older supported macOS, Intel runtime and full VoiceOver coverage | Additional machines or manual review | Current compile/fixture checks do not cover all runtime combinations |
 | Final pill/camera visual feedback | Review latest build on the user's Mac | Appearance is implemented; further art direction is optional |
 
-See [release verification](../docs/release-verification-0.1.1.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private owner handoff files are deliberately excluded from public Git history.
+See [0.1.2 release verification](../docs/release-verification-0.1.2.md), [0.1.1 verification history](../docs/release-verification-0.1.1.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private owner handoff files are deliberately excluded from public Git history.
 
-## Latest UI review — 14 October
+## Released UI review — 14 October
 
-The next source update adds the adaptive blue brand palette, immediate Light/Dark switching, native menu-panel anchoring, clearer Settings/widget/notification/Help layouts, filled selected navigation glyphs and responsive identity transitions. Speaker actions use registered capabilities and authoritative Home Assistant responses; idle Alexa devices start music on the chosen device. An approved physical playback check was confirmed by Home Assistant and heard by the owner. Announcements were accepted; audible delivery can depend on Do Not Disturb and device behavior. Unsupported camera hubs remain explicitly unavailable.
+The 0.1.2 preview includes the adaptive blue brand palette, immediate Light/Dark switching, native menu-panel anchoring, clearer Settings/widget/notification/Help layouts, filled selected navigation glyphs and immediate destination transitions. Speaker actions use registered capabilities and authoritative Home Assistant responses; idle Alexa devices start music on the chosen device. An approved physical playback check was confirmed by Home Assistant and heard by the owner. Announcements were accepted; audible delivery can depend on Do Not Disturb and device behavior. Unsupported camera hubs remain explicitly unavailable.
 
-The expanded isolated suite contains 57 cases, including appearance, native-panel geometry and device-action routing. Current delivery evidence is recorded separately after hosted checks complete. No personal recordings, logs, device IDs or operational register files are included in the public tree.
+The expanded isolated suite contains 57 cases, including appearance, native-panel geometry and device-action routing. Private and public hosted checks passed with two GPU-dependent skips and no failures. The release verification record identifies the exact app-source commit and download checksum. No personal recordings, logs, device IDs or operational register files are included in the public tree.
+
+## Queued feedback
+
+The further UI feedback received at 11:01 on 14 October is queued separately. It has not been implemented in the 0.1.2 preview. Completion of this release and its documentation does not close that next round of visual changes.

@@ -18,9 +18,9 @@
 
 ## Download
 
-[Download Hearth 0.1.1 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.1-preview/Hearth-0.1.1-universal-PREVIEW.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.1-preview)
+[Download Hearth 0.1.2 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.2-preview/Hearth-0.1.2-universal-PREVIEW.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.2-preview)
 
-**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#3-install-hearth). See [verification](docs/release-verification-0.1.1.md) and the [task register](Task%20Update/README.md).
+**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#3-install-hearth). See [verification](docs/release-verification-0.1.2.md) and the [task register](Task%20Update/README.md).
 
 ## What it does
 
@@ -250,7 +250,7 @@ How it fits together:
 
 Contributions are welcome. Adding friendly names for another brand's settings is a great first change: it's a table in `EntityCatalog.swift`.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [first public run](https://github.com/obileonardo/hearth-macos/actions/runs/38534020918) succeeded with 36 tests, 2 GPU-dependent skips and no failures. These checks do not exercise connected Home Assistant devices or publish a binary.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [0.1.2 public checks](https://github.com/obileonardo/hearth-macos/actions/runs/38549884465) succeeded with 57 XCTest cases, 2 GPU-dependent skips and no failures. Earlier results remain in the [0.1.1 verification record](docs/release-verification-0.1.1.md). These checks do not exercise connected Home Assistant devices or publish a binary.
 
 ## Credits
 
