@@ -105,42 +105,76 @@ struct EnergyPrefs {
     }
 }
 
+/// Validates external sensor numbers before arithmetic, integer formatting or drawing.
+enum EnergyNumeric {
+    static func finite(_ value: Double?) -> Double? {
+        guard let value, value.isFinite else { return nil }
+        return value
+    }
+    static func value(_ entity: Entity?) -> Double? { finite(entity.flatMap { Double($0.state) }) }
+    static func rounded(_ value: Double?) -> Int? {
+        finite(value).flatMap { Int(exactly: $0.rounded()) }
+    }
+    static func percent(_ value: Double?) -> Double? {
+        guard let value = finite(value), (0...100).contains(value) else { return nil }
+        return value
+    }
+    static func sum(_ values: [Double]) -> Double? {
+        guard !values.isEmpty, values.allSatisfy(\.isFinite) else { return nil }
+        return finite(values.reduce(0, +))
+    }
+    static func temperature(_ entity: Entity?) -> String? {
+        guard let entity, let value = rounded(Self.value(entity)) else { return nil }
+        return "\(value)\(entity.str("unit_of_measurement") ?? "°")"
+    }
+    static func cellVoltage(_ entity: Entity) -> Double? {
+        guard let value = Self.value(entity) else { return nil }
+        return finite(entity.str("unit_of_measurement") == "mV" ? value / 1000 : value)
+    }
+    static func cellSpread(low: Double, high: Double) -> Int? {
+        guard low.isFinite, high.isFinite, high >= low else { return nil }
+        return rounded((high - low) * 1000)
+    }
+}
+
 /// Power in watts and energy in kilowatt hours, from a sensor's state and its own unit.
 enum EnergyUnits {
     static func watts(_ e: Entity?) -> Double? {
-        guard let e, let v = Double(e.state) else { return nil }
+        guard let e, let v = EnergyNumeric.value(e) else { return nil }
         switch e.str("unit_of_measurement") ?? "W" {
-        case "kW": return v * 1000
-        case "MW": return v * 1_000_000
+        case "kW": return EnergyNumeric.finite(v * 1000)
+        case "MW": return EnergyNumeric.finite(v * 1_000_000)
         case "mW": return v / 1000
         default: return v
         }
     }
 
     static func kilowattHours(_ e: Entity?) -> Double? {
-        guard let e, let v = Double(e.state) else { return nil }
+        guard let e, let v = EnergyNumeric.value(e) else { return nil }
         switch e.str("unit_of_measurement") ?? "kWh" {
         case "Wh": return v / 1000
-        case "MWh": return v * 1000
+        case "MWh": return EnergyNumeric.finite(v * 1000)
         default: return v
         }
     }
 
     static func power(_ watts: Double) -> String {
+        guard watts.isFinite else { return "—" }
         let w = abs(watts)
-        if w < 1000 { return "\(Int(w.rounded())) W" }
+        if w < 1000 { return EnergyNumeric.rounded(w).map { "\($0) W" } ?? "—" }
         if w < 100_000 { return String(format: "%.1f kW", w / 1000) }
         return String(format: "%.0f kW", w / 1000)
     }
 
     static func energy(_ kwh: Double) -> String {
-        if kwh < 1 { return "\(Int((kwh * 1000).rounded())) Wh" }
+        guard kwh.isFinite else { return "—" }
+        if kwh < 1 { return EnergyNumeric.rounded(kwh * 1000).map { "\($0) Wh" } ?? "—" }
         if kwh < 100 { return String(format: "%.1f kWh", kwh) }
         return String(format: "%.0f kWh", kwh)
     }
 
     static func duration(hours: Double) -> String {
-        let minutes = Int((hours * 60).rounded())
+        guard hours.isFinite, hours >= 0, let minutes = EnergyNumeric.rounded(hours * 60) else { return "—" }
         if minutes < 60 { return "\(max(minutes, 1)) min" }
         if minutes < 48 * 60 { return minutes % 60 == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(minutes % 60) min" }
         return "\(minutes / (24 * 60)) days"
@@ -179,7 +213,7 @@ struct EnergySystem {
 
     var solarWatts: Double? {
         let values = solar.compactMap(EnergyUnits.watts)
-        return values.isEmpty ? nil : values.reduce(0, +)
+        return EnergyNumeric.sum(values)
     }
 
     var batteryWatts: Double? {
@@ -187,20 +221,25 @@ struct EnergySystem {
         if let w = EnergyUnits.watts(battery) {
             value = w
         } else if batteryCharging != nil || batteryDischarging != nil {
-            value = (EnergyUnits.watts(batteryDischarging) ?? 0) - (EnergyUnits.watts(batteryCharging) ?? 0)
+            let discharging = EnergyUnits.watts(batteryDischarging), charging = EnergyUnits.watts(batteryCharging)
+            guard batteryDischarging == nil || discharging != nil,
+                  batteryCharging == nil || charging != nil else { return nil }
+            value = (discharging ?? 0) - (charging ?? 0)
         }
         // Not every inverter follows Home Assistant's sign; trust its own words when it has them.
         if var v = value, let status = batteryStatus?.state.lowercased() {
             if status.contains("discharg") { v = abs(v) } else if status.contains("charg") { v = -abs(v) }
             value = v
         }
-        return value
+        return EnergyNumeric.finite(value)
     }
 
     var gridWatts: Double? {
         if let w = EnergyUnits.watts(grid) { return w }
         if gridImport != nil || gridExport != nil {
-            return (EnergyUnits.watts(gridImport) ?? 0) - (EnergyUnits.watts(gridExport) ?? 0)
+            let imported = EnergyUnits.watts(gridImport), exported = EnergyUnits.watts(gridExport)
+            guard gridImport == nil || imported != nil, gridExport == nil || exported != nil else { return nil }
+            return EnergyNumeric.finite((imported ?? 0) - (exported ?? 0))
         }
         return nil
     }
@@ -208,21 +247,21 @@ struct EnergySystem {
     var loadWatts: Double? {
         if let w = EnergyUnits.watts(load) { return max(w, 0) }
         guard solarWatts != nil || batteryWatts != nil || gridWatts != nil else { return nil }
-        return max((solarWatts ?? 0) + (batteryWatts ?? 0) + (gridWatts ?? 0), 0)
+        return EnergyNumeric.sum([solarWatts ?? 0, batteryWatts ?? 0, gridWatts ?? 0]).map { max($0, 0) }
     }
 
-    var chargePercent: Double? { charge.flatMap { Double($0.state) } }
+    var chargePercent: Double? { EnergyNumeric.percent(EnergyNumeric.value(charge)) }
 
     /// The battery's full size in watt hours, from a capacity sensor in Wh, kWh or Ah.
     var capacityWattHours: Double? {
-        guard let e = batteryCapacity, let v = Double(e.state), v > 0 else { return nil }
+        guard let e = batteryCapacity, let v = EnergyNumeric.value(e), v > 0 else { return nil }
         switch e.str("unit_of_measurement") ?? "" {
         case "Wh": return v
-        case "kWh": return v * 1000
-        case "MWh": return v * 1_000_000
+        case "kWh": return EnergyNumeric.finite(v * 1000)
+        case "MWh": return EnergyNumeric.finite(v * 1_000_000)
         case "Ah":
-            guard let volts = batteryVoltage.flatMap({ Double($0.state) }), volts > 0 else { return nil }
-            return v * volts
+            guard let volts = EnergyNumeric.value(batteryVoltage), volts > 0 else { return nil }
+            return EnergyNumeric.finite(v * volts)
         default: return nil
         }
     }
@@ -254,7 +293,7 @@ struct EnergySystem {
         let words = Dictionary(uniqueKeysWithValues: sensors.map { ($0.id, Self.words($0)) })
         func w(_ e: Entity) -> Set<String> { words[e.id] ?? [] }
         func unit(_ e: Entity) -> String { e.str("unit_of_measurement") ?? "" }
-        func numeric(_ e: Entity) -> Bool { Double(e.state) != nil }
+        func numeric(_ e: Entity) -> Bool { EnergyNumeric.value(e) != nil }
         let power = sensors.filter { $0.str("device_class") == "power" || ["W", "kW", "MW"].contains(unit($0)) }
 
         func best(_ pool: [Entity], _ score: (Entity) -> Int) -> Entity? {
@@ -468,7 +507,7 @@ final class EnergyFeed: ObservableObject {
                     "types": ["change"],
                     "units": ["energy": "kWh"],
                 ]) as? JSON
-                if let change = (result?["change"] as? NSNumber)?.doubleValue { totals[id] = change }
+                if let change = EnergyNumeric.finite((result?["change"] as? NSNumber)?.doubleValue) { totals[id] = change }
             }
             today = totals
         }
@@ -495,9 +534,10 @@ final class EnergyFeed: ObservableObject {
         for entity in solar {
             let scale = (EnergyUnits.watts(Entity(id: entity.id, state: "1", attributes: entity.attributes)) ?? 1)
             let samples = (result[entity.id] as? [JSON] ?? []).compactMap { row -> (Double, Double)? in
-                guard let s = (row["s"] as? String).flatMap(Double.init) else { return nil }
+                guard let s = EnergyNumeric.finite((row["s"] as? String).flatMap(Double.init)) else { return nil }
                 let t = (row["lu"] as? NSNumber)?.doubleValue ?? (row["lc"] as? NSNumber)?.doubleValue ?? start.timeIntervalSince1970
-                return (t, s * scale)
+                guard t.isFinite, let watts = EnergyNumeric.finite(s * scale) else { return nil }
+                return (t, watts)
             }
             .sorted { $0.0 < $1.0 }
             guard !samples.isEmpty else { continue }
@@ -508,7 +548,8 @@ final class EnergyFeed: ObservableObject {
             for b in 0..<buckets {
                 let t = start.timeIntervalSince1970 + (Double(b) + 0.5) * 1800
                 while j < samples.count, samples[j].0 <= t { current = samples[j].1; j += 1 }
-                sums[b] += max(current, 0)
+                guard let total = EnergyNumeric.finite(sums[b] + max(current, 0)) else { solarDay = []; return }
+                sums[b] = total
             }
         }
         solarDay = any ? sums : []
@@ -833,19 +874,19 @@ private struct BatteryCard: View {
     private func eta(soc: Double?, watts: Double?) -> String? {
         guard let soc, let w = watts, let capacity = sys.capacityWattHours, abs(w) > 20 else { return nil }
         if w < 0 {
-            let hours = capacity * (100 - soc) / 100 / abs(w)
-            return soc >= 99 ? nil : "Full in about \(EnergyUnits.duration(hours: hours))"
+            let duration = EnergyUnits.duration(hours: capacity * ((100 - soc) / 100) / abs(w))
+            return soc >= 99 || duration == "—" ? nil : "Full in about \(duration)"
         }
-        let hours = capacity * soc / 100 / w
-        return "Lasts about \(EnergyUnits.duration(hours: hours)) at this rate"
+        let duration = EnergyUnits.duration(hours: capacity * (soc / 100) / w)
+        return duration == "—" ? nil : "Lasts about \(duration) at this rate"
     }
 
     private func readouts() -> [(String, String)] {
         var out: [(String, String)] = []
-        if let v = sys.batteryVoltage.flatMap({ Double($0.state) }) { out.append(("Voltage", String(format: "%.1f V", v))) }
-        if let a = sys.batteryCurrent.flatMap({ Double($0.state) }) { out.append(("Current", String(format: "%.1f A", abs(a)))) }
-        if let t = sys.batteryTemperature, let v = Double(t.state) {
-            out.append(("Temperature", "\(Int(v.rounded()))\(t.str("unit_of_measurement") ?? "°")"))
+        if let v = EnergyNumeric.value(sys.batteryVoltage) { out.append(("Voltage", String(format: "%.1f V", v))) }
+        if let a = EnergyNumeric.value(sys.batteryCurrent) { out.append(("Current", String(format: "%.1f A", abs(a)))) }
+        if let value = EnergyNumeric.temperature(sys.batteryTemperature) {
+            out.append(("Temperature", value))
         }
         if let c = sys.capacityWattHours { out.append(("Size", EnergyUnits.energy(c / 1000))) }
         return Array(out.prefix(3))
@@ -858,7 +899,8 @@ private struct ChargeRing: View {
     let charging: Bool
 
     var body: some View {
-        let p = min(max((percent ?? 0) / 100, 0), 1)
+        let percent = EnergyNumeric.percent(self.percent)
+        let p = (percent ?? 0) / 100
         let color = (percent ?? 100) < 20 ? Theme.live : (percent ?? 100) < 45 ? EnergyPalette.solar : EnergyPalette.battery
         ZStack {
             Circle().stroke(Theme.fg.opacity(0.07), lineWidth: 9)
@@ -930,7 +972,7 @@ private struct SolarCard: View {
     private var todayKWh: Double? {
         if let prefs = feed.prefs, !prefs.solar.isEmpty {
             let values = prefs.solar.compactMap { feed.today[$0] }
-            if !values.isEmpty { return values.reduce(0, +) }
+            if let total = EnergyNumeric.sum(values) { return total }
         }
         return EnergyUnits.kilowattHours(sys.solarToday)
     }
@@ -943,7 +985,7 @@ private struct Sparkline: View {
 
     var body: some View {
         Canvas { ctx, size in
-            guard values.count > 1, let top = values.max(), top > 0 else { return }
+            guard values.count > 1, values.allSatisfy({ $0.isFinite && $0 >= 0 }), let top = values.max(), top > 0 else { return }
             let step = size.width / CGFloat(values.count - 1)
             func y(_ v: Double) -> CGFloat { size.height - CGFloat(v / top) * (size.height - 4) - 1 }
             var line = Path()
@@ -1005,7 +1047,7 @@ private struct TodayCard: View {
         guard let prefs = feed.prefs else { return [] }
         func sum(_ ids: [String]) -> Double? {
             let v = ids.compactMap { feed.today[$0] }
-            return v.isEmpty ? nil : v.reduce(0, +)
+            return EnergyNumeric.sum(v)
         }
         var out: [(String, Double, String, Color)] = []
         if let v = sum(prefs.solar) { out.append(("Solar made", v, "sun.max.fill", EnergyPalette.solar)) }
@@ -1070,10 +1112,10 @@ private struct InverterCard: View {
     private var rows: [(String, String, Color?)] {
         var out: [(String, String, Color?)] = []
         if let m = sys.inverterMode { out.append(("Mode", m.state.pretty, nil)) }
-        if let l = sys.outputLoad, let v = Double(l.state) { out.append(("Output load", "\(Int(v.rounded()))%", nil)) }
+        if let v = EnergyNumeric.rounded(EnergyNumeric.value(sys.outputLoad)) { out.append(("Output load", "\(v)%", nil)) }
         if let w = sys.loadWatts { out.append(("Powering the house", EnergyUnits.power(w), nil)) }
-        if let t = sys.inverterTemperature, let v = Double(t.state) {
-            out.append(("Temperature", "\(Int(v.rounded()))\(t.str("unit_of_measurement") ?? "°")", nil))
+        if let value = EnergyNumeric.temperature(sys.inverterTemperature) {
+            out.append(("Temperature", value, nil))
         }
         if sys.faults.isEmpty {
             out.append(("Faults", "None", Theme.ok))
@@ -1095,15 +1137,15 @@ private struct CellsCard: View {
     let temperatures: [Entity]
 
     var body: some View {
-        let volts = cells.map(voltage)
+        let volts = cells.map(EnergyNumeric.cellVoltage)
         let low = volts.compactMap { $0 }.min(), high = volts.compactMap { $0 }.max()
         Bezel(radius: 24, inset: 4) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("CELLS").eyebrow()
                     Spacer()
-                    if let low, let high {
-                        Text("Spread \(Int(((high - low) * 1000).rounded())) mV")
+                    if let low, let high, let spread = EnergyNumeric.cellSpread(low: low, high: high) {
+                        Text("Spread \(spread) mV")
                             .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.muted)
                     }
                 }
@@ -1126,7 +1168,7 @@ private struct CellsCard: View {
                 if !temperatures.isEmpty {
                     HStack(spacing: 6) {
                         Image(systemName: "thermometer.medium").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                        Text(temperatures.compactMap { t in Double(t.state).map { "\(Int($0.rounded()))°" } }.joined(separator: "  "))
+                        Text(temperatures.compactMap { t in EnergyNumeric.rounded(EnergyNumeric.value(t)).map { "\($0)°" } }.joined(separator: "  "))
                             .font(.system(size: 12.5, weight: .medium)).monospacedDigit().foregroundStyle(Theme.muted)
                     }
                 }
@@ -1135,10 +1177,6 @@ private struct CellsCard: View {
         }
     }
 
-    private func voltage(_ e: Entity) -> Double? {
-        guard let v = Double(e.state) else { return nil }
-        return e.str("unit_of_measurement") == "mV" ? v / 1000 : v
-    }
 }
 
 // MARK: Getting started

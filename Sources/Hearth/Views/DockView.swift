@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// The visual badge caps at 9+; assistive technology receives the complete count.
+enum DockAccessibility {
+    static func badgeValue(_ count: Int) -> String {
+        guard count > 0 else { return "" }
+        return "\(count) unread notification\(count == 1 ? "" : "s")"
+    }
+}
+
 /// The pages along the bottom: equal-width icons on a strip of glass, with a lens of glass
 /// that slides under the one you're on. Nothing changes width, so the lens has a fixed
 /// target and glides there in one movement. The page's name is already at the top.
@@ -49,7 +57,7 @@ struct Dock: View {
                     .frame(width: tabWidth, height: Self.tab.height)
                     .scaleEffect(x: stretch, y: 2 - stretch, anchor: .center)
                     .offset(x: CGFloat(index) * tabWidth + (index >= pages.count && !pages.isEmpty ? Self.gap : 0))
-                    .animation(reduceMotion ? .easeOut(duration: 0.15) : Self.slide, value: index)
+                    .animation(reduceMotion ? nil : Self.slide, value: index)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
@@ -87,7 +95,7 @@ struct Dock: View {
                 .frame(width: 17, height: 17)
                 .foregroundStyle(settingsOn ? Theme.sand : Theme.muted)
                 .rotationEffect(.degrees(settingsOn && !reduceMotion ? 60 : 0))
-                .animation(.settle, value: settingsOn)
+                .animation(reduceMotion ? nil : .settle, value: settingsOn)
                 .frame(width: tabWidth, height: Self.tab.height)
                 .overlay(alignment: .topTrailing) {
                     if let status {
@@ -120,7 +128,7 @@ struct Dock: View {
                             .padding(.horizontal, 4).frame(minWidth: 15, minHeight: 15)
                             .background(Capsule().fill(Theme.live).glow(color: Theme.live.opacity(0.5), radius: 4))
                             .offset(x: -3, y: 1)
-                            .transition(.scale.combined(with: .opacity))
+                            .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                     }
                 }
                 .contentShape(Capsule())
@@ -128,6 +136,7 @@ struct Dock: View {
         .buttonStyle(PressStyle())
         .help(l.title)
         .accessibilityLabel(l.title)
+        .accessibilityValue(DockAccessibility.badgeValue(badge(page)))
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

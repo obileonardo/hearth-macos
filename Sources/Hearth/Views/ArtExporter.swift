@@ -30,6 +30,23 @@ enum ArtExporter {
                 }
             }
         }.padding(24).background(Theme.base), to: root.appendingPathComponent("solar-scale.png"))
+        // A compact review surface exposes both state variants and all actual
+        // gadget sizes. This is documentation-only rendering with no device access.
+        write(VStack(alignment: .leading, spacing: 20) {
+            ForEach([DeviceKind.gameConsole, .printer3D, .computer, .solarPanel], id: \.self) { kind in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(kind.title).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
+                    ForEach([true, false], id: \.self) { active in
+                        HStack(alignment: .bottom, spacing: 20) {
+                            ForEach([24, 44, 60, 100, 160], id: \.self) { size in
+                                DeviceArtView(kind: kind, active: active,
+                                              accent: HomeDevice.gadgetAccent(kind), size: CGFloat(size))
+                            }
+                        }
+                    }
+                }
+            }
+        }.padding(24).background(Theme.base), to: root.appendingPathComponent("gadget-scale.png"))
         write(ContactSheet(), to: root.appendingPathComponent("devices.png"))
         write(AppIconArt(), to: root.appendingPathComponent("AppIcon-1024.png"), scale: 1)
         write(MenuBarGlyph(size: 18), to: root.appendingPathComponent("menubar-18.png"), scale: 1)

@@ -49,6 +49,7 @@ final class MapSceneController: NSObject, ObservableObject {
         didSet {
             guard active != oldValue else { return }
             scene.isPaused = !active
+            view?.isPlaying = active
             (view as? HearthMapView)?.setInteractionActive(active)
             if active { startTimer() } else {
                 timer?.invalidate(); timer = nil
@@ -646,7 +647,7 @@ final class MapSceneController: NSObject, ObservableObject {
         for pin in maps.pins {
             if let w = MapPower.watts(pin, store: store) { next[pin.id] = w }
         }
-        watts = next
+        if watts != next { watts = next }
         updatePins()
         updateFlows()
         updateContactShadows()
@@ -1403,10 +1404,18 @@ final class HearthMapView: SCNView {
         guard context.ownsPoint, drag == nil else { return }
         let p = location(event)
         let onHouse = controller.map { $0.surfacePoint(at: p, in: self) != nil || $0.pinID(at: p, in: self) != nil } ?? false
-        switch MapCursorPolicy.choice(context, dragging: false, hitHouseOrPin: onHouse) {
-        case .openHand: NSCursor.openHand.set()
-        case .arrow: NSCursor.arrow.set()
-        case .inherited: break
+        let choice = MapCursorPolicy.choice(context, dragging: false, hitHouseOrPin: onHouse)
+        let desired: NSCursor
+        switch choice {
+        case .openHand: desired = .openHand
+        case .arrow: desired = .arrow
+        case .inherited: return
+        }
+        // Both cursorUpdate and mouseMoved can arrive for the same point. Check
+        // AppKit's current cursor, not a cached choice: another control may have
+        // legitimately changed it since our previous event.
+        if MapCursorPolicy.shouldSet(choice, currentMatches: NSCursor.current.isEqual(desired)) {
+            desired.set()
         }
     }
 

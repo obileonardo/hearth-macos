@@ -80,9 +80,9 @@ final class MenuPanelGeometryTests: XCTestCase {
     @MainActor
     func testFloatingHeadingInsetsAreIndependentOfScrollableContent() {
         XCTAssertEqual(PanelView.scrollContentInset, 22)
-        XCTAssertEqual(PinnedTitleBar.edgeInset, 16)
+        XCTAssertEqual(PinnedTitleBar.edgeInset, 12)
         XCTAssertLessThan(PinnedTitleBar.edgeInset, PanelView.scrollContentInset)
-        XCTAssertEqual(Theme.panelSize.width - 2 * PinnedTitleBar.edgeInset, 416)
+        XCTAssertEqual(Theme.panelSize.width - 2 * PinnedTitleBar.edgeInset, 424)
     }
 
     @MainActor

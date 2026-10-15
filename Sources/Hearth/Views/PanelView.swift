@@ -138,7 +138,7 @@ struct PanelView: View {
                     case .page(let page):
                         content(page).id(page.key)
                     case .empty:
-                        emptyState.padding(.horizontal, Self.scrollContentInset).padding(.top, Self.scrollContentInset)
+                        scrolling { emptyState }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -233,19 +233,24 @@ struct PanelView: View {
     }
 
     @ViewBuilder
-    private func scrolling<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func scrolling<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> some View {
         if Self.snapshotMode {
             content().padding(.horizontal, Self.scrollContentInset).padding(.top, Self.scrollContentInset)
         } else {
             // Inset content inside a full-panel viewport, so scrolling is clipped
             // only at the actual window edge and can continue behind the glass.
-            ScrollView {
-                content().padding(.horizontal, Self.scrollContentInset)
-                    .padding(.top, Self.scrollContentInset).padding(.bottom, Self.scrollBottomPadding)
-            }
+            GeometryReader { viewport in
+                ScrollView {
+                    content().padding(.horizontal, Self.scrollContentInset)
+                        .padding(.top, Self.scrollContentInset).padding(.bottom, Self.scrollBottomPadding)
+                        .coordinateSpace(name: PageContentCoordinates.space)
+                        .environment(\.hearthPageViewportHeight, viewport.size.height)
+                        .environment(\.hearthPageDockObstruction, Self.footerHeight - Self.footerTopExtra)
+                }
                 .scrollIndicators(.never)
                 .coordinateSpace(name: PinnedTitleBar.space)
                 .overlayPreferenceValue(PinnedTitleKey.self, alignment: .top) { PinnedTitleBar(info: $0) }
+            }
         }
     }
 
@@ -290,10 +295,13 @@ struct PanelView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 14) {
             PageHeader(eyebrow: "Hearth", title: "Nothing here yet") { EmptyView() }
-            Text("Connect a brand in Home Assistant, under Settings, Devices and services, and it appears here.")
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            CenteredPageEmptyState {
+                Text("Connect a brand in Home Assistant, under Settings, Devices and services, and it appears here.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .reveal(shown, 0)
     }
@@ -396,7 +404,7 @@ struct SettingsView: View {
             PageHeader(eyebrow: "Hearth", title: signedIn ? "Settings" : "Sign in",
                        pinnedSymbols: ["person.crop.circle", "slider.horizontal.3", "questionmark.circle"]) { EmptyView() }
 
-            if let note = problem ?? (store.status == .rejected ? "Home Assistant signed Hearth out. Sign in again." : nil) {
+            if let note = problem ?? store.signInRecoveryMessage ?? (store.status == .rejected ? "Home Assistant signed Hearth out. Sign in again." : nil) {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "exclamationmark.circle").font(.system(size: 14, weight: .light)).foregroundStyle(Theme.live)
                     Text(note).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
@@ -408,7 +416,27 @@ struct SettingsView: View {
                 .transition(.dissolve)
             }
 
-            if signedIn {
+            if let confirmation = store.loginConfirmationURL {
+                Bezel(radius: 18, inset: 3) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Confirm your saved server", systemImage: "lock.shield")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(confirmation.absoluteString)
+                            .font(.system(size: 12.5, weight: .medium)).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Your existing sign-in is preserved. Confirm this is your Home Assistant server so Hearth can bind it securely before reconnecting.")
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Confirm saved server") {
+                            do { try store.confirmSavedServer() }
+                            catch { problem = error.localizedDescription }
+                        }
+                        .buttonStyle(PressStyle()).foregroundStyle(Theme.brand)
+                        .accessibilityHint("Uses the saved sign-in only for the server shown above")
+                    }
+                    .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else if signedIn {
                 // Opens the live Account page: who's signed in, the server, integrations and more.
                 Button { withAnimation(.glide) { route = .account } } label: {
                     Bezel(radius: 18, inset: 3) {
@@ -545,6 +573,10 @@ struct SettingsView: View {
                 UserDefaults.standard.set(username, forKey: "ha.username")
                 password = ""
                 onDone()
+            } catch let error as KeychainFailure {
+                problem = error.localizedDescription
+            } catch let error as HASessionError {
+                problem = error.localizedDescription
             } catch let error as ProviderError {
                 problem = error.message
             } catch {

@@ -365,20 +365,30 @@ struct PrintJob {
         func ending(_ key: String) -> Entity? {
             device.entities.first { ($0.id.hasSuffix("_" + key) || $0.id.hasSuffix("." + key)) && !$0.isUnavailable }
         }
-        progress = ending("print_progress").flatMap { Double($0.state) }.map { min(max($0 / 100, 0), 1) }
+        progress = ending("print_progress").flatMap { entity in
+            guard let value = Double(entity.state), value.isFinite, (0...100).contains(value) else { return nil }
+            return value / 100
+        }
         status = ending("print_status")?.state.lowercased()
         stage = ending("current_stage")?.state.lowercased()
         remainingMinutes = ending("remaining_time").flatMap { e -> Double? in
-            guard let v = Double(e.state) else { return nil }
+            guard let v = Double(e.state), v.isFinite, v >= 0 else { return nil }
+            let minutes: Double
             switch e.str("unit_of_measurement") ?? "min" {
-            case "h": return v * 60
-            case "s": return v / 60
-            case "d": return v * 1440
-            default: return v
+            case "h": minutes = v * 60
+            case "s": minutes = v / 60
+            case "d": minutes = v * 1440
+            default: minutes = v
             }
+            guard minutes.isFinite, Int(exactly: minutes.rounded()) != nil else { return nil }
+            return minutes
         }
         func temperature(_ key: String) -> String? {
-            ending(key).flatMap { e in Double(e.state).map { "\(Int($0.rounded()))°" } }
+            ending(key).flatMap { e in
+                guard let value = Double(e.state), value.isFinite,
+                      let rounded = Int(exactly: value.rounded()) else { return nil }
+                return "\(rounded)°"
+            }
         }
         nozzle = temperature("nozzle_temperature")
         bed = temperature("bed_temperature")
@@ -413,8 +423,8 @@ struct PrintJob {
     }
 
     var timeLeft: String? {
-        guard isPrinting, let m = remainingMinutes, m > 0 else { return nil }
-        let total = Int(m.rounded())
+        guard isPrinting, let m = remainingMinutes, m.isFinite, m > 0,
+              let total = Int(exactly: m.rounded()) else { return nil }
         let h = total / 60, min = total % 60
         return h > 0 ? "\(h) h \(min) min left" : "\(min) min left"
     }
@@ -525,7 +535,7 @@ struct ProgressTrack: View {
                 Capsule().fill(Theme.fg.opacity(0.08))
                 Capsule()
                     .fill(LinearGradient(colors: [tint.opacity(0.7), tint], startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(6, geo.size.width * value))
+                    .frame(width: max(6, geo.size.width * (value.isFinite ? min(max(value, 0), 1) : 0)))
                     .glow(color: tint.opacity(0.5), radius: 5)
             }
         }

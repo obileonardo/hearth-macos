@@ -5,18 +5,14 @@ aioamazondevices 16.3.x posts both to the first page, lands on the password page
 finds no one-time-code box and reports "Invalid authentication". This adds the
 missing step: when the password page comes back, submit the password on it.
 
-Apply inside the Home Assistant container, then restart it:
-    docker cp amazon_two_page_signin.py homeassistant:/tmp/ && \\
-    docker exec homeassistant python3 /tmp/amazon_two_page_signin.py && docker restart homeassistant
-Safe to run twice. Re-run after a Home Assistant image update.
+Check first with the read-only default; use --apply only after approval.
+Copy patch_safety.py beside this script. See README.md for preflight, compatibility
+limitations and an approved container rollback/restart procedure.
+
 """
 
-import pathlib
+from patch_safety import arguments, commit, replace_once
 
-import aioamazondevices
-
-path = pathlib.Path(aioamazondevices.__file__).parent / "login.py"
-source = path.read_text()
 marker = "# two-page sign-in patch"
 
 anchor = '''        _LOGGER.debug("Register at %s", login_url)
@@ -59,15 +55,27 @@ diag_addition = '''            ''' + diag_marker + '''
             except Exception as _err:  # never let diagnostics break sign-in
                 _LOGGER.warning("Sign-in diagnostics failed: %s", _err)
 '''
-if diag_marker not in source and diag_anchor in source:
-    source = source.replace(diag_anchor, diag_anchor + diag_addition, 1)
-    path.write_text(source)
-    print("diagnostics added")
 
-if marker in source:
-    print("already patched:", path)
-elif anchor not in source:
-    raise SystemExit(f"login.py has changed shape, patch not applied: {path}")
-else:
-    path.write_text(source.replace(anchor, anchor + addition, 1))
-    print("patched:", path)
+def plan(folder):
+    path = folder / "login.py"
+    source = path.read_text()
+    if marker in source and source.count(anchor + addition) != 1:
+        raise ValueError("login.py: partial sign-in patch; nothing applied")
+    if diag_marker in source and source.count(diag_anchor + diag_addition) != 1:
+        raise ValueError("login.py: partial diagnostics patch; nothing applied")
+    updated = replace_once(source, anchor, anchor + addition, "two-page sign-in")
+    updated = replace_once(updated, diag_anchor, diag_anchor + diag_addition, "sign-in diagnostics")
+    return [(path, source, updated)]
+
+
+def main():
+    args = arguments("Check/apply the optional Amazon two-page sign-in maintenance patch")
+    if args.root is None:
+        import aioamazondevices
+        from pathlib import Path
+        args.root = Path(aioamazondevices.__file__).parent
+    commit(plan(args.root), args.apply)
+
+
+if __name__ == "__main__":
+    main()

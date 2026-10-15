@@ -9,6 +9,7 @@ enum ClimateModeRecovery {
                         send: (DeviceCommand) async throws -> Void,
                         refresh: () async -> Entity?,
                         settle: () async throws -> Void = { try await Task.sleep(for: .seconds(3)) }) async throws {
+        try Task.checkCancellation()
         do {
             try await send(action)
         } catch {

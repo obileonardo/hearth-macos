@@ -11,12 +11,13 @@ struct RoomsPage: View {
     @EnvironmentObject var store: HomeStore
     let shown: Bool
     @Binding var path: [RoomRoute]
+    @StateObject private var explorer = RoomsExplorerState()
 
     var body: some View {
         ScreenFlow(route: path, depth: path.count) { shownPath in
             switch shownPath.last {
             case nil:
-                RoomsOverview(shown: shown) { push(.room($0)) }
+                RoomsOverview(shown: shown, explorer: explorer, open: { push(.room($0)) }, openDevice: { push(.device($0)) })
             case .room(let id):
                 RoomDetail(areaID: id, back: pop) { push(.device($0)) }
             case .device(let id):
@@ -59,10 +60,92 @@ enum RoomStyle {
 
 // MARK: Overview
 
+/// Stores only the presentation choice; floor and room navigation never changes HA assignments.
+enum RoomsLayoutPreference: String, CaseIterable {
+    case overview, interactive
+    static let key = "rooms.layout"
+    static func saved(_ value: String) -> Self { Self(rawValue: value) ?? .overview }
+}
+
+enum RoomsFloorScope: Hashable {
+    case all
+    case floor(String)
+    case unassigned
+}
+
+/// Kept by RoomsPage so opening a device and returning preserves the chosen floor and room.
+@MainActor
+final class RoomsExplorerState: ObservableObject {
+    @Published var floorScope: RoomsFloorScope = .all
+    @Published var selectedRoom: RoomsExplorerItem?
+}
+
+enum RoomsExplorerItem: Hashable, Identifiable {
+    case area(String)
+    case unassigned
+    var id: Self { self }
+    var areaID: String? {
+        if case .area(let id) = self { return id }
+        return nil
+    }
+}
+
+/// Registry-based navigation only. Room ordering never implies a measured floor plan.
+enum RoomsExplorerNavigation {
+    static func floors(_ floors: [Floor]) -> [Floor] {
+        floors.sorted {
+            if $0.level != $1.level { return $0.level < $1.level }
+            let comparison = $0.name.localizedCaseInsensitiveCompare($1.name)
+            return comparison == .orderedSame ? $0.id < $1.id : comparison == .orderedAscending
+        }
+    }
+
+    static func hasUnassignedRooms(_ areas: [Area], floors: [Floor], hasUnassignedDevices: Bool) -> Bool {
+        let known = Set(floors.map(\.id))
+        return hasUnassignedDevices || areas.contains { $0.floorID.map { !known.contains($0) } ?? true }
+    }
+
+    static func resolvedScope(_ preferred: RoomsFloorScope, floors: [Floor], hasUnassignedRooms: Bool) -> RoomsFloorScope {
+        switch preferred {
+        case .all: return .all
+        case .floor(let id): return floors.contains { $0.id == id } ? preferred : .all
+        case .unassigned: return hasUnassignedRooms ? .unassigned : .all
+        }
+    }
+
+    static func items(areas: [Area], floors: [Floor], scope: RoomsFloorScope,
+                      hasUnassignedDevices: Bool) -> [RoomsExplorerItem] {
+        let known = Set(floors.map(\.id))
+        let rooms = areas.filter { area in
+            switch scope {
+            case .all: return true
+            case .floor(let id): return area.floorID == id
+            case .unassigned: return area.floorID.map { !known.contains($0) } ?? true
+            }
+        }.sorted {
+            let comparison = $0.name.localizedCaseInsensitiveCompare($1.name)
+            return comparison == .orderedSame ? $0.id < $1.id : comparison == .orderedAscending
+        }
+        var result = rooms.map { RoomsExplorerItem.area($0.id) }
+        if hasUnassignedDevices && (scope == .all || scope == .unassigned) { result.append(.unassigned) }
+        return result
+    }
+
+    static func selection(_ preferred: RoomsExplorerItem?, in items: [RoomsExplorerItem]) -> RoomsExplorerItem? {
+        preferred.flatMap { items.contains($0) ? $0 : nil } ?? items.first
+    }
+}
+
 struct RoomsOverview: View {
     @EnvironmentObject var store: HomeStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(RoomsLayoutPreference.key) private var savedLayout = RoomsLayoutPreference.overview.rawValue
     let shown: Bool
+    @ObservedObject var explorer: RoomsExplorerState
     let open: (String?) -> Void
+    let openDevice: (String) -> Void
+
+    private var layout: RoomsLayoutPreference { .saved(savedLayout) }
 
     private struct FloorGroup: Identifiable {
         let id: String
@@ -89,8 +172,45 @@ struct RoomsOverview: View {
         VStack(alignment: .leading, spacing: 16) {
             PageHeader(eyebrow: "\(store.areas.count) rooms · \(total) devices", title: "Rooms",
                        pinnedIllustrations: devices.sorted { $0.id < $1.id }.prefix(3).compactMap { store.homeDevice($0.id)?.kind },
-                       pinnedCount: total) { EmptyView() }
-                .reveal(shown, 0)
+                       pinnedCount: total) {
+                HStack(spacing: 2) {
+                    layoutButton(.overview, symbol: "square.grid.2x2", title: "Rooms overview", index: 0)
+                    layoutButton(.interactive, symbol: "rectangle.split.2x1", title: "Interactive rooms", index: 1)
+                }
+                .slidingSelection(layout == .overview ? 0 : 1, radius: 14)
+                .padding(3).background(Capsule().fill(Theme.fg.opacity(0.05)).overlay(Capsule().strokeBorder(Theme.hairline)))
+            }
+            .reveal(shown, 0)
+            if layout == .interactive {
+                RoomsExplorer(state: explorer, openRoom: open, openDevice: openDevice)
+                    .reveal(shown, 1)
+            } else {
+                overview
+            }
+        }
+    }
+
+    private var overview: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if groups.isEmpty {
+                CenteredPageEmptyState {
+                    VStack(spacing: 10) {
+                        Image(systemName: "door.left.hand.open").font(.system(size: 30, weight: .light))
+                            .foregroundStyle(Theme.muted).accessibilityHidden(true)
+                        Text(store.areas.isEmpty ? "No rooms yet" : "Your rooms are ready")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(store.areas.isEmpty ? "Add rooms and assign devices in Home Assistant to see them here."
+                             : "Explore every room in Interactive view, including rooms without devices.")
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                        if !store.areas.isEmpty {
+                            Button("Explore rooms") { savedLayout = RoomsLayoutPreference.interactive.rawValue }
+                                .buttonStyle(PressStyle()).foregroundStyle(Theme.brand)
+                        }
+                    }
+                    .padding(16).frame(maxWidth: .infinity)
+                }
+            }
             ForEach(Array(groups.enumerated()), id: \.element.id) { gi, group in
                 VStack(alignment: .leading, spacing: 8) {
                     if let name = group.name { Text(name.uppercased()).eyebrow() }
@@ -104,6 +224,230 @@ struct RoomsOverview: View {
             }
         }
     }
+
+    private func layoutButton(_ value: RoomsLayoutPreference, symbol: String, title: String, index: Int) -> some View {
+        Button { withAnimation(reduceMotion ? nil : .glide) { savedLayout = value.rawValue } } label: {
+            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(layout == value ? Theme.onKey : Theme.muted)
+                .frame(width: 28, height: 26).selectionFrame(index)
+        }
+        .buttonStyle(PressStyle()).help(title).accessibilityLabel(title)
+        .accessibilityAddTraits(layout == value ? .isSelected : [])
+    }
+}
+
+/// Select a floor, then a room, while keeping that room's real devices in view.
+private struct RoomsExplorer: View {
+    @EnvironmentObject var store: HomeStore
+    @ObservedObject var state: RoomsExplorerState
+    let openRoom: (String?) -> Void
+    let openDevice: (String) -> Void
+
+    private var floors: [Floor] { RoomsExplorerNavigation.floors(store.floors) }
+    private var hasUnassignedDevices: Bool { !store.devices(inArea: nil).isEmpty }
+    private var hasUnassignedRooms: Bool {
+        RoomsExplorerNavigation.hasUnassignedRooms(Array(store.areas.values), floors: floors,
+                                                   hasUnassignedDevices: hasUnassignedDevices)
+    }
+    private var scope: RoomsFloorScope {
+        RoomsExplorerNavigation.resolvedScope(state.floorScope, floors: floors, hasUnassignedRooms: hasUnassignedRooms)
+    }
+    private var items: [RoomsExplorerItem] {
+        RoomsExplorerNavigation.items(areas: Array(store.areas.values), floors: floors, scope: scope,
+                                      hasUnassignedDevices: hasUnassignedDevices)
+    }
+    private var selection: RoomsExplorerItem? { RoomsExplorerNavigation.selection(state.selectedRoom, in: items) }
+    private var floorName: String {
+        switch scope {
+        case .all: return "All floors"
+        case .floor(let id): return floors.first { $0.id == id }?.name ?? "All floors"
+        case .unassigned: return "No floor"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Explore rooms").font(.system(size: 14, weight: .semibold))
+                    Text("Choose a room to see its devices.")
+                        .font(.system(size: 12)).foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 0)
+                Menu {
+                    Button { chooseFloor(.all) } label: { floorLabel("All floors", selected: scope == .all) }
+                    ForEach(floors) { floor in
+                        Button { chooseFloor(.floor(floor.id)) } label: {
+                            floorLabel(floor.name, selected: scope == .floor(floor.id))
+                        }
+                    }
+                    if hasUnassignedRooms {
+                        Button { chooseFloor(.unassigned) } label: { floorLabel("No floor", selected: scope == .unassigned) }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.3.layers.3d").accessibilityHidden(true)
+                        Text(floorName).lineLimit(1)
+                        Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).accessibilityHidden(true)
+                    }
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.ink)
+                    .padding(.horizontal, 10).frame(height: 32)
+                    .background(Capsule().fill(Theme.fg.opacity(0.06)).overlay(Capsule().strokeBorder(Theme.hairline)))
+                }
+                .menuStyle(.borderlessButton).frame(maxWidth: 160, alignment: .trailing)
+                .accessibilityLabel("Floor").accessibilityValue(floorName)
+            }
+            if items.isEmpty {
+                CenteredPageEmptyState {
+                    emptyState(floors.isEmpty && store.areas.isEmpty ? "No rooms yet" : "No rooms on this floor",
+                               detail: "Add rooms and floor assignments in Home Assistant to see them here.")
+                }
+            } else {
+                ScrollView(.horizontal) {
+                    LazyHStack(alignment: .top, spacing: 10) {
+                        ForEach(items) { item in roomTile(item).frame(width: 148) }
+                    }
+                    .padding(2)
+                }
+                .scrollIndicators(.never)
+                .accessibilityLabel("Rooms on \(floorName)")
+                ScreenFlow(route: selection) { item in
+                    if let item { roomDevices(item) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func floorLabel(_ title: String, selected: Bool) -> some View {
+        if selected { Label(title, systemImage: "checkmark") } else { Text(title) }
+    }
+
+    private func chooseFloor(_ value: RoomsFloorScope) {
+        state.floorScope = value
+        state.selectedRoom = nil
+    }
+
+    private func roomTile(_ item: RoomsExplorerItem) -> some View {
+        let area = item.areaID.flatMap { store.areas[$0] }
+        let devices = store.homeDevices(inArea: item.areaID)
+        let selected = item == selection
+        let name = area?.name ?? "No room"
+        return Button { state.selectedRoom = item } label: {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    Image(systemName: RoomStyle.symbol(area)).font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(selected ? Theme.brand : Theme.muted)
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 0)
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.brand)
+                            .font(.system(size: 13)).accessibilityHidden(true)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(2)
+                        .frame(height: 32, alignment: .topLeading)
+                    Text(roomFloorName(area)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+                HStack(spacing: -4) {
+                    ForEach(devices.prefix(3)) { device in
+                        DeviceArtView(kind: device.kind, active: device.online, accent: device.accent, size: 24)
+                            .frame(width: 26, height: 26)
+                    }
+                    Spacer(minLength: 0)
+                    Text("\(devices.count)").font(.system(size: 12, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(Theme.muted)
+                }.frame(height: 26).accessibilityHidden(true)
+            }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(selected ? Theme.brand.opacity(0.08) : Theme.raised))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(selected ? Theme.brand : Theme.hairline, lineWidth: selected ? 1.25 : 0.75))
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("\(name), \(devices.count) device\(devices.count == 1 ? "" : "s")")
+        .accessibilityValue(roomFloorName(area))
+        .accessibilityHint("Shows this room’s devices below")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func roomFloorName(_ area: Area?) -> String {
+        area?.floorID.flatMap { id in floors.first { $0.id == id }?.name } ?? "No floor"
+    }
+
+    private func roomDevices(_ item: RoomsExplorerItem) -> some View {
+        let area = item.areaID.flatMap { store.areas[$0] }
+        let devices = store.homeDevices(inArea: item.areaID)
+        let name = area?.name ?? "No room"
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(name).font(.system(size: 16, weight: .semibold)).accessibilityAddTraits(.isHeader)
+                    Text("\(devices.count) device\(devices.count == 1 ? "" : "s") · \(devices.filter(\.online).count) online")
+                        .font(.system(size: 12)).foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 0)
+                Button { openRoom(item.areaID) } label: {
+                    Label("Open room", systemImage: "arrow.up.right")
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.brand)
+                }
+                .buttonStyle(PressStyle()).accessibilityLabel("Open \(name)")
+            }
+            .padding(.top, 4)
+            if devices.isEmpty {
+                emptyState("No devices in this room", detail: "Assign a device to \(name) in Home Assistant to show it here.")
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(devices) { device in
+                        DeviceCard(device: device) { openDevice(device.id) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func emptyState(_ title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 13, weight: .semibold))
+            Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.raised))
+    }
+}
+
+/// Safe display-only room data; malformed numbers do not become readings.
+enum RoomPresentation {
+    static func temperature(_ value: Double?) -> String? {
+        guard let value, value.isFinite, let rounded = Int(exactly: value.rounded()) else { return nil }
+        return "\(rounded)°"
+    }
+
+    static func temperature(in devices: [HomeDevice]) -> String? {
+        // Prefer a climate's reported room temperature; keep looking when one is invalid.
+        for device in devices {
+            for entity in device.entities where entity.domain == "climate" {
+                if let reading = temperature(entity.num("current_temperature")) { return reading }
+            }
+        }
+        for device in devices {
+            for entity in device.entities where entity.str("device_class") == "temperature" {
+                if let reading = temperature(Double(entity.state)) { return reading }
+            }
+        }
+        return nil
+    }
+
+    static func emptyRoomMessage(name: String?) -> String {
+        if let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return "Assign a device to \(name) in Home Assistant to show it here."
+        }
+        return "Devices without a room assignment in Home Assistant will appear here."
+    }
 }
 
 struct RoomCard: View {
@@ -114,7 +458,7 @@ struct RoomCard: View {
     var body: some View {
         let devices = store.homeDevices(inArea: area?.id)
         let tint = RoomStyle.tint(area)
-        let temp = roomTemperature(devices)
+        let temp = RoomPresentation.temperature(in: devices)
         let moving = devices.contains { d in d.entities.contains { $0.domain == "binary_sensor" && ($0.str("device_class") == "motion" || $0.str("device_class") == "occupancy") && $0.state == "on" } }
         Button(action: action) {
             Bezel(radius: 22, inset: 3) {
@@ -160,24 +504,38 @@ struct RoomCard: View {
         .buttonStyle(PressStyle())
     }
 
-    private func roomTemperature(_ devices: [HomeDevice]) -> String? {
-        for d in devices {
-            if let c = d.first("climate"), let t = c.num("current_temperature") { return "\(Int(t.rounded()))°" }
-        }
-        for d in devices {
-            if let s = d.entities.first(where: { $0.str("device_class") == "temperature" }), let v = Double(s.state) { return "\(Int(v.rounded()))°" }
-        }
-        return nil
-    }
 }
 
 // MARK: Room
+
+/// Decorative previews reflect the destination, never unrelated room controls.
+enum SubpageHeadingSymbols {
+    static func resolve(eyebrow: String, title: String) -> [String] {
+        switch title.lowercased() {
+        case "help & support": return ["lifepreserver", "envelope", "ladybug"]
+        case "get help": return ["lifepreserver", "envelope"]
+        case "report a bug": return ["ladybug", "envelope"]
+        case "account": return ["person.crop.circle", "server.rack", "network"]
+        case "notifications": return ["bell", "slider.horizontal.3"]
+        case "familiar faces": return ["person.crop.circle", "person.2"]
+        default:
+            switch eyebrow.lowercased() {
+            case "home", "main home", "demo home": return ["house", "bolt"]
+            case "settings": return ["gearshape"]
+            case "help & support": return ["envelope"]
+            default: return ["square.grid.2x2"]
+            }
+        }
+    }
+}
 
 /// A back button and a title, for pages inside a tab.
 struct SubpageHeader<Trailing: View>: View {
     let eyebrow: String
     let title: String
     let back: () -> Void
+    var pinnedIllustrations: [DeviceKind] = []
+    var pinnedSymbols: [String]? = nil
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
@@ -193,10 +551,14 @@ struct SubpageHeader<Trailing: View>: View {
                 Text(eyebrow.uppercased()).eyebrow()
                 Text(title).font(.system(size: 19, weight: .semibold)).tracking(-0.3).lineLimit(1)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(HeadingAccessibility.label(title: title, summary: eyebrow))
+            .accessibilityAddTraits(.isHeader)
             Spacer()
             trailing
         }
-        .collapsesInto(eyebrow: eyebrow, title: title, back: back, symbols: ["door.left.hand.open", "lightbulb", "thermometer.medium"])
+        .collapsesInto(eyebrow: eyebrow, title: title, back: back, illustrations: pinnedIllustrations,
+                       symbols: pinnedSymbols ?? SubpageHeadingSymbols.resolve(eyebrow: eyebrow, title: title))
     }
 }
 
@@ -211,12 +573,29 @@ struct RoomDetail: View {
         let devices = store.homeDevices(inArea: areaID)
         VStack(alignment: .leading, spacing: 14) {
             SubpageHeader(eyebrow: area.flatMap { a in store.floors.first { $0.id == a.floorID }?.name } ?? "Room",
-                          title: area?.name ?? "No room", back: back) {
+                          title: area?.name ?? "No room", back: back,
+                          pinnedSymbols: [RoomStyle.symbol(area), "lightbulb", "thermometer.medium"]) {
                 Image(systemName: RoomStyle.symbol(area)).font(.system(size: 16, weight: .light)).foregroundStyle(RoomStyle.tint(area))
+                    .accessibilityHidden(true)
             }
-            VStack(spacing: 8) {
-                ForEach(devices) { d in
-                    DeviceCard(device: d) { open(d.id) }
+            if devices.isEmpty {
+                CenteredPageEmptyState {
+                    VStack(spacing: 10) {
+                        Image(systemName: RoomStyle.symbol(area))
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundStyle(Theme.muted).accessibilityHidden(true)
+                        Text(area == nil ? "No unassigned devices" : "No devices in this room")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(RoomPresentation.emptyRoomMessage(name: area?.name))
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(devices) { d in
+                        DeviceCard(device: d) { open(d.id) }
+                    }
                 }
             }
         }
@@ -289,7 +668,8 @@ struct DeviceDetail: View {
         let sections = grouped(device)
         let camera = device.first("camera")
         return VStack(alignment: .leading, spacing: 14) {
-            SubpageHeader(eyebrow: area?.name ?? "Device", title: device.name, back: back) { EmptyView() }
+            SubpageHeader(eyebrow: area?.name ?? "Device", title: device.name, back: back,
+                          pinnedIllustrations: [device.kind]) { EmptyView() }
 
             // Hero: the illustration, what it is and what it's doing.
             Bezel(radius: 24, inset: 4, lit: device.online, tint: device.accent) {

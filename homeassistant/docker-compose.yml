@@ -6,7 +6,8 @@
 # Home Assistant keeps its data, TZ is your time zone.
 #
 # The `dev` profile adds a second, throwaway Home Assistant on port 8124
-# filled with demo devices, for building the UI without touching the real one.
+# for building the UI separately. Complete onboarding and copy optional fixtures
+# manually; the dev profile does not seed devices automatically.
 
 services:
   homeassistant:

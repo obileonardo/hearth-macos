@@ -100,4 +100,16 @@ final class ClimateModeRecoveryTests: XCTestCase {
         } catch { XCTAssertEqual(calls, 1) }
     }
 
+    func testAlreadyCancelledRequestNeverReachesTransport() async {
+        var calls = 0
+        let task = Task { @MainActor in
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await ClimateModeRecovery.perform(self.action, initial: self.entity(), send: { _ in calls += 1 },
+                                                  refresh: { XCTFail("Cancelled request must not read"); return nil }, settle: {})
+        }
+        do { try await task.value; XCTFail("Cancellation must propagate") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertEqual(calls, 0)
+    }
+
 }

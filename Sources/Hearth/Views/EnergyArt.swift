@@ -345,8 +345,9 @@ struct EnergyArt {
         var glass = ctx
         glass.clip(to: field)
 
-        // Seventy-two half cells, with a wider central separation and clipped corners.
-        // The busbars are omitted at tiny sizes so they cannot turn into visual noise.
+        // Seventy-two flat half cells share one sheet of glass. Narrow separators
+        // and barely clipped corners avoid a tray of individually bevelled blue tiles.
+        // Fine conductors are omitted at small sizes to prevent moire.
         let cols = 12, rows = 6
         let cellWidth = (right - left) / CGFloat(cols)
         let cellHeight = (bottom - top) / CGFloat(rows)
@@ -357,26 +358,28 @@ struct EnergyArt {
                 let s1 = left + CGFloat(col + 1) * cellWidth - gap
                 let t0 = top + CGFloat(row) * cellHeight + (row == 3 ? 0.007 : 0.0038)
                 let t1 = top + CGFloat(row + 1) * cellHeight - (row == 2 ? 0.007 : 0.0038)
-                let sx = (s1 - s0) * 0.10, ty = (t1 - t0) * 0.065
+                let sx = (s1 - s0) * 0.028, ty = (t1 - t0) * 0.025
                 let cell = face([(s0 + sx, t0), (s1 - sx, t0), (s1, t0 + ty),
                                  (s1, t1 - ty), (s1 - sx, t1), (s0 + sx, t1),
                                  (s0, t1 - ty), (s0, t0 + ty)])
-                let variation = Double((col * 3 + row * 5) % 7) * 0.0025
-                let light = on ? Color(red: 0.13 + variation, green: 0.21 + variation, blue: 0.32 + variation)
-                               : Color(red: 0.095 + variation, green: 0.12 + variation, blue: 0.16 + variation)
-                let dark = on ? Color(red: 0.035, green: 0.075, blue: 0.14)
+                let variation = Double((col * 3 + row * 5) % 7) * 0.0012
+                let light = on ? Color(red: 0.075 + variation, green: 0.12 + variation, blue: 0.19 + variation)
+                               : Color(red: 0.065 + variation, green: 0.085 + variation, blue: 0.12 + variation)
+                let dark = on ? Color(red: 0.035, green: 0.065, blue: 0.11)
                               : Color(red: 0.035, green: 0.046, blue: 0.066)
+                // Every cell is lit by the same daylight field. Restarting a strong
+                // gradient for each cell creates an artificial raised-tile appearance.
                 glass.fill(cell, with: .linearGradient(Gradient(colors: [light, dark]),
-                                                       startPoint: at(s0, t0), endPoint: at(s1, t1)))
-                if size >= 72 {
+                                                       startPoint: at(0, 0), endPoint: at(1, 1)))
+                if size >= 100 {
                     var busbars = Path()
-                    for fraction: CGFloat in [0.25, 0.5, 0.75] {
+                    for fraction: CGFloat in [0.2, 0.4, 0.6, 0.8] {
                         let s = s0 + (s1 - s0) * fraction
                         busbars.move(to: at(s, t0 + ty))
                         busbars.addLine(to: at(s, t1 - ty))
                     }
-                    glass.stroke(busbars, with: .color(Color(red: 0.56, green: 0.65, blue: 0.73).opacity(on ? 0.28 : 0.18)),
-                                 lineWidth: u(0.14))
+                    glass.stroke(busbars, with: .color(Color(red: 0.56, green: 0.65, blue: 0.73).opacity(on ? 0.2 : 0.12)),
+                                 lineWidth: u(0.1))
                 }
             }
         }
@@ -385,7 +388,7 @@ struct EnergyArt {
         // than separate cell highlights or an artificial illuminated spot.
         let reflection = face([(0, 0), (0.53, 0), (0.26, 1), (-0.1, 1)])
         glass.fill(reflection, with: .linearGradient(Gradient(colors: [
-            Color(red: 0.79, green: 0.88, blue: 0.96).opacity(on ? 0.15 : 0.07), .clear
+            Color(red: 0.79, green: 0.88, blue: 0.96).opacity(on ? 0.1 : 0.05), .clear
         ]), startPoint: at(0.1, 0), endPoint: at(0.6, 1)))
         ctx.stroke(field, with: .color(.black.opacity(0.75)), lineWidth: u(0.45))
         var highlight = Path()

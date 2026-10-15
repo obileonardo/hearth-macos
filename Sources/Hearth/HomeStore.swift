@@ -129,6 +129,7 @@ final class HomeStore: ObservableObject {
     var onConnected: (() -> Void)?
 
     private var socket: URLSessionWebSocketTask?
+    private var socketSession: URLSession?
     /// The socket once Home Assistant has accepted our sign-in. Commands wait for it: anything
     /// sent before then lands in the sign-in exchange and gets the connection refused.
     private var signedInSocket: URLSessionWebSocketTask?
@@ -138,125 +139,218 @@ final class HomeStore: ObservableObject {
     private var listeners: [Int: (JSON) -> Void] = [:]
     private var generation = 0
     private var retryDelay: Double = 1
+    private let defaults: UserDefaults
+    private let environment: [String: String]
+    private let savedServerAtStartup: URL?
+    private let authentication: HATokenSession
+    private let authenticationTransport: ((URLRequest) async throws -> (Data, URLResponse))?
+    private let authenticationConnection: (() -> Void)?
+    private var signInAttempt = UUID()
+    @Published private(set) var authenticationGeneration = 0
+    @Published private(set) var loginConfirmationURL: URL?
+    @Published private(set) var signInRecoveryMessage: String?
+
+    init(defaults: UserDefaults = .standard, environment: [String: String] = ProcessInfo.processInfo.environment,
+         authentication: HATokenSession? = nil,
+         authenticationTransport: ((URLRequest) async throws -> (Data, URLResponse))? = nil,
+         authenticationConnection: (() -> Void)? = nil) {
+        self.defaults = defaults
+        self.environment = environment
+        self.authenticationTransport = authenticationTransport
+        self.authenticationConnection = authenticationConnection
+        savedServerAtStartup = defaults.string(forKey: "ha.url").flatMap(URL.init(string:))
+        self.authentication = authentication ?? HATokenSession(vault: .keychain,
+            blocked: defaults.bool(forKey: "ha.signedOut") && environment["HA_TOKEN"]?.isEmpty != false)
+    }
 
     // MARK: Signing in
 
-    /// A terminal launch can override these with HA_URL and HA_TOKEN, for development.
+    /// Development overrides are explicit; saved credentials still remain bound
+    /// to their issuing origin, independently of the selected endpoint.
     var baseURL: URL? {
-        let env = ProcessInfo.processInfo.environment["HA_URL"]
-        let raw = env ?? UserDefaults.standard.string(forKey: "ha.url") ?? "http://localhost:8123"
-        return URL(string: raw.trimmingCharacters(in: CharacterSet(charactersIn: "/ ")))
+        let raw = environment["HA_URL"] ?? defaults.string(forKey: "ha.url") ?? "http://localhost:8123"
+        guard let url = URL(string: raw.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))),
+              HASessionOrigin.canonical(url) != nil else { return nil }
+        return url
     }
 
-    /// Home Assistant identifies apps by a URL; the instance's own address is what its
-    /// web frontend uses, and needs nothing registered.
-    private var clientID: String? { baseURL.map { $0.absoluteString + "/" } }
+    private var developmentAccessToken: String? { environment["HA_TOKEN"].flatMap { $0.isEmpty ? nil : $0 } }
 
-    /// Signed in, with a long-lived refresh token (or a development token from the terminal).
     var isSignedIn: Bool {
-        ProcessInfo.processInfo.environment["HA_TOKEN"] != nil || Keychain.get("ha.refresh") != nil
+        if isDemo { return true }
+        return !authentication.blocked && (developmentAccessToken != nil || authentication.hasSavedSignIn)
     }
 
-    private var accessToken: String?
-    private var accessExpiry = Date.distantPast
-
-    /// Signs in with the Home Assistant username and password, the way the web page does,
-    /// and keeps only the refresh token, which renews access without ever asking again.
+    /// Sign-in uses a draft address. The live address and old session are only
+    /// replaced after the complete new response is securely persisted.
     func signIn(url: String, username: String, password: String) async throws {
-        UserDefaults.standard.set(url.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "ha.url")
-        guard let base = baseURL, let clientID else { throw ProviderError("That address doesn't look right") }
-
+        try Task.checkCancellation()
+        guard let base = URL(string: url.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))),
+              HASessionOrigin.canonical(base) != nil else { throw HASessionError.invalidAddress }
+        if environment["HA_URL"] != nil {
+            guard let selected = baseURL else { throw HASessionError.invalidAddress }
+            guard HAOrigin.matches(base, selected) else {
+                throw ProviderError("A development server override is active. Restart without HA_URL to choose another server.")
+            }
+        }
+        let attempt = UUID()
+        signInAttempt = attempt
+        let clientID = base.absoluteString + "/"
         let flow = try await postJSON(base.appendingPathComponent("auth/login_flow"), [
             "client_id": clientID, "handler": ["homeassistant", NSNull()], "redirect_uri": clientID,
         ])
+        try Task.checkCancellation()
+        guard signInAttempt == attempt else { throw HASessionError.staleSession }
         guard let flowID = flow["flow_id"] as? String else { throw ProviderError("Home Assistant didn't offer a login") }
-
         let step = try await postJSON(base.appendingPathComponent("auth/login_flow/\(flowID)"), [
             "client_id": clientID, "username": username.trimmingCharacters(in: .whitespaces), "password": password,
         ])
+        try Task.checkCancellation()
+        guard signInAttempt == attempt else { throw HASessionError.staleSession }
         if (step["errors"] as? JSON)?["base"] != nil { throw ProviderError("Wrong username or password") }
-        if step["step_id"] as? String == "mfa" { throw ProviderError("Two-step login is on for this account, which Hearth can't do yet") }
-        guard step["type"] as? String == "create_entry", let code = step["result"] as? String else {
-            throw ProviderError("Home Assistant didn't finish the login")
-        }
-
+        if step["step_id"] as? String == "mfa" { throw ProviderError("This Home Assistant account requires an MFA sign-in flow that Hearth does not yet support. Keep MFA enabled.") }
+        guard step["type"] as? String == "create_entry", let code = step["result"] as? String else { throw ProviderError("Home Assistant didn't finish the login") }
         let tokens = try await postForm(base.appendingPathComponent("auth/token"), [
             "grant_type": "authorization_code", "code": code, "client_id": clientID,
         ])
-        guard let refresh = tokens["refresh_token"] as? String else { throw ProviderError("Home Assistant didn't sign Hearth in") }
-        Keychain.set(refresh, for: "ha.refresh")
-        Keychain.set(nil, for: "ha.token")
-        remember(tokens)
-        connect()
+        try Task.checkCancellation()
+        guard signInAttempt == attempt else { throw HASessionError.staleSession }
+        let previousBase = baseURL
+        try authentication.commit(tokens, at: base)
+        closeConnection(HASessionError.staleSession)
+        if previousBase.map({ !HAOrigin.matches($0, base) }) == true {
+            // Only discard stale reported memory after a successful, explicit
+            // server change; saved homes/maps/devices and credentials are untouched.
+            entities = [:]; registry = [:]; devices = [:]; areas = [:]; floors = []
+            snapshots = [:]; services = nil
+        }
+        defaults.set(base.absoluteString, forKey: "ha.url")
+        defaults.set(false, forKey: "ha.signedOut")
+        loginConfirmationURL = nil
+        authenticationGeneration &+= 1
+        restartAuthenticationConnection()
+    }
+
+    func confirmSavedServer() throws {
+        guard let base = baseURL, let confirmation = loginConfirmationURL,
+              HAOrigin.matches(base, confirmation) else { throw HASessionError.originMismatch }
+        try authentication.confirmLegacy(at: base, savedAtStartup: savedServerAtStartup)
+        loginConfirmationURL = nil
+        authenticationGeneration &+= 1
+        restartAuthenticationConnection()
     }
 
     func signOut() {
-        Keychain.set(nil, for: "ha.refresh")
-        Keychain.set(nil, for: "ha.token")
-        accessToken = nil
-        connect()
+        signInAttempt = UUID()
+        defaults.set(true, forKey: "ha.signedOut")
+        closeConnection(HASessionError.signedOut)
+        authenticationGeneration &+= 1 // Drop the web authority before any Keychain operation.
+        do { try authentication.signOut() } catch { actionError = error.localizedDescription }
+        loginConfirmationURL = nil
+        restartAuthenticationConnection()
     }
 
-    private func remember(_ tokens: JSON) {
-        accessToken = tokens["access_token"] as? String
-        accessExpiry = Date().addingTimeInterval((tokens["expires_in"] as? Double) ?? 1800)
-    }
-
-    /// A current access token, renewed from the refresh token when it's about to run out.
     func validAccessToken() async throws -> String {
-        if let dev = ProcessInfo.processInfo.environment["HA_TOKEN"] { return dev }
-        if let accessToken, accessExpiry > Date().addingTimeInterval(60) { return accessToken }
-        guard let base = baseURL, let clientID, let refresh = Keychain.get("ha.refresh") else {
-            throw AuthError.signedOut
+        guard let base = baseURL else { throw HASessionError.invalidAddress }
+        return try await authentication.token(at: base, developmentToken: developmentAccessToken, stillCurrent: {
+            self.baseURL.map { HAOrigin.matches($0, base) } == true
+        }) { saved in
+            do {
+                return try await self.postForm(base.appendingPathComponent("auth/token"), [
+                    "grant_type": "refresh_token", "refresh_token": saved.refreshToken, "client_id": saved.clientID,
+                ])
+            } catch let error as HTTPStatusError where error.status == 400 || error.status == 401 {
+                throw HASessionError.rejected
+            }
         }
-        let tokens: JSON
-        do {
-            tokens = try await postForm(base.appendingPathComponent("auth/token"), [
-                "grant_type": "refresh_token", "refresh_token": refresh, "client_id": clientID,
-            ])
-        } catch let error as HTTPStatusError where error.status == 400 || error.status == 401 {
-            throw AuthError.rejected
-        }
-        remember(tokens)
-        guard let accessToken else { throw AuthError.rejected }
-        return accessToken
     }
 
-    enum AuthError: Error { case signedOut, rejected }
+    /// A coherent, origin-bound snapshot. Never hand an unrelated legacy refresh
+    /// token to WebKit, including when a development access token is supplied.
+    func webAuthentication() async throws -> HAWebAuthentication {
+        let epoch = authenticationGeneration
+        guard let base = baseURL else { throw HASessionError.invalidAddress }
+        let access = try await validAccessToken()
+        guard epoch == authenticationGeneration, baseURL.map({ HAOrigin.matches($0, base) }) == true,
+              !authentication.blocked else { throw HASessionError.staleSession }
+        let saved = developmentAccessToken == nil ? try authentication.credential(at: base) : nil
+        return HAWebAuthentication(base: base, accessToken: access, refreshToken: saved?.refreshToken,
+                                   clientID: saved?.clientID ?? (base.absoluteString + "/"))
+    }
+
+    private func restartAuthenticationConnection() {
+        if let authenticationConnection { authenticationConnection() } else { connect() }
+    }
 
     // MARK: Connection
 
-    func connect() {
-        generation += 1
-        let gen = generation
+    private func closeConnection(_ reason: Error) {
+        generation &+= 1
         socket?.cancel(with: .goingAway, reason: nil)
-        failPending(ProviderError("Reconnecting"))
+        socket = nil
+        socketSession?.invalidateAndCancel()
+        socketSession = nil
+        failPending(reason)
+    }
+
+    func connect() {
+        closeConnection(ProviderError("Reconnecting"))
+        let gen = generation
         services = nil
 
-        guard let base = baseURL, isSignedIn else {
+        guard let base = baseURL else {
+            signInRecoveryMessage = "The configured Home Assistant address is invalid. Your saved sign-in is preserved."
             status = .needsSetup
             return
         }
+        do {
+            guard !authentication.blocked, try (developmentAccessToken != nil || authentication.savedSignInAvailable()) else {
+                status = .needsSetup
+                return
+            }
+        } catch {
+            signInRecoveryMessage = error.localizedDescription
+            status = .needsSetup
+            return
+        }
+        signInRecoveryMessage = nil
         status = .connecting
         Task {
             let token: String
             do {
                 token = try await validAccessToken()
-            } catch AuthError.signedOut {
+            } catch HASessionError.confirmSavedServer {
+                if gen == generation {
+                    if let base = baseURL, let savedServerAtStartup, HAOrigin.matches(base, savedServerAtStartup) {
+                        loginConfirmationURL = base
+                        status = .needsSetup
+                    } else { status = .rejected }
+                }
+                return
+            } catch HASessionError.originMismatch {
+                if gen == generation { status = .rejected }
+                return
+            } catch HASessionError.signedOut {
                 if gen == generation { status = .needsSetup }
                 return
-            } catch AuthError.rejected {
+            } catch HASessionError.rejected {
                 if gen == generation { status = .rejected }
                 return
             } catch {
                 await retry(gen)
                 return
             }
-            guard gen == generation else { return }
+            guard gen == generation, baseURL.map({ HAOrigin.matches($0, base) }) == true else { return }
             var comps = URLComponents(url: base, resolvingAgainstBaseURL: false)!
-            comps.scheme = comps.scheme == "https" ? "wss" : "ws"
+            comps.scheme = comps.scheme?.lowercased() == "https" ? "wss" : "ws"
             comps.path = "/api/websocket"
-            let task = URLSession.shared.webSocketTask(with: comps.url!)
+            let config = URLSessionConfiguration.ephemeral
+            config.httpCookieStorage = nil
+            config.urlCredentialStorage = nil
+            config.httpShouldSetCookies = false
+            let session = URLSession(configuration: config, delegate: HAWebSocketRedirects(origin: base), delegateQueue: nil)
+            socketSession = session
+            let task = session.webSocketTask(with: comps.url!)
             task.maximumMessageSize = 64 * 1024 * 1024
             socket = task
             task.resume()
@@ -267,17 +361,29 @@ final class HomeStore: ObservableObject {
     private func run(_ task: URLSessionWebSocketTask, token: String, gen: Int) async {
         do {
             // auth_required, then our token, then auth_ok.
-            _ = try await receiveJSON(task)
+            let first = try await receiveJSON(task)
+            guard gen == generation else { return }
+            guard let expected = baseURL,
+                  HAWebSocketAuthentication.maySend(first: first, currentRequest: task.currentRequest?.url,
+                                                    response: task.response?.url, expected: expected) else {
+                task.cancel(with: .policyViolation, reason: nil)
+                status = .rejected
+                return
+            }
             try await sendJSON(["type": "auth", "access_token": token], on: task)
             let reply = try await receiveJSON(task)
+            guard gen == generation else { return }
             guard reply["type"] as? String == "auth_ok" else {
+                task.cancel(with: .policyViolation, reason: nil)
                 status = .rejected
                 return
             }
             signedInSocket = task
             Task { await self.loadEverything(gen: gen) }
             while gen == generation {
-                handle(try await receiveJSON(task))
+                let message = try await receiveJSON(task)
+                guard gen == generation else { return }
+                handle(message)
             }
         } catch {
             guard gen == generation else { return }
@@ -287,6 +393,7 @@ final class HomeStore: ObservableObject {
     }
 
     private func retry(_ gen: Int) async {
+        guard gen == generation else { return }
         status = .failed("Can't reach Home Assistant")
         let delay = retryDelay
         retryDelay = min(retryDelay * 2, 30)
@@ -317,7 +424,20 @@ final class HomeStore: ObservableObject {
     }
 
     private func send(_ req: URLRequest) async throws -> JSON {
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let data: Data
+        let response: URLResponse
+        if let authenticationTransport {
+            (data, response) = try await authenticationTransport(req)
+        } else {
+            guard let origin = req.url, HASessionOrigin.canonical(origin) != nil else { throw HASessionError.invalidAddress }
+            let config = URLSessionConfiguration.ephemeral
+            config.httpCookieStorage = nil
+            config.urlCredentialStorage = nil
+            config.httpShouldSetCookies = false
+            let session = URLSession(configuration: config, delegate: HAAuthenticationRedirects(origin: origin), delegateQueue: nil)
+            defer { session.finishTasksAndInvalidate() }
+            (data, response) = try await session.data(for: req)
+        }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else { throw HTTPStatusError(status: status) }
         return (try? JSONSerialization.jsonObject(with: data)) as? JSON ?? [:]
@@ -499,12 +619,10 @@ final class HomeStore: ObservableObject {
 
     /// A picture from an image entity, such as a camera's last event snapshot.
     func image(_ entityID: String) async -> NSImage? {
-        guard !isDemo, let base = baseURL, let token = try? await validAccessToken() else { return nil }
-        var req = URLRequest(url: base.appendingPathComponent("api/image_proxy/\(entityID)"))
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.timeoutInterval = 15
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              (resp as? HTTPURLResponse)?.statusCode == 200,
+        let epoch = authenticationGeneration
+        guard !isDemo, let base = baseURL,
+              let data = await pictureData(at: base.appendingPathComponent("api/image_proxy/\(entityID)").absoluteString, timeout: 15),
+              epoch == authenticationGeneration,
               let image = NSImage(data: data) else { return nil }
         snapshots[entityID] = image
         return image
@@ -515,27 +633,32 @@ final class HomeStore: ObservableObject {
     private let climateCommands = ClimateCommandQueue()
 
     @discardableResult
-    func command(_ body: JSON, id fixedID: Int? = nil) async throws -> Any? {
+    func command(_ body: JSON, id fixedID: Int? = nil, authenticationEpoch: Int? = nil) async throws -> Any? {
+        let session = CommandSession(generation: authenticationEpoch ?? authenticationGeneration)
+        try Task.checkCancellation()
+        try session.check(current: authenticationGeneration)
         if let simulator { return try simulator(body) }
         if let key = ClimateCommandScope.key(for: body, registry: registry, entities: entities) {
             return try await climateCommands.run(key: key) { [self] in
-                try await sendCommand(body, id: fixedID)
+                try await sendCommand(body, id: fixedID, session: session)
             }
         }
-        return try await sendCommand(body, id: fixedID)
+        return try await sendCommand(body, id: fixedID, session: session)
     }
 
-    /// The existing transport stays shared by reads and all unrelated service calls.
-    private func sendCommand(_ body: JSON, id fixedID: Int? = nil) async throws -> Any? {
-        for _ in 0..<100 where signedInSocket == nil || signedInSocket !== socket {
-            try? await Task.sleep(for: .milliseconds(100))
-        }
+    /// Reconnects within one sign-in remain valid. A queued action never gains
+    /// authority from a later sign-in or server, even with matching entity IDs.
+    private func sendCommand(_ body: JSON, id fixedID: Int? = nil, session: CommandSession) async throws -> Any? {
+        try await session.waitForConnection(current: { self.authenticationGeneration },
+                                            connected: { self.signedInSocket != nil && self.signedInSocket === self.socket },
+                                            pause: { try await Task.sleep(for: .milliseconds(100)) })
+        try session.check(current: authenticationGeneration)
         guard let socket = signedInSocket, socket === self.socket else { throw ProviderError("Not connected") }
         let id = fixedID ?? nextID
         nextID = max(nextID, id) + 1
         var msg = body
         msg["id"] = id
-        return try await withCheckedThrowingContinuation { cont in
+        let result: Any? = try await withCheckedThrowingContinuation { cont in
             pending[id] = cont
             if body["type"] as? String == "call_service" {
                 Task { [weak self] in
@@ -544,20 +667,29 @@ final class HomeStore: ObservableObject {
                 }
             }
             Task {
-                do { try await self.sendJSON(msg, on: socket) } catch {
+                do {
+                    try session.check(current: self.authenticationGeneration)
+                    guard socket === self.socket, socket === self.signedInSocket else { throw ProviderError("Not connected") }
+                    try await self.sendJSON(msg, on: socket)
+                } catch {
                     self.pending.removeValue(forKey: id)?.resume(throwing: error)
                 }
             }
         }
+        try session.check(current: authenticationGeneration)
+        return result
     }
 
     /// Read one entity out of HA's snapshot, retaining a newer state_changed push.
     /// Demo refreshes remain in memory and a failed read never invents a rollback.
     @discardableResult
-    func refreshEntity(_ entityID: String) async -> Entity? {
+    func refreshEntity(_ entityID: String, authenticationEpoch: Int? = nil) async -> Entity? {
+        let session = CommandSession(generation: authenticationEpoch ?? authenticationGeneration)
+        guard (try? session.check(current: authenticationGeneration)) != nil else { return nil }
         if isDemo { return entities[entityID] }
         guard signedInSocket != nil, signedInSocket === socket,
-              let rows = try? await command(["type": "get_states"]) as? [JSON],
+              let rows = try? await command(["type": "get_states"], authenticationEpoch: session.generation) as? [JSON],
+              (try? session.check(current: authenticationGeneration)) != nil,
               let raw = rows.first(where: { $0["entity_id"] as? String == entityID }),
               let fresh = Entity(raw) else { return nil }
         let current = entities[entityID]
@@ -576,20 +708,21 @@ final class HomeStore: ObservableObject {
     }
 
     func call(_ action: DeviceCommand, completion: ((Result<Void, Error>) -> Void)? = nil) {
-        let refreshTarget = ClimateCommandScope.key(for: action.body, registry: registry, entities: entities) != nil
-            ? action.entityID : nil
+        let session = CommandSession(generation: authenticationGeneration)
         inFlight += 1
         Task {
             defer { inFlight -= 1 }
             do {
-                try await command(action.body)
+                try await CommandReconciliation.perform(action, send: {
+                    _ = try await self.command($0.body, authenticationEpoch: session.generation)
+                }, refresh: {
+                    await self.refreshEntity($0, authenticationEpoch: session.generation)
+                })
+                try session.check(current: self.authenticationGeneration)
                 completion?(.success(()))
             } catch {
                 NSLog("Hearth: \(action.domain).\(action.service) failed: \(error.localizedDescription)")
-                // Legacy climate/sibling controls may have shown an optimistic value.
-                // Reconcile only their exact target, using the same freshness guard.
-                if let refreshTarget { await refreshEntity(refreshTarget) }
-                if completion == nil { actionError = error.localizedDescription }
+                if completion == nil, session.generation == self.authenticationGeneration { actionError = error.localizedDescription }
                 completion?(.failure(error))
             }
         }
@@ -614,11 +747,12 @@ final class HomeStore: ObservableObject {
     var isDemo: Bool { simulator != nil }
 
     /// Turns this store into a demo: sample devices, no connection, commands answered locally.
-    func playDemo(devices: [DeviceInfo], entities: [Entity], deviceOf: [String: String], areas: [Area] = [], simulator: @escaping (JSON) throws -> Any?) {
+    func playDemo(devices: [DeviceInfo], entities: [Entity], deviceOf: [String: String], areas: [Area] = [], floors: [Floor] = [], simulator: @escaping (JSON) throws -> Any?) {
         self.simulator = simulator
         self.devices = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
         self.entities = Dictionary(uniqueKeysWithValues: entities.map { ($0.id, $0) })
         self.areas = Dictionary(uniqueKeysWithValues: areas.map { ($0.id, $0) })
+        self.floors = floors
         registry = Dictionary(uniqueKeysWithValues: entities.map { ($0.id, RegistryEntry(deviceID: deviceOf[$0.id], hidden: false)) })
         status = .connected
     }
@@ -632,12 +766,10 @@ final class HomeStore: ObservableObject {
     // MARK: Cameras
 
     func snapshot(_ entityID: String) async -> NSImage? {
-        guard !isDemo, let base = baseURL, let token = try? await validAccessToken() else { return nil }
-        var req = URLRequest(url: base.appendingPathComponent("api/camera_proxy/\(entityID)"))
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.timeoutInterval = 15
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              (resp as? HTTPURLResponse)?.statusCode == 200,
+        let epoch = authenticationGeneration
+        guard !isDemo, let base = baseURL,
+              let data = await pictureData(at: base.appendingPathComponent("api/camera_proxy/\(entityID)").absoluteString, timeout: 15),
+              epoch == authenticationGeneration,
               let image = NSImage(data: data) else { return nil }
         snapshots[entityID] = image
         return image

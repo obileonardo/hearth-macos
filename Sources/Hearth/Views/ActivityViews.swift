@@ -144,14 +144,17 @@ struct ActivityPage: View {
     private var activityFeed: some View {
         VStack(alignment: .leading, spacing: 14) {
             if visible.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "sparkles").font(.system(size: 22, weight: .ultraLight)).foregroundStyle(Theme.faint)
-                    Text("All quiet").font(.system(size: 14, weight: .semibold))
-                    Text("People, the doorbell and motion will show up here as they happen.")
-                        .font(.system(size: 12.5)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
+                CenteredPageEmptyState {
+                    VStack(spacing: 10) {
+                        Image(systemName: displayedFilter?.symbol ?? "bell").font(.system(size: 22, weight: .ultraLight)).foregroundStyle(Theme.faint)
+                        Text("All quiet").font(.system(size: 14, weight: .semibold))
+                        Text(ActivityEventPresentation.emptyMessage(for: displayedFilter))
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 24)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
             }
 
             ForEach(Array(days.enumerated()), id: \.element.0) { di, day in
@@ -283,7 +286,7 @@ struct ActivityPage: View {
                     } else {
                         // No picture: a quiet plate in the event's own colour, the same size as a thumbnail.
                         shape.fill(tint(item.kind).opacity(0.1))
-                        Image(systemName: item.kind.symbol).font(.system(size: 14, weight: .regular)).foregroundStyle(tint(item.kind))
+                        Image(systemName: ActivityEventPresentation.symbol(kind: item.kind, entity: store.entities[item.entityID])).font(.system(size: 14, weight: .regular)).foregroundStyle(tint(item.kind))
                     }
                 }
                 .frame(width: 52, height: 38)
@@ -293,7 +296,7 @@ struct ActivityPage: View {
                     if let sample, faces.person(ofSample: sample) != nil {
                         FaceAvatar(sample: faces.person(ofSample: sample)?.best?.id, size: 20).offset(x: 6, y: 6)
                     } else if picture != nil {
-                        Image(systemName: item.kind.symbol).font(.system(size: 7.5, weight: .bold)).foregroundStyle(Theme.onAccent)
+                        Image(systemName: ActivityEventPresentation.symbol(kind: item.kind, entity: store.entities[item.entityID])).font(.system(size: 7.5, weight: .bold)).foregroundStyle(Theme.onAccent)
                             .frame(width: 16, height: 16)
                             .background(Circle().fill(tint(item.kind)).overlay(Circle().strokeBorder(Theme.raised, lineWidth: 1.5)))
                             .offset(x: 5, y: 5)

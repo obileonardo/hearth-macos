@@ -48,7 +48,7 @@ struct HomeDevice: Identifiable {
         case .smartSpeaker:
             if let dnd = entity(key: "do_not_disturb"), dnd.state == "on" { return "Do not disturb" }
             if let player = first("media_player"), player.state == "playing" { return player.str("media_title") ?? "Playing" }
-            if let t = entity(key: "temperature"), let v = Double(t.state) { return "\(Int(v.rounded()))\(t.str("unit_of_measurement") ?? "°")" }
+            if let t = entity(key: "temperature"), let v = Double(t.state), let rounded = Int(exactly: v.rounded()) { return "\(rounded)\(t.str("unit_of_measurement") ?? "°")" }
             return "Ready"
         case .securityHub, .securityHubPro:
             if let alarm = first("alarm_control_panel"), !alarm.isUnavailable { return alarm.state.pretty }

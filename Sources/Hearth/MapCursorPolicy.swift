@@ -16,6 +16,10 @@ enum MapCursorPolicy {
         var ownsPoint: Bool { active && visible && keyWindow && sameWindow && insideVisibleRect && canvasHit }
     }
 
+    static func shouldSet(_ choice: Choice, currentMatches: Bool) -> Bool {
+        choice != .inherited && !currentMatches
+    }
+
     static func choice(_ context: Context, dragging: Bool, hitHouseOrPin: Bool) -> Choice {
         guard context.ownsPoint, !dragging else { return .inherited }
         return hitHouseOrPin ? .openHand : .arrow

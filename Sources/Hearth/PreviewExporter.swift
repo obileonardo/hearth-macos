@@ -33,6 +33,7 @@ enum PreviewExporter {
         arguments["appearance"] = "system"
         arguments[NavigationGlassPreference.key] = NavigationGlassPreference.defaultValue
         arguments["hiddenSections"] = ""
+        arguments[RoomsLayoutPreference.key] = RoomsLayoutPreference.overview.rawValue
         arguments["desktopWidgets.climateEntity"] = "climate.preview_living_room"
         UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
         let engine = DemoEngine(.vehicles)
@@ -57,8 +58,8 @@ enum PreviewExporter {
         let speakers = HomeStore()
         let ids = ["media_player.living_homepod", "media_player.kitchen_homepod", "media_player.office_echo", "media_player.bedroom_homepod"]
         let names = ["Living Room HomePod", "Kitchen HomePod", "Echo Dot Upstairs Bedroom", "Guest Bedroom Speaker"]
-        let rooms = [Area(id: "living", name: "Living Room"), Area(id: "kitchen", name: "Kitchen"),
-                     Area(id: "master", name: "Upstairs Bedroom"), Area(id: "bedroom", name: "Guest Bedroom")]
+        let rooms = [Area(id: "living", name: "Living Room", floorID: "ground"), Area(id: "kitchen", name: "Kitchen", floorID: "ground"),
+                     Area(id: "master", name: "Upstairs Bedroom", floorID: "first"), Area(id: "bedroom", name: "Guest Bedroom", floorID: "first")]
         let states = ["playing", "playing", "paused", "unavailable"]
         let players = ids.enumerated().map { i, id in
             Entity(id: id, state: states[i], attributes: ["friendly_name": names[i], "media_title": "A quiet morning",
@@ -68,7 +69,8 @@ enum PreviewExporter {
         speakers.playDemo(devices: ids.enumerated().map { i, id in
             DeviceInfo(id: id, name: names[i], manufacturer: i == 2 ? "Amazon" : "Apple",
                        model: i == 2 ? "Echo Dot" : "HomePod mini", areaID: rooms[i].id)
-        }, entities: players, deviceOf: Dictionary(uniqueKeysWithValues: ids.map { ($0, $0) }), areas: rooms, simulator: { _ in nil })
+        }, entities: players, deviceOf: Dictionary(uniqueKeysWithValues: ids.map { ($0, $0) }), areas: rooms, floors: [Floor(id: "ground", name: "Ground floor", level: 0),
+                                                  Floor(id: "first", name: "First floor", level: 1)], simulator: { _ in nil })
         for scheme in [ColorScheme.dark, .light] {
             let suffix = scheme == .dark ? "dark" : "light"
             try save(PreviewProductShowcase(), name: "product-showcase-\(suffix)", width: 1020,
@@ -77,10 +79,25 @@ enum PreviewExporter {
                      name: "guide-devices-\(suffix)", width: 448, scheme: scheme, store: engine.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: .devices) { MediaPage(players: players, shown: true, previewLayout: "grid") },
                      name: "guide-speakers-\(suffix)", width: 448, scheme: scheme, store: speakers, log: log, out: out)
+            // Synthetic Home Assistant registry assignments, never a saved home.
+            for layout in RoomsLayoutPreference.allCases {
+                var previewArguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+                previewArguments[RoomsLayoutPreference.key] = layout.rawValue
+                UserDefaults.standard.setVolatileDomain(previewArguments, forName: UserDefaults.argumentDomain)
+                let explorer = RoomsExplorerState()
+                if layout == .interactive { explorer.selectedRoom = .area("kitchen") }
+                try save(PreviewScreenshotPanel(selected: .rooms, nativeScrollViewport: true) {
+                    RoomsOverview(shown: true, explorer: explorer, open: { _ in }, openDevice: { _ in })
+                }, name: "guide-rooms-\(layout.rawValue)-\(suffix)", width: 448,
+                         scheme: scheme, store: speakers, log: log, out: out, native: true)
+            }
+            try save(PreviewScreenshotPanel(selected: .activity, nativeScrollViewport: true) { ActivityPage(shown: true) },
+                     name: "guide-activity-empty-\(suffix)", width: 448, scheme: scheme,
+                     store: speakers, log: ActivityLog(previewItems: []), out: out, native: true)
             try save(PreviewScreenshotPanel(selected: .climate(climate.id)) { ClimatePage(entityID: climate.id, shown: true) },
                      name: "guide-climate-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
-            try save(PreviewScreenshotPanel(selected: nil, settings: true) { SettingsView(previewSignedIn: false) {} },
-                     name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: nil, settings: true, nativeScrollViewport: true) { SettingsView(previewSignedIn: false) {} },
+                     name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out, native: true)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport {} },
                      name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport(initialRequest: .bug) {} },
@@ -231,6 +248,15 @@ enum PreviewExporter {
             window.appearance = NSApp.appearance
             window.contentView = host
             window.setContentSize(host.fittingSize)
+            // Give native controls, lazy scroll content and geometry preferences
+            // bounded layout passes before capture. Nothing is ordered on screen;
+            // only synthetic views are mounted and no device session is started.
+            for _ in 0..<6 {
+                host.needsLayout = true
+                host.layoutSubtreeIfNeeded()
+                host.displayIfNeeded()
+                _ = RunLoop.current.run(mode: .default, before: Date(timeIntervalSinceNow: 0.02))
+            }
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
             let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds)
@@ -252,6 +278,9 @@ enum PreviewExporter {
 private struct PreviewScreenshotPanel<Content: View>: View {
     let selected: Page?
     var settings = false
+    /// Menus and lazy room strips need an AppKit-backed scroll viewport. The
+    /// ImageRenderer path stays flat because it cannot render native scroll views.
+    var nativeScrollViewport = false
     @ViewBuilder let content: () -> Content
     private let pages: [Page] = [.climate("climate.preview_living_room"), .security, .rooms, .devices, .map, .activity]
 
@@ -262,11 +291,31 @@ private struct PreviewScreenshotPanel<Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            content().fixedSize(horizontal: false, vertical: true)
-                .frame(width: 404, height: Theme.panelSize.height - contentBottomInset - 44, alignment: .top)
-                .padding(22).clipped()
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.bottom, contentBottomInset)
+            if nativeScrollViewport {
+                // Mirror PanelView.scrolling so CenteredPageEmptyState receives
+                // the same viewport, unscrolled content origin and dock bounds.
+                GeometryReader { viewport in
+                    ScrollView {
+                        content()
+                            .padding(.horizontal, PanelView.scrollContentInset)
+                            .padding(.top, PanelView.scrollContentInset)
+                            .padding(.bottom, PanelView.scrollBottomPadding)
+                            .coordinateSpace(name: PageContentCoordinates.space)
+                            .environment(\.hearthPageViewportHeight, viewport.size.height)
+                            .environment(\.hearthPageDockObstruction, PanelView.footerHeight - PanelView.footerTopExtra)
+                    }
+                    .scrollIndicators(.never)
+                    .coordinateSpace(name: PinnedTitleBar.space)
+                    .overlayPreferenceValue(PinnedTitleKey.self, alignment: .top) { PinnedTitleBar(info: $0) }
+                }
+                .clipped()
+            } else {
+                content().fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 404, height: Theme.panelSize.height - contentBottomInset - 44, alignment: .top)
+                    .padding(22).clipped()
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .padding(.bottom, contentBottomInset)
+            }
             Dock(pages: pages, selected: selected, label: { page in
                 switch page {
                 case .climate: ("snowflake", "Workspace")

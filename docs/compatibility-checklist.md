@@ -1,0 +1,43 @@
+# Compatibility and physical validation checklist
+
+This checklist makes the remaining validation actionable. **No physical actions or new cross-machine checks were executed while preparing it.** Use isolated demo data for development. Real device checks require an agreed target and time so somebody can observe the result.
+
+## Evidence already available
+
+The [0.1.3 verification record](release-verification-0.1.3.md) records the universal arm64/x86_64 build, macOS 14 deployment target, 137 hosted XCTest cases with two GPU skips and no failures, local installation and limited native UI review. These do not establish Intel runtime, all supported OS versions, complete VoiceOver coverage or every vendor integration. The [device-control guide](device-controls.md) explains authoritative state and announcement limitations.
+
+For every new run, record: app version/build/source, actual OS and hardware, Home Assistant and integration versions, supported capabilities, initial state, one action at a time, service acknowledgement, subsequent authoritative state, observed physical result, restoration and result (`passed`, `failed`, `blocked` or `not run`). Keep sensitive identifiers and detailed household logs private; publish generic or redacted summaries only.
+
+## Mac and interface matrix
+
+| Check | Procedure and pass evidence | Current status / prerequisite |
+|---|---|---|
+| Supported OS and CPU | On each available macOS 14+ / Apple Silicon / Intel combination, open a fresh build, sign in to a test server, switch all pages, close/reopen panel and relaunch. Confirm availability-guarded fallbacks and preserved settings | Broader matrix not run; universal compile is separate evidence |
+| Keyboard | Use Tab/Shift-Tab and activation keys through nav, floating heading/back, Activity filters, sliders, forms and dialogs. Confirm visible focus, logical order, no keyboard trap and scroll-to-focused controls | Complete native pass remains pending; source/fixture review can proceed independently |
+| VoiceOver | Read page headings, selected navigation/filter state, icon buttons, online/offline status, adjustable controls, widget move/resize actions and error feedback. Confirm decorative illustration stacks do not repeat unrelated information | Full assistive pass not run |
+| Accessibility preferences | Review light/dark with Reduce Motion, Reduce Transparency and Increase Contrast, at several glass-opacity settings. Confirm saved opacity survives system overrides and selected icons/text remain legible | Contrast and policy fixtures exist; full native combination matrix not run |
+| Panel and input stability | With a test server, change temperature/person/music status while the panel is open; scroll and hover nav/content; move between displays. Record whether the window moves, focus changes or cursor visibly oscillates. Profile a reproducible stutter before changing animation | Existing anchoring/cursor policies have fixtures; broad runtime confirmation remains pending |
+| Layout and persistence | Check long labels, empty/offline lists, narrow/full-map views, last control above floating nav, saved glass opacity, relaunch and demo-home Back | Limited native 0.1.3 review recorded; broader cases remain pending |
+| Widgets | Move, resize and click desktop widgets; confirm selected climate, stale/disconnected behavior, links and privacy blur. For WidgetKit, validate signed App Group write/read and gallery/provider execution | Desktop implementation delivered; gallery requires valid host/extension provisioning and group access |
+| Distribution | Verify checksum, universal slices and signature on downloaded artifact. Once signing inputs exist, perform accepted notarization, stapling and fresh-machine Gatekeeper check | 0.1.3 preview checks recorded; Developer ID/notarized and clean-machine checks pending |
+
+## Devices and integrations
+
+Every action below first requires that Home Assistant exposes the relevant entity, advertised mode/range or supported action. A successful service response alone is not a physical pass. On timeout or uncertain acknowledgement, read current state and inspect the device before retrying. Do not change an unrelated device or silently disable privacy/Do Not Disturb.
+
+| Family | Minimal reversible check | Evidence and restoration | Blocker / current boundary |
+|---|---|---|---|
+| Air conditioner | Capture power, mode, set point and fan; choose one advertised mode and a valid set point, then check rapid mode/temperature input separately | Compare actual Home Assistant state and physical unit. Restore original supported values after confirming no external change | Intermittent vendor rejection remains possible. Guarded retry is not a permanent integration fix; no new physical test here |
+| Speakers | On an agreed nearby speaker, test idle music request, pause/resume and one announcement; test grouping only where advertised | Listener confirms sound and intended target; state confirms playback; stop test music and restore prior playback only with agreement | Provider/account/pairing and DND can affect delivery. Never treat request acceptance as audible confirmation |
+| Cameras and doorbell | Agree an appropriate camera/privacy window; confirm image/live stream, one reversible supported privacy/power change and a deliberate test event | Read back exact entity and observe stream/device. Restore initial setting; protect all footage | Unsupported HomeBase commands remain unavailable; do not bypass hub capability restrictions |
+| Alarm | Use a supervised test system and an agreed arm/disarm path only | Verify reported and actual state, then restore; keep codes private | No unsupervised trigger test or dispatch risk; current physical coverage unconfirmed |
+| HomePod / Apple TV | Pair locally using the integration's current flow, then test targeted play/pause and source where exposed | Observe selected device and restore playback; keep PIN/sign-in local | Local pairing, network reachability and Home permissions needed |
+| Printer / console / computer | Start with read-only availability, job/progress or playing-title comparison; test an explicit supported reversible action only after agreement | Compare native vendor device and Home Assistant; no print cancellation or shutdown without a separate plan | Model, integration, account/LAN access or companion setup needed |
+| Energy / inverter / battery | Compare identified W/kW, energy totals, battery %, direction and cell units against a trusted device reading; handle missing sensors as unavailable | Record units/sign convention and sensor freshness. Prefer read-only observation | Exact equipment/protocol/sensors needed; do not change inverter modes or battery protections |
+| EV / charger | Begin with read-only charge/range/plugged-in state; use a separately agreed reversible charging or cabin-climate check | Observer verifies vehicle/charger; restore prior charging/climate state | Connected hardware/account and safe test conditions needed; no unobserved lock/unlock actions |
+| Vacuum / mower | Prefer status/battery readback first; only test start/pause/dock in a clear, supervised space | Observe selected robot and successful return/restoration | Safe area and supported hardware needed; do not start a mower unattended |
+| Other brands / smart keys | Identify the exact model, integration and exposed capabilities before proposing controls | Document supported path and reversible scope | ConnectLife, smart-key meaning and direct HomeKit route still need specific inputs |
+
+## Stop and recovery rules
+
+Stop on an unexpected physical result, stale state, account challenge, external state change or unsupported capability. Record the failure and current state. Restore only the state this test changed, where doing so is still safe and does not overwrite somebody else's later action. Preserve app data and integration setup. Hardware unavailable means `blocked`, not a simulated pass.
