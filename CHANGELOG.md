@@ -40,7 +40,7 @@
 
 The app retains its macOS 14 deployment target and existing bundle identity. This branch does not change Home Assistant deployment, reset pairing, delete local data or provide a notarized binary release. Source builds and sample previews do not establish live hardware compatibility; public publication remains a separate reviewed step.
 
-## 0.1.3 preview candidate
+## 0.1.3 preview — 15 October 2026
 
 - Richer blue accents, green home energy surfaces, consistent navigation glyphs and clearer Settings spacing.
 - Local editable help and bug-report drafts with preserved edits, optional version details and mail/copy actions.
