@@ -56,7 +56,11 @@ enum MenuBarIcon {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     @MainActor let store = HomeStore()
-    @MainActor let log = ActivityLog()
+    // AppDelegate is constructed before the exporter configures volatile stores.
+    // Offline rendering must therefore select memory-only activity immediately.
+    @MainActor let log = ActivityLog(previewItems: CommandLine.arguments.contains {
+        ["--render-preview", "--render-cars", "--render-art"].contains($0)
+    } ? [] : nil)
     private var debugWindow: NSWindow?
     private var pendingWidgetPage: String?
 

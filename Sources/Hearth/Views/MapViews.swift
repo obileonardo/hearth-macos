@@ -19,7 +19,9 @@ struct MapPage: View {
         let total = loads.compactMap(\.1).reduce(0, +)
 
         VStack(alignment: .leading, spacing: 14) {
-            PageHeader(eyebrow: eyebrow(total: total, count: maps.pins.count), title: "3D map") {
+            PageHeader(eyebrow: eyebrow(total: total, count: maps.pins.count), title: "3D map",
+                       pinnedIllustrations: maps.pins.prefix(3).map(\.art), pinnedCount: maps.pins.count,
+                       pinnedSymbols: ["cube.transparent", "square.3.layers.3d", "bolt"]) {
                 Button { maps.importScan() } label: {
                     Image(systemName: "square.and.arrow.down")
                         .font(.system(size: 13, weight: .regular))

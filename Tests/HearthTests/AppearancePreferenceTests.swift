@@ -39,13 +39,13 @@ final class AppearancePreferenceTests: XCTestCase {
     }
 
     @MainActor
-    func testPinnedGlassWaitsUntilOriginalHeaderHasLeft() {
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: nil), 0)
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: 26), 0)
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: 1), 0)
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: 0), 0)
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: -9), 0.5)
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: -18), 1)
-        XCTAssertEqual(PinnedTitleBar.progress(headerBottom: -200), 1)
+    func testPinnedCardStartsAsOriginalHeaderReachesTop() {
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: nil), 0)
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: 26), 0)
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: 1), 0)
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: 0), 0)
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: -9), 0.5)
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: -18), 1)
+        XCTAssertEqual(PinnedTitleBar.progress(headerTop: -200), 1)
     }
 }

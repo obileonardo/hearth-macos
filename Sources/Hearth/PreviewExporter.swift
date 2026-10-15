@@ -41,7 +41,16 @@ enum PreviewExporter {
                               "attributes": ["friendly_name": "Living room", "temperature": 24,
                                              "current_temperature": 25.5, "hvac_modes": ["off", "cool", "heat"]]])!
         energy.store.playDemo(update: [climate])
-        let log = ActivityLog()
+        let now = Date()
+        let log = ActivityLog(previewItems: [
+            ActivityLog.Item(kind: .person, title: "Person at Front door", place: "Entrance", date: now.addingTimeInterval(-60), entityID: "binary_sensor.preview_front_person", read: true),
+            ActivityLog.Item(kind: .doorbell, title: "Someone rang the doorbell", place: "Entrance", date: now.addingTimeInterval(-180), entityID: "event.preview_doorbell", read: true),
+            ActivityLog.Item(kind: .motion, title: "Movement in the garden", place: "Garden", date: now.addingTimeInterval(-360), entityID: "binary_sensor.preview_garden_motion", read: true),
+            ActivityLog.Item(kind: .person, title: "Person at Garden gate", place: "Garden", date: now.addingTimeInterval(-600), entityID: "binary_sensor.preview_gate_person", read: true),
+            ActivityLog.Item(kind: .security, title: "Alarm armed for Home", place: "Home", date: now.addingTimeInterval(-900), entityID: "alarm_control_panel.preview_home", read: true),
+            ActivityLog.Item(kind: .person, title: "Person at Driveway", place: "Driveway", date: now.addingTimeInterval(-1200), entityID: "binary_sensor.preview_driveway_person", read: true),
+            ActivityLog.Item(kind: .person, title: "Person at Front door", place: "Entrance", date: now.addingTimeInterval(-1500), entityID: "binary_sensor.preview_front_person", read: true)
+        ])
         let hub = DevicesHub()
         hub.showGrid()
         guard let car = engine.store.homeDevice("demo-car") else { throw ProviderError("Missing sample car") }
@@ -82,6 +91,22 @@ enum PreviewExporter {
                     SectionSettings()
                 }
             }, name: "guide-navigation-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            // Close-up of the actual shared component, with illustrative cameras only.
+            try save(PinnedTitleBar(info: PinnedTitle(eyebrow: "7 cameras · Updated now", title: "Security", back: nil,
+                         illustrations: [.doorbell, .outdoorCamera, .indoorCamera], count: 7, top: -18, bottom: 32))
+                         .background(Theme.base).environment(\.hearthDocumentationPreview, true),
+                     name: "guide-heading-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            for (name, title, summary, symbols) in [
+                ("activity", "Activity", "4 people seen today", ["bell.fill", "figure.walk.motion", "shield.lefthalf.filled"]),
+                ("preferences", "Settings", "Hearth", ["person.crop.circle", "slider.horizontal.3", "questionmark.circle"])
+            ] {
+                try save(PinnedTitleBar(info: PinnedTitle(eyebrow: summary, title: title, back: nil,
+                             symbols: symbols, top: -18, bottom: 32))
+                             .background(Theme.base).environment(\.hearthDocumentationPreview, true),
+                         name: "guide-heading-\(name)-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            }
+            try save(PreviewScreenshotPanel(selected: .activity) { ActivityPage(shown: true) },
+                     name: "guide-activity-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(CarCard(device: car) { _ in }, name: "vehicle-\(suffix)", width: 368,
                      scheme: scheme, store: engine.store, log: log, out: out)
             try save(DevicesPage(hub: hub, shown: true, visible: false), name: "devices-\(suffix)", width: 368,
@@ -184,7 +209,7 @@ enum PreviewExporter {
         guard let tiff = image.tiffRepresentation,
               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
         try png.write(to: out.appendingPathComponent("map-scale-dark.png"), options: .atomic)
-        try save(MapWindow(previewImage: image).frame(height: 760), name: "map-layout-dark", width: 1180, scheme: .dark, store: store, log: ActivityLog(), out: out, native: true)
+        try save(MapWindow(previewImage: image).frame(height: 760), name: "map-layout-dark", width: 1180, scheme: .dark, store: store, log: ActivityLog(previewItems: []), out: out, native: true)
     }
 
     private static func save<V: View>(_ view: V, name: String, width: CGFloat, scheme: ColorScheme,

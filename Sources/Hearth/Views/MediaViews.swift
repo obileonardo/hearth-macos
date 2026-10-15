@@ -30,7 +30,10 @@ struct MediaPage: View {
     var body: some View {
         let playing = players.filter { $0.state == "playing" }.count
         VStack(alignment: .leading, spacing: 12) {
-            PageHeader(eyebrow: playing > 0 ? "\(playing) playing" : "\(players.count) speakers", title: "Now playing") {
+            PageHeader(eyebrow: playing > 0 ? "\(playing) playing" : "\(players.count) speakers", title: "Now playing",
+                       pinnedIllustrations: sorted.prefix(3).map { player in
+                           store.registry[player.id]?.deviceID.flatMap { store.homeDevice($0)?.kind } ?? .smartSpeaker
+                       }, pinnedCount: players.count) {
                 HStack(spacing: 2) {
                     layoutButton("square.grid.2x2", title: "Grid view", value: "grid")
                     layoutButton("list.bullet", title: "List view", value: "list")

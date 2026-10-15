@@ -175,7 +175,7 @@ Use **Assets** to browse families, **Rooms** to browse by location, or **3D Map*
 
 #### Choose how much content shows through the bar
 
-Open **Settings → Navigation → Glass opacity**. Move the slider toward Clearer or More opaque; Hearth remembers the choice. Icons keep their full color. macOS Reduce Transparency and Increase Contrast keep the bar solid. [Navigation guide](docs/navigation.md).
+Open **Settings → Navigation → Glass opacity**. Move the slider toward Clearer or More opaque; Hearth remembers the choice. The same preference controls floating page headings. Icons keep their full color. macOS Reduce Transparency and Increase Contrast keep the bar solid. [Navigation guide](docs/navigation.md).
 
 <table>
   <tr>
@@ -271,7 +271,7 @@ HA_URL=http://localhost:8124 HA_TOKEN=... build/Hearth.app/Contents/MacOS/Hearth
 - `-gadgetsFile <path>` reads and writes the hand-made gadget list somewhere else, so tests leave yours alone.
 - `-homesFile <path>` does the same for the homes list; `-openHome main|demo` opens a home straight away.
 - `-activityFolder <path>` isolates the activity index and its pictures for development.
-- `--render-preview <folder>` exports sample-data car, Assets, pill, settings and widget previews, then exits before connecting or asking for notification permission. Supply `-activityFolder <temporary-folder>` to isolate the app delegate's initial activity load too.
+- `--render-preview <folder>` exports sample-data car, Assets, pill, settings and widget previews, then exits before connecting or asking for notification permission. Activity is explicitly in memory from app initialization; no saved event index, face reference or camera image is loaded for these renders.
 - `--render-cars <folder>` exports the car contact sheets. `HEARTH_SDKROOT` selects an installed SDK; build scripts otherwise discover it, retaining the working macOS 26.5 SDK with Command Line Tools when available.
 - `--probe "find climate.; call climate.set_temperature climate.bedroom {\"temperature\":22}"` checks a real Home Assistant through the app's own sign-in and prints what happened. Steps: `dump`, `find`, `call`, `cmd`, `rest`, `energy`, `snap`, `wait`.
 - `docker-compose -f homeassistant/docker-compose.yml --profile dev up -d homeassistant-dev` runs a demo Home Assistant on port 8124, full of sample devices.

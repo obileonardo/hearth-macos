@@ -1,136 +1,80 @@
 # Task update
 
-Updated 14 October 2026. This register covers Claude's foundation, the interrupted work completed by Codex, subsequent product feedback and release work. “Complete” means implemented and reviewed; it does not imply every vendor device or supported macOS version was physically tested.
+Updated 15 October 2026. This register covers Claude's foundation, interrupted work completed by Codex, subsequent product feedback and publication. Implemented source, reviewed behavior and a downloadable release are recorded separately. Fixture checks do not establish compatibility with every physical device or supported Mac.
 
-## Completed
+## Current work and delivery
 
-| Work | Contribution | Status / evidence |
+The latest completed source batch is merged in private PR #11 and [public PR #6](https://github.com/obileonardo/hearth-macos/pull/6). Both hosted runs passed **129 XCTest cases, two GPU-dependent skips and zero failures**, plus release compilation, source-linked contrast, shell checks and optional universal WidgetKit compilation. The public [verification run](https://github.com/obileonardo/hearth-macos/actions/runs/38696784897) checks public app-source commit `e7fc0f61dc596cd70b37f4829e32a53613bb0711`, merged as `2161d69647d822a9153c0bdea5c786178e31b71d`. Private development history remains separate.
+
+The downloadable release is still [0.1.2 preview](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.2-preview). The latest source changes below are **not in that DMG**. A further heading-card refinement and final 0.1.3 build, installation, verification and publication remain in progress.
+
+| Work | Contribution | Current status and evidence | Remaining work |
+|---|---|---|---|
+| Native menu-bar app, sign-in and live state | Claude foundation; Codex review | Implemented; existing bundle identity and Keychain session preserved | Broader device/OS coverage below |
+| Climate controls, timers, display, energy and modes | Claude foundation; Codex refinement | Capability-based controls retained; commands serialize per physical device, unsent temperature changes cancel before mode changes, and errors refresh authoritative state | Integration-specific limits remain |
+| Intermittent AC mode rejection | Codex | One guarded retry for the specifically observed vendor rejection; fresh-state checks prevent retry after power/mode changes. Recovery fixtures passed; approved live mode checks accepted the requested modes and restored prior state | Intermittent vendor behavior is not declared permanently fixed; further physical reproduction may be needed |
+| Temperature display and motion | Codex | Smooth local digit animation restored; modes without a setpoint show an em dash without an invented temperature slider | Included in source; final 0.1.3 DMG pending |
+| Security, cameras, live video, activity and notifications | Claude foundation; Codex completion/polish | Existing camera streams, activity categories and preferences retained; unsupported hubs show honest availability | Vendor-specific camera features below |
+| Rooms, floors, assets, gadgets, vehicles, homes and energy | Claude foundation; Codex completion | Implemented; saved-data regressions pass; Assets replaces only the overview display name, preserving saved routes and Home Assistant terminology | Real integrations require supported devices |
+| Car model illustrations and remembered paint | Interrupted Claude work completed by Codex | Implemented; sample car/paint controls retained | Physical car integration coverage below |
+| Live event pill and desktop widgets | Interrupted Claude work completed by Codex | Individual Overview links, movement, resizing and saved placement retained | Platform gallery provisioning is separate |
+| Widget content and chosen climate source | Codex | Connected readings drive Overview, selected climate, recent Activity and Energy; documented in [widgets](../docs/widgets.md) | Additional real-device coverage |
+| Native WidgetKit extension and shared snapshots | Codex | Source and optional universal compilation pass; unprovisioned extension omitted from preview | Host/extension provisioning, App Group and gallery activation |
+| Cursor ownership | Codex | Arrow on controls and hand on the active map canvas; decorative dock lens does not receive pointer events; isolated cursor ownership checks pass | Broad native pointer-vibration feedback needs continued reproduction; not certified fully resolved |
+| Device placement | Codex | Drag-out presentation, cancellation and last-placed-first ordering retained | No new dependency |
+| AC airflow | Codex | More visible continuous animation; owner accepted appearance | No new dependency |
+| Speaker presentation | Codex | Grid/list, connected glow, playback waves and grouping; actual grouping distinguished from the same track | No new dependency |
+| Uniform asset cards and speaker text | Codex | Consistent tiles, room icons, centered hierarchy and wrapped names; owner accepted appearance | No new dependency |
+| Device proportions | Codex | Larger fridge, TV and AC; Echo Dot reduced 30%; camera proportions refined | Further art direction remains optional |
+| Native gadget illustrations | Codex | Console refined; solar panel rebuilt with a consistent 72-cell projection, slim frame, coherent supports and restrained daylight reflection; on/off and 24/46/72/160pt renders reviewed | Final 0.1.3 artifact pending |
+| 3D map shadows and rendering | Codex | Contact shadows, improved masking and directional SceneKit lighting retained | Supported GPU/OS coverage below |
+| Metal contact lighting | Codex | Native ray-traced contact pass with fallback; local M4 GPU checks passed | Not full path tracing; hosted GPU checks skip where unsupported |
+| Map defaults, controls and toolbar | Codex | See-through collapsed map, consolidated full-map toolbar and smoother plan/3D transitions | No new dependency |
+| Activity and page transitions | Codex | Unified six-option Activity filter tray without clipped side pills, filter transitions, text gradients, moving selection keys and scoped page motion refined; Reduce Motion retained | Broad animation smoothness requires native review |
+| Assets → demo home → Back | Codex | Departing demo snapshots retained; native return to Assets reviewed; route fixtures pass | Latest heading refinement reviewed separately |
+| Semantic navigation icons | Codex agent | Consistent semantic drawings and selected fills; Climate uses a snowflake; Reduce Motion respected | Further optical review remains possible |
+| Floating bottom navigation | Codex | Full-height content scrolls behind the capsule; no full-width fade/black band; final controls remain reachable and fixed climate/demo controls clear the dock | Final 0.1.3 artifact pending |
+| Navigation glass preference | Codex | Remembered 0–100% surface opacity, default 55%; foreground remains full opacity; Reduce Transparency/Increase Contrast force a solid surface. Native slider adjusted and restored during review | Final 0.1.3 artifact pending |
+| Menu-bar pill and flash alerts | Codex | Owned status view avoids selection bezel; pill height increased where the menu bar permits; crisp flash edges reviewed and accepted by owner | Final 0.1.3 artifact pending |
+| Stable open-panel position | Codex | Opening anchor retained through status updates; bounded status slot centers artwork; screen clamping and explicit reanchoring preserved; geometry fixtures pass | Native status-update review does not certify every display/menu-bar arrangement |
+| Scrolled page heading | Codex | Translucent rounded heading card implemented with 16pt insets, overlapping camera/device illustrations and Activity/Settings category icons, smaller circles and an early original-title fade; native Security scroll/return reviewed | Complete hosted regression checks and source publication for this follow-up |
+| Map and widget accessibility | Codex agents | Keyboard placement and named actions retained; Open full map has its own label/hint, confirmed through native accessibility inspection | Full VoiceOver review and additional machines below |
+| Accessible blue and home energy palette | Codex | Rich adaptive blue, white marks on deeper blue and coherent green home-energy surfaces; source-linked normal/Increase Contrast checks pass | Live glass/photos still require visual review |
+| Appearance and preference layouts | Codex agents | Immediate Light/Dark/System behavior, clearer widget/notification settings, right-aligned version switch and roomier integration controls | No new dependency |
+| Help and support drafts | Codex | Local editable Subject/Message, preserved edits, optional versions off by default, Open mail app and Copy draft; contact@elvisobi.com; no automatic sending | User chooses when to send; actual mail-handler coverage varies |
+| Speaker actions and capability routing | Codex agents | Registered capabilities and authoritative responses; idle supported Alexa devices request music on the chosen speaker; approved physical playback heard by owner and stopped | Announcement audibility can depend on DND/device behavior; separate confirmation remains |
+| Credential and redirect boundaries | Codex | Home Assistant origin restrictions, redirect handling and session guards; regression checks pass | Ongoing security review, not a complete security certification |
+| Home identity and map/scan compatibility | Codex | Unique scan imports and saved home/map compatibility retained; regressions pass | No new dependency |
+| Public imagery and usage guides | Codex | Native showcase, coherent demo-only light/dark guides, explicitly memory-only synthetic activity, connection/use steps, artwork library and explicit static-control illustration provenance | Refresh images if the final heading follow-up changes visible views |
+| Open-source preparation | Codex agents | License/notices, attribution, contributor/security guidance, issue/PR templates, generic examples and independently reviewed public history | Review every future export and release asset |
+| Repository security and CI | Codex | Required PR/build checks, force-push/deletion protection, secret scanning/push protection, private security reports, dependency updates and pinned Actions | Keep protections active; latest batch evidence above |
+| Universal build and DMG tooling | Codex agents | Apple Silicon/Intel builds, separate staging, provenance, signatures, read-only image/checksum validation and optional notarization workflow | Build and verify final 0.1.3 payload after source freeze |
+| Published preview download | Codex | 0.1.2 ad-hoc preview available; fresh unauthenticated download matched its recorded checksum | Publish verified 0.1.3 DMG/checksum and update links; notarization input below |
+| External-drive project relocation | Codex | Working files/history retained; original paths linked | External drive must remain connected |
+| Task register and Claude handoff | Codex | Public status here; detailed operational handoff kept private | Update exact final artifact/source evidence after publication |
+
+## Input, hardware and vendor requirements
+
+These are distinct from the remaining 0.1.3 release work above. Existing features and saved data remain intact.
+
+| Item | Needed to finish | Reason |
 |---|---|---|
-| Native menu-bar application, sign-in and live state | Claude foundation; Codex review | Complete; existing bundle identity and Keychain session preserved |
-| Climate controls, timers, display, energy and modes | Claude | Complete; availability follows Home Assistant capabilities |
-| Security, cameras, live video, activity and notifications | Claude foundation; Codex polish | Complete; unsupported vendor features remain unavailable |
-| Rooms, floors, devices, gadgets, vehicles, homes and energy | Claude foundation; Codex completion | Complete; saved-data regressions pass |
-| Car model illustrations and remembered paint | Interrupted Claude work completed by Codex | Complete; sample car/paint controls retained |
-| Live event pill and desktop widgets | Interrupted Claude work completed by Codex | Complete; individual Overview links, movement, resizing and saved placement |
-| Widget content choice and climate source | Codex | Complete; connected readings drive Overview, chosen climate device, recent Activity and Energy; documented in widgets.md |
-| Native WidgetKit extension and shared snapshots | Codex | Code complete and universal compilation passed; gallery activation needs provisioning below |
-| Arrow cursor on controls; hand on map canvas | Codex | Complete |
-| Dragging devices out of cards; cancellation; last placed first | Codex | Complete; existing placement behavior retained |
-| AC airflow visibility and continuous animation | Codex | Complete; user accepted visual result |
-| Speaker grid/list, connected glow, playback waves and grouping | Codex | Complete; same track and actual grouping are distinguished |
-| Uniform device tiles, room icons, centered layout and wrapped names | Codex | Complete; user accepted speaker appearance |
-| Fridge, TV and AC proportions; Echo Dot reduction | Codex | Complete; Echo reduced by 30%; user accepted size |
-| Outdoor camera proportions and native device models | Codex | Complete; latest camera likeness can receive further visual feedback |
-| Contact shadows, masking and directional SceneKit lighting | Codex | Complete |
-| Native Metal ray-traced contact lighting with fallback | Codex | Complete; local Apple M4 GPU checks passed; this is not full path tracing |
-| See-through collapsed map and consolidated full-map toolbar | Codex | Complete |
-| Moving selection pills, smoother map and page transitions | Codex | Complete; reduced-motion behavior preserved |
-| Activity filter transition, text gradients and dock polish | Codex | Complete |
-| Semantic navigation icons | Codex agent | Complete; selected security, room and device glyphs fill blue and animate, respecting Reduce Motion |
-| Menu-bar pill rendering and native panel anchoring | Codex | Complete in 0.1.2; owned status view avoids the native selection bezel, panel follows its menu-item anchor; current refinement and verification status is below |
-| Map placement and widget accessibility actions | Codex agents | Complete; named actions and keyboard placement included; full VoiceOver review remains separate |
-| Help and bug-report email drafts | Codex | Complete; contact@elvisobi.com, separate action/guidance cards, optional version fields off by default, no automatic sending |
-| README illustration, artwork provenance and app screenshots | Codex | Complete; native showcase, consistent light/dark demo guides, explicit static setup-control illustrations and full artwork library |
-| Adaptive blue brand and appearance preferences | Codex agents | Complete in 0.1.2; immediate Light/Dark/System switching and documented accessibility behavior |
-| Settings, widget and notification preference layouts | Codex agents | Complete in 0.1.2; clearer grouping and a distinct preferences entry icon |
-| Speaker capability routing and playback actions | Codex agents | Complete in 0.1.2; registered capabilities and authoritative Home Assistant responses used; approved local playback heard by owner |
-| Credential-origin and redirect boundaries | Codex | Complete; regression checks pass |
-| Home identity, scan import and saved map compatibility | Codex | Complete; regression checks pass |
-| Source license, notices, contributor/security guidance and issue templates | Codex agent | Complete |
-| Open-source publication | Codex agents | Complete; independent reviewed history at [hearth-macos](https://github.com/obileonardo/hearth-macos); private development history preserved |
-| GitHub security and branch rules | Codex | Complete; secret scanning/push protection, private security reports, dependency updates, pinned Actions, PR/build requirements and force-push/deletion protection |
-| Automated regression CI | Codex agents | Complete; [0.1.2 public run](https://github.com/obileonardo/hearth-macos/actions/runs/38549884465): 57 XCTest cases, zero failures, two hosted GPU skips; shell checks and optional universal WidgetKit compile pass |
-| Universal app and DMG packaging | Codex agents | Complete; Apple Silicon/Intel payload and checksum verified |
-| Public preview download | Codex | Complete; [0.1.2 preview](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.2-preview), explicitly not notarized; fresh unauthenticated download matched the recorded checksum |
-| Project relocation to external storage | Codex | Complete; working files/history retained, old paths linked; drive must remain connected |
-| Task register and Claude handoff | Codex | Complete; detailed owner records stay private |
+| Developer ID signed/notarized download | Local Developer ID Application certificate and notarization Keychain profile, then accepted submissions/stapling/Gatekeeper checks | Distribution credentials not installed/confirmed; ad-hoc preview is available |
+| WidgetKit gallery | Matching host/extension provisioning, App Group and signing; installed-gallery validation | Platform provisioning; desktop widgets already work |
+| HomePod / Apple TV | Local pairing and network permissions on supported hardware | Physical setup |
+| Bambu printers | Actual model and supported cloud/LAN pairing | Physical/vendor setup |
+| PlayStation / computer companion | Account pairing or companion setup | User setup |
+| Inverter, battery/BMS and energy history | Exact models, protocol/logger and Home Assistant sensors | Hardware/vendor support |
+| ConnectLife appliances | Supported local/cloud Home Assistant integration | Vendor setup not established |
+| Cars, chargers and mowers | Supported devices and integrations | Fixtures do not establish physical compatibility |
+| Smart-key / HomeKit routes | Product meaning and chosen integration | Owner decision |
+| Advanced Eufy hub/face features and AC left/right functions | Exposed vendor/API capability and supported integration | Commands/data cannot be invented |
+| Deferred router integration | Owner decision before enabling | Explicitly deferred |
+| Camera retention and live container/network policy | Installation-specific operational decision | Personal history and working deployment preserved |
+| Additional runtime/accessibility coverage | Older supported macOS, Intel hardware and full VoiceOver/manual checks | Current compile/fixture review does not cover every runtime |
 
-## Remaining input, hardware and vendor limits
+## Verification history
 
-| Item | Needed to finish | Why it remains |
-|---|---|---|
-| Developer ID signed and notarized download | Local Developer ID Application certificate and notarization Keychain profile | Credentials are not installed/confirmed; preview is available now |
-| WidgetKit gallery registration | Valid host/extension provisioning, App Group and signing identity; native activation | Unprovisioned extension is omitted from the preview; desktop widgets work |
-| HomePod / Apple TV | Local pairing and network permissions on supported devices | Physical setup required |
-| Bambu printers | Actual model and supported cloud/LAN pairing | Physical/vendor setup required |
-| PlayStation / computer companion | Account pairing or companion setup | User setup required |
-| Inverter, lithium battery/BMS and energy history | Exact models, protocol/logger and Home Assistant sensors | Hardware/vendor support required |
-| ConnectLife appliances | Supported local/cloud Home Assistant connection | Vendor setup not established |
-| Cars, chargers and mowers | Supported physical devices and integrations | Fixture coverage does not establish real-device compatibility |
-| Smart-key and HomeKit routes | Product meaning and chosen integration | User decision required |
-| Eufy advanced hub/face features and AC left/right functions | Vendor/API capability and supported integration | Cannot invent unavailable commands/data |
-| Deferred router integration | Owner decision before enabling it | Explicitly deferred |
-| Camera retention and live container/network changes | Operational policy and deployment decision | Existing personal data and working deployment are preserved |
-| Older supported macOS, Intel runtime and full VoiceOver coverage | Additional machines or manual review | Current compile/fixture checks do not cover all runtime combinations |
-| Final pill/camera visual feedback | Review latest build on the user's Mac | Appearance is implemented; further art direction is optional |
+The released [0.1.2 verification](../docs/release-verification-0.1.2.md) records 57 XCTest cases, two hosted GPU skips and zero failures, and its exact app source/checksum. [0.1.1 verification](../docs/release-verification-0.1.1.md) remains release history. Later source batches passed 107, then 110 cases before the current 129-case batch. Those source results do not change the existing DMG's provenance.
 
-See [0.1.2 release verification](../docs/release-verification-0.1.2.md), [0.1.1 verification history](../docs/release-verification-0.1.1.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private owner handoff files are deliberately excluded from public Git history.
-
-## Released UI review — 14 October
-
-The 0.1.2 preview includes the adaptive blue brand palette, immediate Light/Dark switching, native menu-panel anchoring, clearer Settings/widget/notification/Help layouts, filled selected navigation glyphs and immediate destination transitions. Speaker actions use registered capabilities and authoritative Home Assistant responses; idle Alexa devices start music on the chosen device. An approved physical playback check was confirmed by Home Assistant and heard by the owner. Announcements were accepted; audible delivery can depend on Do Not Disturb and device behavior. Unsupported camera hubs remain explicitly unavailable.
-
-The expanded isolated suite contains 57 cases, including appearance, native-panel geometry and device-action routing. Private and public hosted checks passed with two GPU-dependent skips and no failures. The release verification record identifies the exact app-source commit and download checksum. No personal recordings, logs, device IDs or operational register files are included in the public tree.
-
-## Current UI refinement — source implemented, delivery pending
-
-The nine feedback items received at 11:01 on 14 October now have changes in the development source. They are not included in the published 0.1.2 preview. The next delivery still needs hosted CI, review of the actual installed build and native visual feedback. The current documentation images use isolated demo data.
-
-| Feedback | Source change | Verification still needed |
-|---|---|---|
-| Cursor vibration | Decorative dock lens no longer receives events; cursor ownership and native panel guards refined | Reproduce and check on the owner's Mac; vibration is not claimed fully resolved |
-| Pale blue on black | Richer adaptive blue with checked text contrast | Native light/dark review |
-| Brown/orange home energy cards | Coherent green home and demo-energy accent | Native visual feedback |
-| Help version-switch alignment | Switch stays at the far right within the card padding | Native layout review |
-| Unhelpful Get help / Report a bug destination | Local editable Subject/Message draft, explicit Open mail app and Copy draft fallback; no automatic sending | Edit/copy/mail-handler checks on installed build |
-| Text-heavy Settings | Shorter secondary text and clearer hierarchy, with controls preserved | Native layout review |
-| Live-pill and account/integration spacing | Controls and headings regrouped; live-pill controls use their own settings page | Navigation and spacing review |
-| Inconsistent navigation/preferences icons | Shared semantic drawings, uniform sizing and rounded strokes; selected fills and Reduce Motion retained | Native optical-size review |
-| PlayStation illustration | Curved unequal plates, wider black core, stand and larger controller; on/off lighting and contact shadows retained | Native small/large artwork review |
-
-## AC commands, temperature animation and pill refinements — source checked
-
-Climate commands now run serially per device, cancel unsent temperature changes before a mode switch, and refresh authoritative state after failures. A scoped approved live check accepted Auto, Dry and Fan and restored the prior operating mode. No vendor-required delay or universal hardware compatibility is claimed. Temperature digits own their smooth local animation; modes without a setpoint no longer display an invented temperature. The climate guide images have been refreshed from isolated demo data.
-
-The status capsule requests four extra points of height, safely bounded by the actual menu bar. Flash alerts retain crisp text and separate masked glass from shadows; the dismiss button has its own bounded hover region. Integrated build and final hosted checks, installation and publication are tracked separately.
-
-
-## Latest owner feedback — 14 October, evening
-
-| Feedback | Source work | Evidence / remaining review |
-|---|---|---|
-| Intermittent AC mode rejection remains | One guarded retry only for the observed vendor rejection, with fresh-state checks before resend; changed power/mode, unrelated errors and temperatures are never retried | Prior 95-case CI passed; new isolated recovery fixtures await this PR's final run. Direct vendor checks accepted all requested modes and restored prior power, but intermittent vendor behavior is not declared permanently fixed |
-| Navigation feels crowded | Panel height+48, space above dock+32 and below+6; small-screen clamping retained | Local build passed; final native review pending |
-| Selected lens hides icon colour | Native clear glass selection, with existing accessibility fallback | Local build passed; final native review pending |
-| Dark pins/demo labels on blue | White symbols/text on a deeper blue solid fill, also used by blue demo controls | Source-linked contrast checks pass, including Increase Contrast |
-| Power-button halo too large/busy | Smaller 60pt halo, lower opacity and shorter falloff | Demo render reviewed |
-| Climate navigation illustration | Snowflake matches the documented Climate navigation icon | Demo render reviewed |
-
-The installed 0.1.3 earlier preview is being updated to this final source after checks. Private PR #9 remains the first publication stage; public transfer, merge and refreshed download follow it. No public binary for this newest source has been published yet.
-
-
-## Floating navigation follow-up — review in progress
-
-The latest owner direction supersedes the fade experiment: scrolling content uses the full-height viewport behind the floating glass navigation capsule. There is no full-width fade or black footer band. Extra scroll padding keeps the last controls reachable; fixed climate controls and the demo exit stay clear of the dock. Native accessibility inspection confirmed the separate Open full map label and hint.
-
-Private PR #9 and public PR #4 are merged. Both hosted runs passed 107 XCTest cases with two GPU-dependent skips and no failures, plus release, contrast, shell and optional WidgetKit compilation checks. This small navigation/accessibility follow-up adds three isolated layout cases and refreshed demo guides; its hosted checks and final binary publication follow separately. No public 0.1.3 binary has been published yet.
-
-
-## Latest floating-navigation refinement — 15 October, implementation and review
-
-| Owner feedback | Work | Delivery status |
-|---|---|---|
-| Let users choose glass opacity | Settings → Navigation slider, remembered 0–100% surface opacity, default 55%; icons retain full opacity; accessibility overrides stay solid | Local build passed; native preference adjusted to 80% and restored to 55%; hosted checks pending |
-| Floating selection still feels unfinished | More restrained lens movement with cancellation of stale settling tasks | Implemented; visual review pending |
-| Floating Security title and count | Shared scrolled heading in a compact glass capsule; no full-width blur band | Implemented; native scrolling review pending |
-| Rename Devices overview | Assets display label and guide wording; saved route keys and Home Assistant names preserved | Local build and native Assets/demo navigation passed |
-| Demo-home back transition | Preserve departing demo content and stable route transition | Implemented; native demo-home Back returns to Assets, four isolated route fixtures prepared |
-| Panel shifts when menu status changes | Stable opening anchor and open-only bounded status slot; screen clamping/reanchoring retained | Implemented; integrated native/build review pending |
-| Solar illustration | Consistently projected 72-cell module, slim metal frame and coherent supports; on/off retained | Native on/off and 24/46/72/160pt scale renders reviewed |
-
-Private PR #10 and public PR #5 delivered the preceding floating-layout baseline with 110 XCTest cases, two hosted GPU skips and zero failures. The new refinements above are a separate follow-up. Public 0.1.3 binary publication is held until this latest batch is reviewed and its required checks pass.
-
-
-Local refinement review: the integrated debug build passed on 15 October. Native Assets → demo home → Back returned to the grid; retained engine snapshots prevent the departing demo from emptying mid-transition. Navigation opacity was adjusted using its native accessibility actions and restored to 55%. The slider is continuous. Source-linked contrast and release-script syntax checks pass. Solar on/off and scale renders were inspected. Hosted regression execution, public source transfer and the refreshed binary follow separately; broad animation smoothness and all supported machine/VoiceOver paths are not certified by these checks.
-
-The next owner-requested heading-card exploration is queued after this verification/GitHub batch: a compact rounded rectangle with 24-point top/side insets and overlapping circular camera/device illustrations. The current capsule is an interim stage, not claimed as acceptance of that queued direction.
+See [source/release status](../docs/open-source-readiness.md), [navigation](../docs/navigation.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private records, owner recordings, credentials and household runtime stores are excluded from public Git history.

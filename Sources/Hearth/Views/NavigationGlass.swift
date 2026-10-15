@@ -88,7 +88,7 @@ struct NavigationGlassSettings: View {
                         .disabled(overridden)
                         .accessibilityLabel("Navigation glass opacity")
                         .accessibilityValue(displayedValue.formatted(.percent.precision(.fractionLength(0))))
-                        .accessibilityHint("Changes the floating bar's surface without fading its icons")
+                        .accessibilityHint("Changes floating navigation and heading surfaces without fading their icons")
                 }
                 HStack {
                     Text("Clearer")

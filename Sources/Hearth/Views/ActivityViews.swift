@@ -101,7 +101,8 @@ struct ActivityPage: View {
 
     private var timeline: some View {
         VStack(alignment: .leading, spacing: 14) {
-            PageHeader(eyebrow: summary, title: "Activity") {
+            PageHeader(eyebrow: summary, title: "Activity",
+                       pinnedSymbols: ["bell.fill", "figure.walk.motion", "shield.lefthalf.filled"]) {
                 Button {
                     showAlerts = true
                 } label: {
@@ -116,16 +117,17 @@ struct ActivityPage: View {
             }
             .reveal(shown, 0)
 
-            // Keep text and selection fills intact. A fading mask made the end chips look dirty.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    chip(nil, "All")
-                    ForEach([ActivityLog.Kind.person, .doorbell, .motion, .security, .climate], id: \.self) { chip($0, $0.label) }
+            // A single equal-width tray keeps every filter visible without
+            // horizontal clipping or partially cut-off pills at the panel edge.
+            HStack(spacing: 0) {
+                ForEach(Array(Self.filterKinds.enumerated()), id: \.offset) { index, kind in
+                    filterButton(kind, kind?.label ?? "All").selectionFrame(index)
                 }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 2)
             }
-            .padding(.horizontal, -22)
+            .slidingSelection(Self.filterKinds.firstIndex { $0 == filter }, radius: 11)
+            .padding(3)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.tray)
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.hairline)))
             .reveal(shown, 1)
 
             activityFeed.opacity(feedOpacity)
@@ -210,31 +212,27 @@ struct ActivityPage: View {
         return people > 0 ? "\(people) \(people == 1 ? "person" : "people") seen today" : "\(today.count) events today"
     }
 
-    private func chip(_ kind: ActivityLog.Kind?, _ label: String) -> some View {
+    static let filterKinds: [ActivityLog.Kind?] = [nil, .person, .doorbell, .motion, .security, .climate]
+
+    private func filterButton(_ kind: ActivityLog.Kind?, _ label: String) -> some View {
         let on = filter == kind
         return Button {
             selectFilter(kind)
         } label: {
-            HStack(spacing: 5) {
-                if let kind { Image(systemName: kind.symbol).font(.system(size: 11)) }
-                Text(label).font(.system(size: 12.5, weight: .semibold))
+            VStack(spacing: 4) {
+                Image(systemName: kind?.symbol ?? "line.3.horizontal.decrease")
+                    .font(.system(size: 13, weight: .medium))
+                Text(label).font(.system(size: 10.5, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.8)
             }
             .foregroundStyle(on ? Theme.onKey : Theme.muted)
-            .padding(.horizontal, 11).frame(height: 28)
-            .background {
-                if on {
-                    Capsule().fill(Color.white)
-                        .overlay(Capsule().strokeBorder(Theme.cardEdge, lineWidth: 0.5))
-                } else {
-                    Capsule().fill(Theme.fg.opacity(0.06)).overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 0.5))
-                }
-            }
-            .contentShape(Capsule())
-            .hoverFill(Capsule())
+            .frame(maxWidth: .infinity).frame(height: 44)
+            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+
         }
         .buttonStyle(PressStyle())
+        .accessibilityLabel(label)
         .accessibilityAddTraits(on ? .isSelected : [])
-        .padding(.vertical, 4)
     }
 
     private var alertSettings: some View {

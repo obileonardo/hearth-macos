@@ -551,7 +551,8 @@ struct EnergyPage: View {
     private var overview: some View {
         let sys = EnergySystem.read(store, prefs: feed.prefs)
         return VStack(alignment: .leading, spacing: 14) {
-            PageHeader(eyebrow: eyebrow(sys), title: "Energy") { EmptyView() }
+            PageHeader(eyebrow: eyebrow(sys), title: "Energy",
+                       pinnedIllustrations: [.solarPanel, .battery, .inverter]) { EmptyView() }
                 .reveal(shown, 0)
 
             if sys.isEmpty {
