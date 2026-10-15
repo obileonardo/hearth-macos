@@ -15,12 +15,13 @@ struct Dock: View {
     let onSelect: (Page) -> Void
     /// The lens stretches along its path while it travels, then settles, like a drop of liquid.
     @State private var stretch: CGFloat = 1
+    @State private var settling: Task<Void, Never>?
     /// Reduce Motion: the lens moves straight to the tab, without the stretch or the bounce.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let tab = CGSize(width: 44, height: 34)
     /// A little give at the end, like something with weight settling into place.
-    static let slide = Animation.spring(response: 0.46, dampingFraction: 0.8)
+    static let slide = Animation.spring(response: 0.38, dampingFraction: 0.94)
 
     private var index: Int? { settingsOn ? pages.count : selected.flatMap { pages.firstIndex(of: $0) } }
     /// The hairline between the pages and settings.
@@ -54,15 +55,28 @@ struct Dock: View {
             }
         }
         .padding(4)
-        .liquidGlass(in: Capsule())
+        .modifier(NavigationGlassSurface())
         .onChange(of: index) { old, new in
-            guard !reduceMotion, let old, let new, old != new else { return }
+            settling?.cancel()
+            guard !reduceMotion, let old, let new, old != new else {
+                stretch = 1
+                return
+            }
             let distance = CGFloat(abs(new - old))
-            withAnimation(.spring(response: 0.16, dampingFraction: 0.9)) { stretch = 1 + min(distance, 4) * 0.07 }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) { stretch = 1 }
+            withAnimation(.spring(response: 0.14, dampingFraction: 0.95)) {
+                stretch = 1 + min(distance, 3) * 0.018
+            }
+            settling = Task { @MainActor in
+                do { try await Task.sleep(for: .milliseconds(140)) } catch { return }
+                guard !Task.isCancelled else { return }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.94)) { stretch = 1 }
             }
         }
+        .onChange(of: reduceMotion) { _, reduced in
+            if reduced { settling?.cancel(); stretch = 1 }
+        }
+        .onDisappear { settling?.cancel(); settling = nil; stretch = 1 }
+
     }
 
     private var settingsTab: some View {
@@ -122,8 +136,12 @@ struct Dock: View {
 private struct Lens: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.hearthDocumentationPreview) private var documentationPreview
+    @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
-        if #available(macOS 26.0, *), !reduceTransparency && !documentationPreview {
+        if reduceTransparency || contrast == .increased {
+            Capsule().fill(Theme.raised)
+                .overlay(Capsule().strokeBorder(Theme.brand, lineWidth: 1))
+        } else if #available(macOS 26.0, *), !documentationPreview {
             Capsule().fill(.clear)
                 .glassEffect(.clear, in: Capsule())
                 .overlay(Capsule().strokeBorder(LinearGradient(colors: [Theme.fg.opacity(0.22), Theme.fg.opacity(0.03)],
@@ -150,9 +168,10 @@ private struct LiquidGlass<S: Shape>: ViewModifier {
     let shape: S
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.hearthDocumentationPreview) private var documentationPreview
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
-        if reduceTransparency || documentationPreview {
+        if reduceTransparency || contrast == .increased || documentationPreview {
             content
                 .background(shape.fill(Theme.raised))
                 .overlay(shape.stroke(Theme.hairline, lineWidth: 1))

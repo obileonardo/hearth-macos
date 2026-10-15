@@ -335,7 +335,7 @@ struct PanelView: View {
                     Climate.shortName(e?.name ?? "AC"))
         case .security: return ("video", "Security")
         case .rooms: return ("square.grid.2x2", "Rooms")
-        case .devices: return ("powerplug", "Devices")
+        case .devices: return ("powerplug", "Assets")
         case .map: return ("cube.transparent", "3D map")
         case .media:
             let playing = players.contains { $0.state == "playing" }
@@ -624,13 +624,14 @@ private struct MenuBarSettings: View {
 }
 
 /// Which sections have a tab in the dock.
-private struct SectionSettings: View {
+struct SectionSettings: View {
     @AppStorage("hiddenSections") private var hiddenSections = ""
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
 
     private static let sections: [(key: String, title: String, symbol: String)] = [
         ("security", "Security", "web.camera"),
         ("rooms", "Rooms", "door.left.hand.closed"),
-        ("devices", "Devices", "desktopcomputer"),
+        ("devices", "Assets", "desktopcomputer"),
         ("map", "3D map", "cube.transparent"),
         ("activity", "Activity", "bell"),
     ]
@@ -638,6 +639,7 @@ private struct SectionSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("NAVIGATION").eyebrow().padding(.leading, 4)
+            NavigationGlassSettings()
             Bezel(radius: 18, inset: 3) {
                 VStack(spacing: 0) {
                     ForEach(Self.sections, id: \.key) { section in
@@ -646,7 +648,13 @@ private struct SectionSettings: View {
                                 .foregroundStyle(Theme.muted).frame(width: 18)
                             Text(section.title).font(.system(size: 13, weight: .medium))
                             Spacer()
-                            Toggle(section.title, isOn: binding(section.key)).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                            if documentationPreview {
+                                Capsule().fill(Theme.brandFill).frame(width: 26, height: 16)
+                                    .overlay(alignment: .trailing) { Circle().fill(.white).frame(width: 12, height: 12).padding(2) }
+                                    .accessibilityHidden(true)
+                            } else {
+                                Toggle(section.title, isOn: binding(section.key)).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                            }
                         }
                         .padding(.horizontal, 12)
                         .frame(height: 36)

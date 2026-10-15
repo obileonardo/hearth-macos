@@ -178,15 +178,16 @@ enum MenuBarPill {
     /// Widths settle to steps, so the pill doesn't twitch as figures change.
     private static let step: CGFloat = 12
 
-    static func image(line: StatusLine?, showsName: Bool, availableHeight: CGFloat? = nil) -> NSImage {
+    static func image(line: StatusLine?, showsName: Bool, availableHeight: CGFloat? = nil, maximumWidth: CGFloat? = nil) -> NSImage {
         let height = availableHeight ?? HearthMenuController.shared.anchorView?.bounds.height ?? NSStatusBar.system.thickness
         let geometry = StatusPillGeometry(availableHeight: height)
-        let key = "\(line?.symbol ?? "-")|\(line?.text ?? "-")|\(line?.urgent == true)|\(showsName)|\(geometry.canvasHeight)|\(geometry.bodyHeight)"
+        let key = "\(line?.symbol ?? "-")|\(line?.text ?? "-")|\(line?.urgent == true)|\(showsName)|\(geometry.canvasHeight)|\(geometry.bodyHeight)|\(maximumWidth ?? 0)"
         if let hit = cache[key] { return hit }
         if cache.count > 64 { cache.removeAll() }
         let urgent = line?.urgent == true
         let natural = render(PillArt(line: line, showsName: showsName, urgent: urgent, minWidth: 0, geometry: geometry))
-        let width = (natural.size.width / step).rounded(.up) * step
+        let naturalWidth = (natural.size.width / step).rounded(.up) * step
+        let width = maximumWidth.map { min(naturalWidth, max(1, $0)) } ?? naturalWidth
         let image = render(PillArt(line: line, showsName: showsName, urgent: urgent, minWidth: width, geometry: geometry))
         image.isTemplate = false
         cache[key] = image
@@ -237,12 +238,12 @@ private struct PillArt: View {
                     Circle().fill(ink.opacity(urgent ? 0.7 : 0.45)).frame(width: 2.5, height: 2.5).padding(.horizontal, 1)
                 }
                 Image(systemName: line.symbol).font(.system(size: 10.5, weight: .semibold))
-                Text(line.text).font(.system(size: 12.5, weight: .medium)).monospacedDigit().lineLimit(1)
+                Text(line.text).font(.system(size: 12.5, weight: .medium)).monospacedDigit().lineLimit(1).truncationMode(.tail)
             }
         }
         .foregroundStyle(ink)
         .padding(.horizontal, 10)
-        .frame(minWidth: minWidth)
+        .frame(width: minWidth > 0 ? minWidth : nil)
         .frame(height: geometry.bodyHeight)
         .background {
             Capsule().fill(urgent ? AnyShapeStyle(MenuBarPill.urgentFill) : AnyShapeStyle(

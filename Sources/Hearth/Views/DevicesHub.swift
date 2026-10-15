@@ -115,6 +115,20 @@ extension EnvironmentValues {
     }
 }
 
+/// A route owns the demo it draws until its exit transition finishes. The hub can end
+/// the live demo immediately without emptying the departing page or switching its data source.
+struct DevicesRoute: Equatable {
+    let home: HomeRoute?
+    let section: DeviceSection?
+    let demo: DemoEngine?
+
+    var isDemo: Bool { demo != nil }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.home == rhs.home && lhs.section == rhs.section && lhs.demo === rhs.demo
+    }
+}
+
 // MARK: The tab
 
 /// Energy, Vehicles and Gadgets: a grid of three tiles, each opening its own page.
@@ -124,28 +138,22 @@ struct DevicesPage: View {
     let shown: Bool
     let visible: Bool
 
-    private struct Route: Equatable {
-        let home: HomeRoute?
-        let section: DeviceSection?
-        let demo: Bool
-    }
-
     var body: some View {
-        let route = Route(home: hub.home, section: hub.section, demo: hub.demo != nil)
+        let route = DevicesRoute(home: hub.home, section: hub.section, demo: hub.demo)
         ScreenFlow(route: route, depth: route.home == nil && route.section == nil ? 0 : 1) { current in
             Group {
                 if let home = current.home {
-                    HomeHost(hub: hub, route: home, visible: visible)
+                    HomeHost(hub: hub, route: home, demo: current.demo, visible: visible)
                         .id(home == .demo ? "home-demo" : "home")
                 } else if let section = current.section {
-                    SectionHost(hub: hub, section: section, shown: shown, visible: visible)
-                        .id(section.rawValue + (current.demo ? "-demo" : ""))
+                    SectionHost(hub: hub, section: section, demo: current.demo, shown: shown, visible: visible)
+                        .id(section.rawValue + (current.isDemo ? "-demo" : ""))
                 } else {
                     DevicesGrid(hub: hub, shown: shown) { hub.open($0) }
                 }
             }
             // Keep this inset with the displayed page during the route swap.
-            .padding(.bottom, current.demo ? 44 : 0)
+            .padding(.bottom, current.isDemo ? 44 : 0)
         }
     }
 }
@@ -156,6 +164,7 @@ private struct HomeHost: View {
     @ObservedObject private var list = HomeList.shared
     @StateObject private var demoFeed = HomesFeed()
     let route: HomeRoute
+    let demo: DemoEngine?
     let visible: Bool
 
     var body: some View {
@@ -165,13 +174,13 @@ private struct HomeHost: View {
                 HomeDetail(feed: hub.homesFeed, home: home) { hub.showGrid() }
             }
         case .demo:
-            if let demo = hub.demo {
+            if let demo {
                 VStack(alignment: .leading, spacing: 14) {
                     DemoBanner(engine: demo) { hub.showGrid() }
                     HomeDetail(feed: demoFeed, home: Home(name: "Demo home", isMain: true), demo: true) { hub.showGrid() }
                         .environmentObject(demo.store)
-                        .task(id: visible) {
-                            guard visible else { return }
+                        .task(id: visible && hub.demo === demo) {
+                            guard visible, hub.demo === demo else { return }
                             await demo.run()
                         }
                 }
@@ -185,20 +194,21 @@ private struct SectionHost: View {
     @EnvironmentObject var store: HomeStore
     @ObservedObject var hub: DevicesHub
     let section: DeviceSection
+    let demo: DemoEngine?
     let shown: Bool
     let visible: Bool
 
     var body: some View {
-        let chrome = SectionChrome(back: { hub.showGrid() }, demoOn: hub.demo != nil, toggleDemo: { hub.toggleDemo() },
+        let chrome = SectionChrome(back: { hub.showGrid() }, demoOn: demo != nil, toggleDemo: { hub.toggleDemo() },
                                    hasDemo: section.demoKind != nil)
         VStack(alignment: .leading, spacing: 14) {
-            if let demo = hub.demo {
+            if let demo {
                 DemoBanner(engine: demo) { hub.toggleDemo() }
                     .reveal(shown, 0)
                 page
                     .environmentObject(demo.store)
-                    .task(id: visible) {
-                        guard visible else { return }
+                    .task(id: visible && hub.demo === demo) {
+                        guard visible, hub.demo === demo else { return }
                         await demo.run()
                     }
             } else {
@@ -232,7 +242,7 @@ private struct DevicesGrid: View {
         let devices = store.devices.values.filter { !$0.isService }.compactMap { store.homeDevice($0.id) }
         let summary = HubSummary(store: store, devices: devices, manual: list.gadgets)
         VStack(alignment: .leading, spacing: 14) {
-            PageHeader(eyebrow: summary.eyebrow, title: "Devices") { EmptyView() }
+            PageHeader(eyebrow: summary.eyebrow, title: "Assets") { EmptyView() }
                 .reveal(shown, 0)
 
             HomesStrip(feed: hub.homesFeed) { hub.openHome($0) }
@@ -319,7 +329,7 @@ private struct HubSummary {
         anything = !sys.isEmpty || !vehicles.isEmpty || !handVehicles.isEmpty || !fromHome.isEmpty || !handGadgets.isEmpty
         if anything {
             let n = vehicles.count + handVehicles.count + fromHome.count + handGadgets.count + sys.devices.count
-            eyebrow = "\(n) device\(n == 1 ? "" : "s")"
+            eyebrow = "\(n) asset\(n == 1 ? "" : "s")"
         }
     }
 }

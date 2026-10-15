@@ -17,7 +17,7 @@ struct PageHeader<Trailing: View>: View {
                         .background(Circle().fill(Theme.fg.opacity(0.06)).overlay(Circle().strokeBorder(Theme.hairline)))
                 }
                 .buttonStyle(PressStyle())
-                .accessibilityLabel("Back to Devices")
+                .accessibilityLabel("Back to Assets")
             }
             VStack(alignment: .leading, spacing: 5) {
                 Text(eyebrow.uppercased()).eyebrow()
@@ -72,68 +72,50 @@ extension View {
     }
 }
 
-/// The page's name and summary, pinned to the top while you scroll, so you always know where you are.
-/// It follows the scroll rather than switching: as the page's own header slides away, the bar's
-/// frosted glass and title ease in over the same distance.
+/// A compact floating title and summary once the original header leaves the viewport.
 struct PinnedTitleBar: View {
     static let space = "page-scroll"
-    /// How far down the scroll view the bar and its soft edge reach.
     static let height: CGFloat = 40
     let info: PinnedTitle?
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    /// 0 while the page header is in view, 1 once it has gone.
-    private var progress: CGFloat {
-        Self.progress(headerBottom: info?.bottom)
-    }
+    private var progress: CGFloat { Self.progress(headerBottom: info?.bottom) }
 
     static func progress(headerBottom: CGFloat?) -> CGFloat {
-        guard let bottom = headerBottom else { return 0 }
-        // Wait until the original header has left the viewport. Starting the glass
-        // while its text was still visible dimmed the title beneath its own copy.
+        guard let bottom = headerBottom, bottom.isFinite else { return 0 }
         return min(max(-bottom / 18, 0), 1)
     }
 
     var body: some View {
         let p = progress
         let eased = p * p * (3 - 2 * p)
-        ZStack(alignment: .top) {
-            // Frosted glass that thins out towards its lower edge, over a little of the panel's colour.
-            // With Reduce Transparency it's the panel's own colour, solid.
-            Rectangle().fill(reduceTransparency ? AnyShapeStyle(Theme.base) : AnyShapeStyle(.ultraThinMaterial))
-                .overlay(Theme.base.opacity(reduceTransparency ? 1 : 0.55))
-                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.78),
-                                            .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
-                .frame(height: Self.height + 22)
-                .padding(.horizontal, -22)
-                .opacity(eased)
-                .allowsHitTesting(false)
-
+        Group {
             if let info {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
                     if let back = info.back {
                         Button(action: back) {
                             Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
-                                .frame(width: 24, height: 24)
-                                .background(Circle().fill(Theme.fg.opacity(0.08)).overlay(Circle().strokeBorder(Theme.hairline)))
+                                .frame(width: 24, height: 28)
+                                .contentShape(Capsule())
                         }
                         .buttonStyle(PressStyle())
                         .accessibilityLabel("Back")
-                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                     }
-                    Text(info.title).font(.system(size: 16, weight: .semibold)).tracking(-0.25).lineLimit(1)
+                    Text(info.title).font(.system(size: 15, weight: .semibold)).tracking(-0.25).lineLimit(1)
                         .accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: 12)
-                    Text(info.eyebrow.uppercased()).eyebrow().lineLimit(1).truncationMode(.head)
+                    Spacer(minLength: 10)
+                    Text(info.eyebrow).font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.muted)
+                        .lineLimit(1).truncationMode(.tail)
                 }
-                .padding(.top, 14)
+                .padding(.horizontal, 14)
+                .frame(height: Self.height)
+                .liquidGlass(in: Capsule())
                 .opacity(eased)
-                .offset(y: (1 - eased) * 10)
+                .offset(y: (1 - eased) * -4)
                 .allowsHitTesting(p > 0.5)
+                .accessibilityHidden(p < 0.5)
             }
         }
-        .padding(.top, -22)
-        .accessibilityHidden(p < 0.5)
+        .padding(.top, -18)
     }
 }
 
