@@ -246,7 +246,7 @@ struct GadgetsPage: View {
         let total = home.count + manual.count
         return VStack(alignment: .leading, spacing: 14) {
             PageHeader(eyebrow: total == 0 ? "Printers, consoles, computers" : "\(total) gadget\(total == 1 ? "" : "s") · \(online) online",
-                       title: "Gadgets") {
+                       title: "Gadgets", pinnedIllustrations: [.printer3D, .gameConsole, .computer]) {
                 if !demo {
                     Button {
                         withAnimation(.glide) {

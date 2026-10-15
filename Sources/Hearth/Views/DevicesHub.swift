@@ -242,7 +242,9 @@ private struct DevicesGrid: View {
         let devices = store.devices.values.filter { !$0.isService }.compactMap { store.homeDevice($0.id) }
         let summary = HubSummary(store: store, devices: devices, manual: list.gadgets)
         VStack(alignment: .leading, spacing: 14) {
-            PageHeader(eyebrow: summary.eyebrow, title: "Assets") { EmptyView() }
+            PageHeader(eyebrow: summary.eyebrow, title: "Assets",
+                       pinnedIllustrations: devices.sorted { $0.id < $1.id }.prefix(3).map(\.kind),
+                       pinnedCount: devices.count) { EmptyView() }
                 .reveal(shown, 0)
 
             HomesStrip(feed: hub.homesFeed) { hub.openHome($0) }

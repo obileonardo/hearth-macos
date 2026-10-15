@@ -77,4 +77,17 @@ final class MenuPanelGeometryTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(demoBottomInset, dockTopInset + 8)
     }
 
+    @MainActor
+    func testFloatingHeadingInsetsAreIndependentOfScrollableContent() {
+        XCTAssertEqual(PanelView.scrollContentInset, 22)
+        XCTAssertEqual(PinnedTitleBar.edgeInset, 16)
+        XCTAssertLessThan(PinnedTitleBar.edgeInset, PanelView.scrollContentInset)
+        XCTAssertEqual(Theme.panelSize.width - 2 * PinnedTitleBar.edgeInset, 416)
+    }
+
+    @MainActor
+    func testActivityTrayRetainsAllExistingFilters() {
+        XCTAssertEqual(ActivityPage.filterKinds, [nil, .person, .doorbell, .motion, .security, .climate])
+    }
+
 }

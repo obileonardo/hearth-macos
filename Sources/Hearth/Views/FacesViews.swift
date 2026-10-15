@@ -78,7 +78,8 @@ struct FacesPage: View {
         if let back {
             SubpageHeader(eyebrow: eyebrow, title: "Familiar faces", back: back) { addButton }
         } else {
-            PageHeader(eyebrow: eyebrow, title: "Familiar faces") { addButton }
+            PageHeader(eyebrow: eyebrow, title: "Familiar faces",
+                       pinnedSymbols: ["person.crop.circle", "person.2", "face.smiling"]) { addButton }
         }
     }
 

@@ -56,6 +56,10 @@ final class ActivityLog: ObservableObject {
     @Published private(set) var items: [Item] = []
     var unread: Int { items.filter { !$0.read }.count }
 
+    /// Supplying preview items opts into a memory-only log before the static
+    /// persistence path is evaluated. Documentation must never read live history.
+    private let isPreview: Bool
+    private var previewNotificationChoices: [Kind: Bool] = [:]
     private weak var store: HomeStore?
     private var lastSeen: [String: Date] = [:]
     private var backfilled = false
@@ -73,7 +77,19 @@ final class ActivityLog: ObservableObject {
     }()
     private static var file: URL { folder.appendingPathComponent("activity.json") }
 
-    init() {
+    init(previewItems: [Item]? = nil) {
+        isPreview = previewItems != nil
+        if let previewItems {
+            items = previewItems.map { seed in
+                var item = seed
+                item.cameraID = nil
+                item.imageFile = nil
+                item.faceSample = nil
+                item.plainTitle = nil
+                return item
+            }
+            return
+        }
         if let data = try? Data(contentsOf: Self.file),
            let saved = try? JSONDecoder().decode([Item].self, from: data) {
             items = saved
@@ -81,6 +97,7 @@ final class ActivityLog: ObservableObject {
     }
 
     func attach(_ store: HomeStore) {
+        guard !isPreview else { return }
         self.store = store
         FaceLibrary.shared.onEdit = { [weak self] in self?.refreshFaceTitles() }
         Task { await learnFaces() }
@@ -89,10 +106,16 @@ final class ActivityLog: ObservableObject {
     // MARK: Settings
 
     func notifies(_ kind: Kind) -> Bool {
-        UserDefaults.standard.object(forKey: "notify.\(kind.rawValue)") as? Bool ?? kind.notifiesByDefault
+        if isPreview { return previewNotificationChoices[kind] ?? kind.notifiesByDefault }
+        return UserDefaults.standard.object(forKey: "notify.\(kind.rawValue)") as? Bool ?? kind.notifiesByDefault
     }
 
     func setNotifies(_ kind: Kind, _ on: Bool) {
+        if isPreview {
+            previewNotificationChoices[kind] = on
+            objectWillChange.send()
+            return
+        }
         UserDefaults.standard.set(on, forKey: "notify.\(kind.rawValue)")
         objectWillChange.send()
     }
@@ -112,6 +135,7 @@ final class ActivityLog: ObservableObject {
 
     /// Called for every state change Home Assistant reports.
     func handle(_ new: Entity, _ old: Entity?) {
+        guard !isPreview else { return }
         guard let old, !new.isUnavailable, !old.isUnavailable, new.state != old.state else { return }
         // A camera that recognises a face names the person a moment after it reports someone.
         if new.domain == "sensor", new.id.hasSuffix("_person_name"), let name = Self.recognised(new.state) {
@@ -172,6 +196,7 @@ final class ActivityLog: ObservableObject {
 
     /// Puts a recognised name on the person just seen by that camera, or adds an entry for them.
     private func named(_ name: String, deviceOf entityID: String) {
+        guard !isPreview else { return }
         guard let store, let device = store.registry[entityID]?.deviceID else { return }
         if let i = items.firstIndex(where: { $0.kind == .person && Date().timeIntervalSince($0.date) < 60
                                         && store.registry[$0.entityID]?.deviceID == device }) {
@@ -185,6 +210,7 @@ final class ActivityLog: ObservableObject {
     }
 
     private func add(kind: Kind, title: String, entityID: String, date: Date, notify: Bool, read: Bool = false) {
+        guard !isPreview else { return }
         guard let store else { return }
         let place = store.areaID(of: entityID).flatMap { store.areas[$0]?.name } ?? ""
         let camera = store.camera(sharingDeviceWith: entityID)?.id
@@ -214,6 +240,7 @@ final class ActivityLog: ObservableObject {
 
     /// Looks for faces in the pictures already saved, a few at a time, when Familiar faces is on.
     func learnFaces() async {
+        guard !isPreview else { return }
         let faces = FaceLibrary.shared
         guard faces.enabled else { return }
         let pending = items.filter { [.person, .doorbell].contains($0.kind) && $0.imageFile != nil && $0.faceSample == nil }
@@ -227,6 +254,7 @@ final class ActivityLog: ObservableObject {
     }
 
     private func applyFace(_ match: FaceLibrary.Match, to id: UUID) {
+        guard !isPreview else { return }
         guard let i = items.firstIndex(where: { $0.id == id }) else { return }
         items[i].faceSample = match.sample
         if items[i].plainTitle == nil { items[i].plainTitle = items[i].title }
@@ -236,6 +264,7 @@ final class ActivityLog: ObservableObject {
 
     /// Puts the current names back on every entry with a face, after faces are named, merged or forgotten.
     func refreshFaceTitles() {
+        guard !isPreview else { return }
         var changed = false
         for i in items.indices {
             guard let sample = items[i].faceSample else { continue }
@@ -255,6 +284,7 @@ final class ActivityLog: ObservableObject {
 
     /// The event picture if the camera keeps one, otherwise a fresh snapshot.
     private func picture(for entityID: String, camera: String?, id: UUID) async -> URL? {
+        guard !isPreview else { return nil }
         guard let store, camera != nil else { return nil }
         let eventImage = store.registry[entityID]?.deviceID.flatMap { dev in
             store.entities.keys.first { $0.hasPrefix("image.") && $0.hasSuffix("event_image") && store.registry[$0]?.deviceID == dev }
@@ -269,6 +299,7 @@ final class ActivityLog: ObservableObject {
     }
 
     private func post(_ item: Item) async {
+        guard !isPreview else { return }
         let content = UNMutableNotificationContent()
         content.title = item.title
         content.body = item.place.isEmpty ? item.kind.label : item.place
@@ -289,6 +320,7 @@ final class ActivityLog: ObservableObject {
 
     /// Fills the timeline with the last day from Home Assistant's logbook, once per launch.
     func backfill() async {
+        guard !isPreview else { return }
         guard let store, !backfilled else { return }
         backfilled = true
         let watched = store.entities.values.filter { e in
@@ -328,6 +360,7 @@ final class ActivityLog: ObservableObject {
     }
 
     private func save() {
+        guard !isPreview else { return }
         if let data = try? JSONEncoder().encode(items) { try? data.write(to: Self.file, options: .atomic) }
     }
 }

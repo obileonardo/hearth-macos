@@ -50,7 +50,7 @@ The app retains its macOS 14 deployment target and existing bundle identity. Thi
 - Add 48 points of panel height with 32 points more space above navigation and 6 below; use clear native selection glass, white-on-deeper-blue map marks and a gentler power halo.
 - Use a snowflake for Climate navigation.
 - Add remembered navigation glass opacity, with solid accessibility overrides; keep icons fully visible and refine the selected lens motion.
-- Float the scrolled page heading in its own pill and rename the overview to Assets while preserving saved routes.
+- Float the scrolled page heading in a compact translucent rounded card with 16-point top/side spacing, overlapping native device illustrations, Activity/Settings symbols and an early title fade; rename the overview to Assets while preserving saved routes.
 - Keep the open panel stable during rotating menu status, with a bounded centered status slot.
 - Refine the native solar-panel cell grid, metal frame, supports and daylight reflection.
 - Float navigation over the full-height scrolling viewport, with no full-width fade or blur band. Extra trailing scroll space keeps final controls reachable; fixed climate controls and the demo exit stay clear of the dock.
@@ -58,6 +58,8 @@ The app retains its macOS 14 deployment target and existing bundle identity. Thi
 - Restore the animated temperature digits; modes without a setpoint show an em dash and no temperature slider.
 - Add four points of menu-pill height where the menu bar allows, and remove whole-notification blur and scaling from flash alerts.
 - Refine the game-console illustration and refresh demo-only documentation guides.
+- Use a full-panel scroll viewport without an inner top/side cutout and a compact six-option Activity filter tray.
+- Make offline activity previews explicitly memory-only from app initialization, with synthetic events and no image/face references.
 - Add isolated regression coverage for cursor ownership, support drafts, climate commands, queue behavior and pill geometry, plus a source-linked contrast check in CI.
 
 ## 0.1.2 preview

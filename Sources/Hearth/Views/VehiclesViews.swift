@@ -288,7 +288,7 @@ struct VehiclesPage: View {
         return VStack(alignment: .leading, spacing: 14) {
             PageHeader(eyebrow: total == 0 ? "Cars, robots, aircraft"
                        : "\(total) vehicle\(total == 1 ? "" : "s")\(charging > 0 ? " · \(charging) charging" : "")",
-                       title: "Vehicles") {
+                       title: "Vehicles", pinnedIllustrations: [.electricCar, .evCharger, .robotVacuum]) {
                 if !demo {
                     Button {
                         withAnimation(.glide) {

@@ -84,9 +84,12 @@ struct RoomsOverview: View {
     }
 
     var body: some View {
-        let total = store.devices.values.filter { !$0.isService && !store.entities(ofDevice: $0.id).isEmpty }.count
+        let devices = store.devices.values.filter { !$0.isService && !store.entities(ofDevice: $0.id).isEmpty }
+        let total = devices.count
         VStack(alignment: .leading, spacing: 16) {
-            PageHeader(eyebrow: "\(store.areas.count) rooms · \(total) devices", title: "Rooms") { EmptyView() }
+            PageHeader(eyebrow: "\(store.areas.count) rooms · \(total) devices", title: "Rooms",
+                       pinnedIllustrations: devices.sorted { $0.id < $1.id }.prefix(3).compactMap { store.homeDevice($0.id)?.kind },
+                       pinnedCount: total) { EmptyView() }
                 .reveal(shown, 0)
             ForEach(Array(groups.enumerated()), id: \.element.id) { gi, group in
                 VStack(alignment: .leading, spacing: 8) {
@@ -193,7 +196,7 @@ struct SubpageHeader<Trailing: View>: View {
             Spacer()
             trailing
         }
-        .collapsesInto(eyebrow: eyebrow, title: title, back: back)
+        .collapsesInto(eyebrow: eyebrow, title: title, back: back, symbols: ["door.left.hand.open", "lightbulb", "thermometer.medium"])
     }
 }
 

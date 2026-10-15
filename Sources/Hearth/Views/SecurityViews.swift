@@ -33,10 +33,20 @@ struct SecurityPage: View {
         }
     }
 
+    /// Use the same native illustrations as the camera cards; never camera footage.
+    private var cameraIllustrations: [DeviceKind] {
+        cameras.prefix(3).map { camera in
+            let kind = store.registry[camera.id]?.deviceID.flatMap { store.homeDevice($0)?.kind }
+            guard let kind, [.indoorCamera, .outdoorCamera, .doorbell].contains(kind) else { return .outdoorCamera }
+            return kind
+        }
+    }
+
     private var cameraPage: some View {
         let rest = cameras.filter { $0.id != hero?.id }
         return VStack(alignment: .leading, spacing: 14) {
-            PageHeader(eyebrow: eyebrow, title: "Security") {
+            PageHeader(eyebrow: eyebrow, title: "Security",
+                       pinnedIllustrations: cameraIllustrations, pinnedCount: cameras.count) {
                 Button { withAnimation(.glide) { showFaces = true } } label: {
                     Image(systemName: "person.crop.circle")
                         .font(.system(size: 13, weight: .regular))

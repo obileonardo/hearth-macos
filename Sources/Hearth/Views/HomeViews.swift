@@ -4,6 +4,9 @@ import SwiftUI
 struct PageHeader<Trailing: View>: View {
     let eyebrow: String
     let title: String
+    var pinnedIllustrations: [DeviceKind] = []
+    var pinnedCount: Int? = nil
+    var pinnedSymbols: [String] = []
     @ViewBuilder var trailing: Trailing
     /// Set when the page sits inside the Devices tab: a way back to the grid, and the demo switch.
     @Environment(\.sectionChrome) private var chrome
@@ -41,18 +44,22 @@ struct PageHeader<Trailing: View>: View {
             }
             trailing
         }
-        .collapsesInto(eyebrow: eyebrow, title: title, back: chrome?.back)
+        .collapsesInto(eyebrow: eyebrow, title: title, back: chrome?.back,
+                       illustrations: pinnedIllustrations, count: pinnedCount, symbols: pinnedSymbols)
     }
 }
 
 // MARK: Pinned title
 
-/// What the slim bar at the top shows once a page's own header has scrolled away.
+/// The compact card replaces its original heading as that heading reaches the top edge.
 struct PinnedTitle {
     var eyebrow: String
     var title: String
     var back: (() -> Void)?
-    /// The header's bottom edge, in the scroll view's space; below zero once it's gone.
+    var illustrations: [DeviceKind] = []
+    var count: Int? = nil
+    var symbols: [String] = []
+    var top: CGFloat
     var bottom: CGFloat
 }
 
@@ -62,60 +69,222 @@ struct PinnedTitleKey: PreferenceKey {
 }
 
 extension View {
-    /// Reports this header to the page's scroll view, which pins a slim copy once it scrolls away.
-    func collapsesInto(eyebrow: String, title: String, back: (() -> Void)? = nil) -> some View {
-        background(GeometryReader { g in
-            Color.clear.preference(key: PinnedTitleKey.self,
-                                   value: PinnedTitle(eyebrow: eyebrow, title: title, back: back,
-                                                      bottom: g.frame(in: .named(PinnedTitleBar.space)).maxY))
-        })
+    func collapsesInto(eyebrow: String, title: String, back: (() -> Void)? = nil,
+                       illustrations: [DeviceKind] = [], count: Int? = nil, symbols: [String] = []) -> some View {
+        modifier(CollapsingPageHeading(eyebrow: eyebrow, title: title, back: back,
+                                      illustrations: illustrations, count: count, symbols: symbols))
     }
 }
 
-/// A compact floating title and summary once the original header leaves the viewport.
+private struct CollapsingPageHeading: ViewModifier {
+    let eyebrow: String
+    let title: String
+    let back: (() -> Void)?
+    let illustrations: [DeviceKind]
+    let count: Int?
+    let symbols: [String]
+    @State private var pinnedVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(GeometryReader { proxy in
+                let rect = proxy.frame(in: .named(PinnedTitleBar.space))
+                let visible = PinnedTitleBar.progress(headerTop: rect.minY) >= 0.5
+                Color.clear.preference(key: PinnedTitleKey.self,
+                    value: PinnedTitle(eyebrow: eyebrow, title: title, back: back,
+                                       illustrations: illustrations, count: count, symbols: symbols, top: rect.minY, bottom: rect.maxY))
+                    // Only the accessibility handoff changes state; continuous
+                    // scrolling is handled by the visual effect below.
+                    .onChange(of: visible, initial: true) { _, value in pinnedVisible = value }
+            })
+            .visualEffect { effect, proxy in
+                effect.opacity(Double(1 - PinnedTitleBar.progress(headerTop: proxy.frame(in: .named(PinnedTitleBar.space)).minY)))
+            }
+            .accessibilityHidden(pinnedVisible)
+            .allowsHitTesting(!pinnedVisible)
+    }
+}
+
+/// Inset glass follows the navigation opacity while keeping the heading fully legible.
 struct PinnedTitleBar: View {
-    static let space = "page-scroll"
-    static let height: CGFloat = 40
+    nonisolated static let space = "page-scroll"
+    static let height: CGFloat = 84
+    static let edgeInset: CGFloat = 16
+    static let cornerRadius: CGFloat = 18
     let info: PinnedTitle?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
 
-    private var progress: CGFloat { Self.progress(headerBottom: info?.bottom) }
+    private var progress: CGFloat { Self.progress(headerTop: info?.top) }
 
-    static func progress(headerBottom: CGFloat?) -> CGFloat {
-        guard let bottom = headerBottom, bottom.isFinite else { return 0 }
-        return min(max(-bottom / 18, 0), 1)
+    nonisolated static func progress(headerTop: CGFloat?) -> CGFloat {
+        guard let top = headerTop, top.isFinite else { return 0 }
+        return min(max(-top / 18, 0), 1)
+    }
+
+    private var page: Page? {
+        switch info?.title.lowercased() {
+        case "security": .security
+        case "rooms": .rooms
+        case "assets", "devices": .devices
+        case "3d map", "map": .map
+        case "activity", "notifications": .activity
+        default: nil
+        }
+    }
+
+    private var symbol: String {
+        switch page {
+        case .security: "web.camera"
+        case .rooms: "door.left.hand.open"
+        case .devices: "desktopcomputer"
+        case .map: "cube.transparent"
+        case .activity: "bell"
+        default:
+            switch info?.title.lowercased() {
+            case "settings": "gearshape"
+            case "now playing", "speakers": "speaker.wave.2"
+            default: "house"
+            }
+        }
     }
 
     var body: some View {
         let p = progress
         let eased = p * p * (3 - 2 * p)
         Group {
-            if let info {
-                HStack(alignment: .center, spacing: 10) {
+            if let info, p > 0 {
+                HStack(alignment: .center, spacing: 12) {
                     if let back = info.back {
                         Button(action: back) {
-                            Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
-                                .frame(width: 24, height: 28)
-                                .contentShape(Capsule())
+                            Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
+                                .frame(width: 28, height: 36).contentShape(Rectangle())
                         }
                         .buttonStyle(PressStyle())
                         .accessibilityLabel("Back")
+                        .accessibilityHidden(p < 0.5)
+                    } else {
+                        Group {
+                            if let page { StaticSemanticNavigationGlyph(page: page, fallback: symbol) }
+                            else { Image(systemName: symbol).font(.system(size: 17, weight: .medium)) }
+                        }
+                        .foregroundStyle(Theme.ink)
+                        .frame(width: 32, height: 36).accessibilityHidden(true)
                     }
-                    Text(info.title).font(.system(size: 15, weight: .semibold)).tracking(-0.25).lineLimit(1)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: 10)
-                    Text(info.eyebrow).font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.muted)
-                        .lineLimit(1).truncationMode(.tail)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(info.title).font(.system(size: 16, weight: .semibold)).tracking(-0.25).lineLimit(1)
+                            .accessibilityAddTraits(.isHeader)
+                        Text(info.eyebrow).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.muted)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(info.title), \(info.eyebrow)")
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityHidden(p < 0.5)
+                    if !info.illustrations.isEmpty || !info.symbols.isEmpty {
+                        illustrationStack(info)
+                    }
                 }
                 .padding(.horizontal, 14)
                 .frame(height: Self.height)
-                .liquidGlass(in: Capsule())
+                .modifier(PinnedHeadingGlassSurface())
+                .compositingGroup()
+                .shadow(color: .black.opacity(contrast == .increased ? 0 : 0.14), radius: 5, y: 2)
                 .opacity(eased)
-                .offset(y: (1 - eased) * -4)
-                .allowsHitTesting(p > 0.5)
-                .accessibilityHidden(p < 0.5)
+                .offset(y: reduceMotion ? 0 : (1 - eased) * -2)
+                .allowsHitTesting(p >= 0.5)
+                // Replace the complete visual subtree so native accessibility
+                // cannot retain an invisible heading or decorative descendants.
+                .accessibilityRepresentation {
+                    if p >= 0.5 {
+                        HStack {
+                            if let back = info.back {
+                                Button("Back", action: back)
+                            }
+                            Text("\(info.title), \(info.eyebrow)")
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        .accessibilityElement(children: .contain)
+                    }
+                }
             }
         }
-        .padding(.top, -18)
+        // The overlay spans the full panel viewport; these are direct panel margins.
+        .padding(.horizontal, Self.edgeInset)
+        .padding(.top, Self.edgeInset)
+    }
+
+    private func illustrationStack(_ info: PinnedTitle) -> some View {
+        let shown = Array(info.illustrations.prefix(3))
+        let symbols = shown.isEmpty ? Array(info.symbols.prefix(3)) : []
+        let total = info.count ?? (shown.isEmpty ? info.symbols.count : info.illustrations.count)
+        let remaining = max(0, total - shown.count - symbols.count)
+        return HStack(spacing: -9.5) {
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, kind in
+                DeviceArtView(kind: kind, active: false, size: 26.25)
+                    .frame(width: 35, height: 35)
+                    .background(Circle().fill(Theme.base))
+                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 2))
+            }
+            ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
+                Image(systemName: symbol).font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.brand).frame(width: 35, height: 35)
+                    .background(Circle().fill(Theme.base))
+                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 2))
+            }
+            if remaining > 0 {
+                Text("+\(remaining)").font(.system(size: 10, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(Theme.ink).frame(width: 35, height: 35)
+                    .background(Circle().fill(Theme.base))
+                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 2))
+            }
+        }
+        // DeviceArtView has its own semantic labels. This stack is decorative,
+        // so replace those descendants with an empty accessibility representation.
+        .accessibilityRepresentation { EmptyView() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Uses the navigation's saved surface opacity, with the same accessibility
+/// override. Glass is clipped to this card; text and icons are never faded.
+private struct PinnedHeadingGlassSurface: ViewModifier {
+    @AppStorage(NavigationGlassPreference.key) private var opacity = NavigationGlassPreference.defaultValue
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
+
+    private var solid: Bool { reduceTransparency || contrast == .increased || documentationPreview }
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: PinnedTitleBar.cornerRadius, style: .continuous)
+    }
+    private var surfaceOpacity: Double {
+        NavigationGlassPreference.effective(opacity, reduceTransparency: solid, increasedContrast: false)
+    }
+    private var rim: LinearGradient {
+        LinearGradient(colors: [Theme.fg.opacity(0.24), Theme.fg.opacity(0.06)], startPoint: .top, endPoint: .bottom)
+    }
+
+    func body(content: Content) -> some View {
+        if solid {
+            content.background(shape.fill(Theme.raised))
+                .overlay(shape.strokeBorder(Theme.hairline, lineWidth: contrast == .increased ? 1.5 : 0.75))
+        } else if #available(macOS 26.0, *) {
+            content
+                .background(shape.fill(Theme.raised.opacity(surfaceOpacity)))
+                .glassEffect(.clear, in: shape)
+                .overlay(shape.strokeBorder(rim, lineWidth: 0.75))
+        } else {
+            content.background {
+                ZStack {
+                    shape.fill(.ultraThinMaterial)
+                    shape.fill(Theme.raised.opacity(surfaceOpacity))
+                }
+            }
+            .overlay(shape.strokeBorder(rim, lineWidth: 0.75))
+        }
     }
 }
 

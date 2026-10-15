@@ -138,11 +138,9 @@ struct PanelView: View {
                     case .page(let page):
                         content(page).id(page.key)
                     case .empty:
-                        emptyState
+                        emptyState.padding(.horizontal, Self.scrollContentInset).padding(.top, Self.scrollContentInset)
                     }
                 }
-                .padding(.horizontal, 22)
-                .padding(.top, 22)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 // Scrolling content continues behind the floating capsule.
                 // Only the dock itself has glass; there is no full-width footer mask.
@@ -216,6 +214,7 @@ struct PanelView: View {
         case .climate(let id):
             ClimatePage(entityID: id, shown: shown)
                 .padding(.bottom, Self.fixedContentBottomInset)
+                .padding(.horizontal, Self.scrollContentInset).padding(.top, Self.scrollContentInset)
         case .security:
             scrolling { SecurityPage(alarms: alarms, cameras: cameras, shown: shown, visible: visible) }
         case .rooms:
@@ -236,15 +235,22 @@ struct PanelView: View {
     @ViewBuilder
     private func scrolling<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         if Self.snapshotMode {
-            content()
+            content().padding(.horizontal, Self.scrollContentInset).padding(.top, Self.scrollContentInset)
         } else {
-            ScrollView { content().padding(.bottom, Self.scrollBottomPadding) }
+            // Inset content inside a full-panel viewport, so scrolling is clipped
+            // only at the actual window edge and can continue behind the glass.
+            ScrollView {
+                content().padding(.horizontal, Self.scrollContentInset)
+                    .padding(.top, Self.scrollContentInset).padding(.bottom, Self.scrollBottomPadding)
+            }
                 .scrollIndicators(.never)
                 .coordinateSpace(name: PinnedTitleBar.space)
                 .overlayPreferenceValue(PinnedTitleKey.self, alignment: .top) { PinnedTitleBar(info: $0) }
         }
     }
 
+    /// Content keeps its familiar margins inside the full-width scroll viewport.
+    static let scrollContentInset: CGFloat = 22
     /// Fixed climate controls and the demo pill remain clear of the floating dock.
     static let fixedContentBottomInset: CGFloat = 64
     /// Scrollable pages use the full viewport; this trailing space only appears at the end.
@@ -387,7 +393,8 @@ struct SettingsView: View {
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 16) {
-            PageHeader(eyebrow: "Hearth", title: signedIn ? "Settings" : "Sign in") { EmptyView() }
+            PageHeader(eyebrow: "Hearth", title: signedIn ? "Settings" : "Sign in",
+                       pinnedSymbols: ["person.crop.circle", "slider.horizontal.3", "questionmark.circle"]) { EmptyView() }
 
             if let note = problem ?? (store.status == .rejected ? "Home Assistant signed Hearth out. Sign in again." : nil) {
                 HStack(alignment: .top, spacing: 10) {
