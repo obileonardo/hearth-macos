@@ -18,9 +18,9 @@
 
 ## Download
 
-[Download Hearth 0.1.2 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.2-preview/Hearth-0.1.2-universal-PREVIEW.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.2-preview)
+[Download Hearth 0.1.3 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.3-preview/Hearth-0.1.3-universal-PREVIEW.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.3-preview)
 
-**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#3-install-hearth). See [verification](docs/release-verification-0.1.2.md) and the [task register](Task%20Update/README.md).
+**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#3-install-hearth). See [verification](docs/release-verification-0.1.3.md) and the [task register](Task%20Update/README.md).
 
 ## What it does
 
@@ -51,7 +51,7 @@ The [full artwork sheet](docs/art/devices.png) includes every device and its on/
 
 The views below use offline sample data, with no personal camera pictures, household configuration or account information. Sign-in fields, the bug draft's **Subject** and **Message** fields, and the optional version-information switch are static documentation illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
 
-These refreshed guides show the current source revision. The download above remains the released 0.1.2 preview until the next preview is published.
+These demo guides accompany the 0.1.3 preview. See its [verification record](docs/release-verification-0.1.3.md) for the exact binary source, checks and limitations.
 
 <table>
   <tr>
@@ -288,7 +288,7 @@ How it fits together:
 
 Contributions are welcome. Adding friendly names for another brand's settings is a great first change: it's a table in `EntityCatalog.swift`.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [0.1.2 public checks](https://github.com/obileonardo/hearth-macos/actions/runs/38549884465) succeeded with 57 XCTest cases, 2 GPU-dependent skips and no failures. Earlier results remain in the [0.1.1 verification record](docs/release-verification-0.1.1.md). These checks do not exercise connected Home Assistant devices or publish a binary.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [0.1.3 public checks](https://github.com/obileonardo/hearth-macos/actions/runs/38703085752) succeeded with 137 XCTest cases, 2 GPU-dependent skips and no failures. Earlier results remain in the [0.1.2](docs/release-verification-0.1.2.md) and [0.1.1](docs/release-verification-0.1.1.md) verification records. These checks do not exercise connected Home Assistant devices or publish a binary.
 
 ## Credits
 
