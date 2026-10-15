@@ -34,6 +34,9 @@ final class HearthMenuController: NSObject {
     private var globalMonitor: Any?
     private var positioningTimer: Timer?
     private var refreshQueued = false
+    private var openingPanel = false
+    private var openStatusSlotWidth: CGFloat?
+    private var anchorSession = MenuPanelAnchorSession()
     private let layout = HearthPanelLayout()
 
     var button: NSStatusBarButton? { statusItem?.button }
@@ -49,6 +52,11 @@ final class HearthMenuController: NSObject {
         let view = HearthStatusView(frame: NSRect(x: 0, y: 0, width: 80,
                                                   height: NSStatusBar.system.thickness))
         view.press = { [weak self] in self?.toggle(nil) }
+        view.didFinishMove = { [weak self] in
+            guard let self else { return }
+            self.anchorSession.reset()
+            if self.panel?.isVisible == true { self.positionPanel() }
+        }
         view.setAccessibilityElement(true)
         view.setAccessibilityRole(.button)
         view.setAccessibilityLabel("Hearth")
@@ -127,39 +135,58 @@ final class HearthMenuController: NSObject {
         let lines = StatusFeed.lines(store: store, log: log)
         let line = lines.first(where: \.urgent) ?? (lines.isEmpty ? nil : lines[(ticker?.tick ?? 0) % lines.count])
         let showsName = UserDefaults.standard.object(forKey: "pill.showsName") as? Bool ?? true
-        let image = MenuBarPill.image(line: line, showsName: showsName)
+        if openingPanel && openStatusSlotWidth == nil {
+            let widths = (lines.map { Optional($0) } + [line]).map {
+                MenuBarPill.image(line: $0, showsName: showsName).size.width
+            }
+            let screenWidth = view.window?.screen?.frame.width ?? NSScreen.main?.frame.width ?? 1024
+            openStatusSlotWidth = MenuStatusSlotGeometry.width(imageWidths: widths, screenWidth: screenWidth)
+        }
+        let image = MenuBarPill.image(line: line, showsName: showsName, maximumWidth: openStatusSlotWidth)
+        let slotWidth = openStatusSlotWidth ?? image.size.width
         if view.image !== image { view.image = image }
-        if abs(item.length - image.size.width) > 0.5 {
-            item.length = image.size.width
-            view.setFrameSize(NSSize(width: image.size.width, height: NSStatusBar.system.thickness))
+        if abs(item.length - slotWidth) > 0.5 {
+            item.length = slotWidth
+            view.setFrameSize(NSSize(width: slotWidth, height: NSStatusBar.system.thickness))
         }
         view.setAccessibilityLabel(line.map { "Hearth, \($0.text)" } ?? "Hearth")
         view.toolTip = line.map { "Hearth · \($0.text)" } ?? "Open Hearth"
         if LivePill.shared.statusLine != line { LivePill.shared.statusLine = line }
-        positionPanel()
+        if panel?.isVisible == true { positionPanel() }
     }
 
     @objc private func toggle(_ sender: Any?) {
-        if panel?.isVisible == true { close() } else { open() }
+        if openingPanel || panel?.isVisible == true { close() } else { open() }
     }
 
     func open() {
-        guard let panel else { return }
+        guard let panel, !openingPanel, !panel.isVisible else { return }
+        openingPanel = true
+        anchorSession.reset()
         applyAppearance()
-        positionPanel()
-        panel.makeKeyAndOrderFront(nil)
-        HearthNavigation.panel = panel
-        NotificationCenter.default.post(name: HearthNavigation.panelVisibilityChanged, object: true)
-        installDismissal()
-        // Menu items slide when their text changes or another item appears.
-        // Follow the actual screen rect rather than retaining the opening rect.
-        positioningTimer?.invalidate()
-        positioningTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.positionPanel() }
+        refresh()
+        // Let AppKit lay out the reserved status slot before capturing its
+        // center. No panel is shown at an intermediate, stale position.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.openingPanel else { return }
+            self.positionPanel()
+            panel.makeKeyAndOrderFront(nil)
+            self.openingPanel = false
+            HearthNavigation.panel = panel
+            NotificationCenter.default.post(name: HearthNavigation.panelVisibilityChanged, object: true)
+            self.installDismissal()
+            // Recheck display bounds without following changing status text.
+            self.positioningTimer?.invalidate()
+            self.positioningTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.positionPanel() }
+            }
         }
     }
 
     func close() {
+        openingPanel = false
+        openStatusSlotWidth = nil
+        anchorSession.reset()
         NotificationCenter.default.post(name: HearthNavigation.panelVisibilityChanged, object: false)
         panel?.orderOut(nil)
         positioningTimer?.invalidate()
@@ -168,13 +195,15 @@ final class HearthMenuController: NSObject {
         if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
         localMonitor = nil
         globalMonitor = nil
+        requestRefresh()
     }
 
     private func positionPanel() {
         guard let anchor = anchorView, let statusWindow = anchor.window, let panel else { return }
         let rect = statusWindow.convertToScreen(anchor.convert(anchor.bounds, to: nil))
         guard let screen = statusWindow.screen ?? NSScreen.screens.first(where: { $0.frame.intersects(rect) }) else { return }
-        let frame = MenuPanelGeometry.frame(anchor: rect, visibleFrame: screen.visibleFrame, panelSize: Theme.panelSize)
+        let stableAnchor = anchorSession.resolve(liveAnchor: rect, screenFrame: screen.frame)
+        let frame = MenuPanelGeometry.frame(anchor: stableAnchor, visibleFrame: screen.visibleFrame, panelSize: Theme.panelSize)
         if layout.size != frame.size { layout.size = frame.size }
         if abs(frame.origin.x - panel.frame.origin.x) > 0.5 || abs(frame.origin.y - panel.frame.origin.y) > 0.5 || panel.frame.size != frame.size {
             panel.setFrame(frame, display: true)
@@ -249,6 +278,8 @@ private final class HearthMenuPanel: NSPanel {
 private final class HearthStatusView: NSView {
     var image: NSImage? { didSet { needsDisplay = true } }
     var press: (() -> Void)?
+    var didFinishMove: (() -> Void)?
+    private var movingStatus = false
     private var trackingPress = false
 
     override var isOpaque: Bool { false }
@@ -266,6 +297,7 @@ private final class HearthStatusView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command) {
+            movingStatus = true
             trackingPress = false
             super.mouseDown(with: event)
         } else {
@@ -275,6 +307,12 @@ private final class HearthStatusView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if movingStatus {
+            movingStatus = false
+            super.mouseUp(with: event)
+            didFinishMove?()
+            return
+        }
         let inside = bounds.contains(convert(event.locationInWindow, from: nil))
         if trackingPress && inside { press?() }
         trackingPress = false

@@ -21,6 +21,15 @@ enum ArtExporter {
                 write(view, to: devices.appendingPathComponent("\(kind.rawValue)\(active ? "" : "-off").png"))
             }
         }
+        write(VStack(alignment: .leading, spacing: 24) {
+            ForEach([true, false], id: \.self) { active in
+                HStack(alignment: .bottom, spacing: 24) {
+                    ForEach([24, 46, 72, 160], id: \.self) { size in
+                        DeviceArtView(kind: .solarPanel, active: active, accent: EnergyPalette.accent(.solarPanel), size: CGFloat(size))
+                    }
+                }
+            }
+        }.padding(24).background(Theme.base), to: root.appendingPathComponent("solar-scale.png"))
         write(ContactSheet(), to: root.appendingPathComponent("devices.png"))
         write(AppIconArt(), to: root.appendingPathComponent("AppIcon-1024.png"), scale: 1)
         write(MenuBarGlyph(size: 18), to: root.appendingPathComponent("menubar-18.png"), scale: 1)

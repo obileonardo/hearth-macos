@@ -31,6 +31,8 @@ enum PreviewExporter {
         arguments["ha.url"] = "http://homeassistant.local:8123"
         arguments["ha.username"] = "demo"
         arguments["appearance"] = "system"
+        arguments[NavigationGlassPreference.key] = NavigationGlassPreference.defaultValue
+        arguments["hiddenSections"] = ""
         arguments["desktopWidgets.climateEntity"] = "climate.preview_living_room"
         UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
         let engine = DemoEngine(.vehicles)
@@ -74,6 +76,12 @@ enum PreviewExporter {
                      name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport(initialRequest: .bug) {} },
                      name: "guide-bug-report-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: nil, settings: true) {
+                VStack(alignment: .leading, spacing: 20) {
+                    PageHeader(eyebrow: "Hearth", title: "Settings") { EmptyView() }
+                    SectionSettings()
+                }
+            }, name: "guide-navigation-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(CarCard(device: car) { _ in }, name: "vehicle-\(suffix)", width: 368,
                      scheme: scheme, store: engine.store, log: log, out: out)
             try save(DevicesPage(hub: hub, shown: true, visible: false), name: "devices-\(suffix)", width: 368,
@@ -239,7 +247,7 @@ private struct PreviewScreenshotPanel<Content: View>: View {
                 case .climate: ("snowflake", "Workspace")
                 case .security: ("video", "Security")
                 case .rooms: ("square.grid.2x2", "Rooms")
-                case .devices: ("plug", "Devices")
+                case .devices: ("plug", "Assets")
                 case .map: ("cube.transparent", "3D map")
                 case .activity: ("bell", "Activity")
                 case .media: ("speaker", "Speakers")

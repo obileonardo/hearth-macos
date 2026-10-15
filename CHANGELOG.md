@@ -49,6 +49,10 @@ The app retains its macOS 14 deployment target and existing bundle identity. Thi
 - Add one state-checked retry for the specifically observed intermittent vendor mode rejection; persistent failures remain visible.
 - Add 48 points of panel height with 32 points more space above navigation and 6 below; use clear native selection glass, white-on-deeper-blue map marks and a gentler power halo.
 - Use a snowflake for Climate navigation.
+- Add remembered navigation glass opacity, with solid accessibility overrides; keep icons fully visible and refine the selected lens motion.
+- Float the scrolled page heading in its own pill and rename the overview to Assets while preserving saved routes.
+- Keep the open panel stable during rotating menu status, with a bounded centered status slot.
+- Refine the native solar-panel cell grid, metal frame, supports and daylight reflection.
 - Float navigation over the full-height scrolling viewport, with no full-width fade or blur band. Extra trailing scroll space keeps final controls reachable; fixed climate controls and the demo exit stay clear of the dock.
 - Give the full-map button its own VoiceOver label and hint.
 - Restore the animated temperature digits; modes without a setpoint show an em dash and no temperature slider.

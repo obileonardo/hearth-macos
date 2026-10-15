@@ -267,119 +267,136 @@ struct EnergyArt {
 
     // MARK: Solar panel
 
-    /// A solar panel tilted towards the sky on a ground frame: deep blue cells in a fine
-    /// grid behind glass, an aluminium frame, and the sky caught across the glass.
+    /// A framed photovoltaic module on two triangular aluminium supports. The cell
+    /// layout, glass and frame share one projection so the small illustration reads as
+    /// a single manufactured object. Producing power changes the reflected daylight;
+    /// the cells themselves never glow.
     private func solarPanel(_ ctx: GraphicsContext) {
-        // Corners of the panel's top face, seen from a little above and to the side.
-        let tl = CGPoint(x: 19, y: 18), tr = CGPoint(x: 88, y: 26)
-        let br = CGPoint(x: 82, y: 64), bl = CGPoint(x: 10, y: 56)
+        let tl = CGPoint(x: 20, y: 16), tr = CGPoint(x: 91, y: 23)
+        let br = CGPoint(x: 80, y: 69), bl = CGPoint(x: 9, y: 62)
         func at(_ s: CGFloat, _ t: CGFloat) -> CGPoint {
-            // Bilinear: s across, t down.
             let top = CGPoint(x: tl.x + (tr.x - tl.x) * s, y: tl.y + (tr.y - tl.y) * s)
             let bottom = CGPoint(x: bl.x + (br.x - bl.x) * s, y: bl.y + (br.y - bl.y) * s)
             return P(top.x + (bottom.x - top.x) * t, top.y + (bottom.y - top.y) * t)
         }
+        func face(_ points: [(CGFloat, CGFloat)]) -> Path {
+            var path = Path()
+            guard let first = points.first else { return path }
+            path.move(to: at(first.0, first.1))
+            for point in points.dropFirst() { path.addLine(to: at(point.0, point.1)) }
+            path.closeSubpath()
+            return path
+        }
         func quad(_ s0: CGFloat, _ t0: CGFloat, _ s1: CGFloat, _ t1: CGFloat) -> Path {
-            var p = Path()
-            p.move(to: at(s0, t0))
-            p.addLine(to: at(s1, t0))
-            p.addLine(to: at(s1, t1))
-            p.addLine(to: at(s0, t1))
-            p.closeSubpath()
-            return p
+            face([(s0, t0), (s1, t0), (s1, t1), (s0, t1)])
+        }
+        func strut(_ from: CGPoint, _ to: CGPoint, width: CGFloat) {
+            var line = Path()
+            line.move(to: from)
+            line.addLine(to: to)
+            ctx.stroke(line, with: .color(Color(white: 0.24)),
+                       style: StrokeStyle(lineWidth: u(width), lineCap: .square))
+            ctx.stroke(line, with: .color(Color(white: 0.67)),
+                       style: StrokeStyle(lineWidth: u(width * 0.48), lineCap: .square))
         }
 
-        ground(ctx, 50, 78, w: 80, h: 8, opacity: 0.85)
-
-        // A low ground frame: rear struts mostly hidden behind the panel, short front feet,
-        // and a rail along the ground tying them together.
-        let leg = Color(white: 0.66)
-        var rail = Path()
-        rail.move(to: P(14, 75.5))
-        rail.addLine(to: P(84, 77))
-        ctx.stroke(rail, with: .color(Color(white: 0.2)), style: StrokeStyle(lineWidth: u(3.4), lineCap: .round))
-        ctx.stroke(rail, with: .color(Color(white: 0.5)), style: StrokeStyle(lineWidth: u(2), lineCap: .round))
-        for (top, foot) in [(at(0.16, 0.4), P(22, 76)), (at(0.88, 0.45), P(80, 77)),
-                            (at(0.07, 0.98), P(13, 75.5)), (at(0.85, 0.98), P(76, 77))] {
-            var l = Path()
-            l.move(to: top)
-            l.addLine(to: foot)
-            ctx.stroke(l, with: .color(Color(white: 0.18)), style: StrokeStyle(lineWidth: u(3.6), lineCap: .round))
-            ctx.stroke(l, with: .color(leg), style: StrokeStyle(lineWidth: u(2.2), lineCap: .round))
+        ground(ctx, 49, 83, w: 73, h: 6, opacity: 0.58)
+        // Each support is a closed triangle, with its long rear leg hidden by the
+        // module. The feet and rail sit on the same ground plane.
+        for s: CGFloat in [0.19, 0.82] {
+            let front = at(s, 1)
+            let foot = CGPoint(x: front.x + u(0.3), y: u(81 + s * 2))
+            let rearFoot = CGPoint(x: foot.x + u(11), y: foot.y - u(0.2))
+            strut(at(s, 0.18), rearFoot, width: 2.4)
+            strut(front, foot, width: 2.6)
+            strut(foot, rearFoot, width: 2.1)
+            strut(CGPoint(x: foot.x - u(2.5), y: foot.y),
+                  CGPoint(x: foot.x + u(3), y: foot.y), width: 2)
         }
-        // The panel's edge thickness, below the glass.
-        var edge = Path()
-        edge.move(to: at(0, 1))
-        edge.addLine(to: at(1, 1))
-        edge.addLine(to: CGPoint(x: at(1, 1).x, y: at(1, 1).y + u(3)))
-        edge.addLine(to: CGPoint(x: at(0, 1).x, y: at(0, 1).y + u(3)))
-        edge.closeSubpath()
-        ctx.fill(edge, with: .color(Color(white: 0.4)))
 
-        // The aluminium frame, then the cell field inside it.
+        // A narrow extruded lower and right edge, separate from the glass surface.
+        let thickness = CGVector(dx: u(0.5), dy: u(2.5))
+        func edge(_ start: CGPoint, _ end: CGPoint) -> Path {
+            var path = Path()
+            path.move(to: start)
+            path.addLine(to: end)
+            path.addLine(to: CGPoint(x: end.x + thickness.dx, y: end.y + thickness.dy))
+            path.addLine(to: CGPoint(x: start.x + thickness.dx, y: start.y + thickness.dy))
+            path.closeSubpath()
+            return path
+        }
+        ctx.fill(edge(at(0, 1), at(1, 1)), with: horizontal(R(9, 62, 72, 10), [
+            (Color(white: 0.63), 0), (Color(white: 0.36), 1)
+        ]))
+        ctx.fill(edge(at(1, 0), at(1, 1)), with: .color(Color(white: 0.31)))
+
         let frame = quad(0, 0, 1, 1)
-        let bounds = frame.boundingRect
-        ctx.fill(frame, with: .linearGradient(Gradient(colors: [Color(white: 0.92), Color(white: 0.66), Color(white: 0.8)]),
-                                              startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
-                                              endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY)))
-        let inset: CGFloat = 0.03
-        let field = quad(inset, inset * 1.3, 1 - inset, 1 - inset * 1.3)
-        ctx.fill(field, with: .linearGradient(Gradient(stops: [
-            .init(color: Color(red: 0.13, green: 0.2, blue: 0.42), location: 0),
-            .init(color: Color(red: 0.05, green: 0.08, blue: 0.2), location: 0.55),
-            .init(color: Color(red: 0.03, green: 0.05, blue: 0.13), location: 1),
-        ]), startPoint: at(0.2, 0), endPoint: at(0.8, 1)))
+        ctx.fill(frame, with: .linearGradient(Gradient(stops: [
+            .init(color: Color(white: 0.93), location: 0),
+            .init(color: Color(white: 0.65), location: 0.42),
+            .init(color: Color(white: 0.78), location: 0.8),
+            .init(color: Color(white: 0.48), location: 1)
+        ]), startPoint: at(0, 0), endPoint: at(1, 1)))
 
-        var cells = ctx
-        cells.clip(to: field)
-        // Cell gaps: 6 across, 4 down, plus a fine half-cut line through each row.
-        let cols = 6, rows = 4
-        for i in 1..<cols {
-            let s = inset + (1 - 2 * inset) * CGFloat(i) / CGFloat(cols)
-            var l = Path()
-            l.move(to: at(s, 0))
-            l.addLine(to: at(s, 1))
-            cells.stroke(l, with: .color(Color(white: 0.75).opacity(0.55)), lineWidth: u(0.55))
-        }
-        for j in 1..<rows {
-            let t = inset * 1.3 + (1 - 2.6 * inset) * CGFloat(j) / CGFloat(rows)
-            var l = Path()
-            l.move(to: at(0, t))
-            l.addLine(to: at(1, t))
-            cells.stroke(l, with: .color(Color(white: 0.75).opacity(0.55)), lineWidth: u(0.55))
-        }
-        for j in 0..<rows {
-            let t = inset * 1.3 + (1 - 2.6 * inset) * (CGFloat(j) + 0.5) / CGFloat(rows)
-            var l = Path()
-            l.move(to: at(0, t))
-            l.addLine(to: at(1, t))
-            cells.stroke(l, with: .color(Color(white: 0.7).opacity(0.18)), lineWidth: u(0.3))
-        }
-        // The sky across the glass: a broad diagonal sheen, warmer when the sun is on it.
-        let sheen = on ? Color(red: 1, green: 0.93, blue: 0.78) : Color(white: 0.8)
-        cells.energyLayer(blur: u(5)) {
-            var band = Path()
-            band.move(to: at(0.05, 0))
-            band.addLine(to: at(0.42, 0))
-            band.addLine(to: at(0.2, 1))
-            band.addLine(to: at(-0.1, 1))
-            band.closeSubpath()
-            $0.fill(band, with: .color(sheen.opacity(on ? 0.34 : 0.16)))
-        }
-        if on {
-            let c = glow
-            cells.energyLayer(blur: u(3.5), additive: true) {
-                $0.fill(Path(ellipseIn: CGRect(x: at(0.78, 0.12).x - u(7), y: at(0.78, 0.12).y - u(4), width: u(14), height: u(8))),
-                        with: .color(c.opacity(0.45)))
+        let left: CGFloat = 0.025, right: CGFloat = 0.975
+        let top: CGFloat = 0.038, bottom: CGFloat = 0.962
+        let field = quad(left, top, right, bottom)
+        ctx.fill(field, with: .color(Color(red: 0.025, green: 0.045, blue: 0.075)))
+        var glass = ctx
+        glass.clip(to: field)
+
+        // Seventy-two half cells, with a wider central separation and clipped corners.
+        // The busbars are omitted at tiny sizes so they cannot turn into visual noise.
+        let cols = 12, rows = 6
+        let cellWidth = (right - left) / CGFloat(cols)
+        let cellHeight = (bottom - top) / CGFloat(rows)
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let gap: CGFloat = 0.0032
+                let s0 = left + CGFloat(col) * cellWidth + gap
+                let s1 = left + CGFloat(col + 1) * cellWidth - gap
+                let t0 = top + CGFloat(row) * cellHeight + (row == 3 ? 0.007 : 0.0038)
+                let t1 = top + CGFloat(row + 1) * cellHeight - (row == 2 ? 0.007 : 0.0038)
+                let sx = (s1 - s0) * 0.10, ty = (t1 - t0) * 0.065
+                let cell = face([(s0 + sx, t0), (s1 - sx, t0), (s1, t0 + ty),
+                                 (s1, t1 - ty), (s1 - sx, t1), (s0 + sx, t1),
+                                 (s0, t1 - ty), (s0, t0 + ty)])
+                let variation = Double((col * 3 + row * 5) % 7) * 0.0025
+                let light = on ? Color(red: 0.13 + variation, green: 0.21 + variation, blue: 0.32 + variation)
+                               : Color(red: 0.095 + variation, green: 0.12 + variation, blue: 0.16 + variation)
+                let dark = on ? Color(red: 0.035, green: 0.075, blue: 0.14)
+                              : Color(red: 0.035, green: 0.046, blue: 0.066)
+                glass.fill(cell, with: .linearGradient(Gradient(colors: [light, dark]),
+                                                       startPoint: at(s0, t0), endPoint: at(s1, t1)))
+                if size >= 72 {
+                    var busbars = Path()
+                    for fraction: CGFloat in [0.25, 0.5, 0.75] {
+                        let s = s0 + (s1 - s0) * fraction
+                        busbars.move(to: at(s, t0 + ty))
+                        busbars.addLine(to: at(s, t1 - ty))
+                    }
+                    glass.stroke(busbars, with: .color(Color(red: 0.56, green: 0.65, blue: 0.73).opacity(on ? 0.28 : 0.18)),
+                                 lineWidth: u(0.14))
+                }
             }
         }
-        // The frame's lit top edge.
-        var top = Path()
-        top.move(to: at(0, 0))
-        top.addLine(to: at(1, 0))
-        ctx.stroke(top, with: .color(.white.opacity(0.9)), style: StrokeStyle(lineWidth: u(0.8), lineCap: .round))
-        ctx.stroke(frame, with: .color(.black.opacity(0.35)), lineWidth: u(0.4))
+
+        // One restrained cool reflection across the complete sheet of glass, rather
+        // than separate cell highlights or an artificial illuminated spot.
+        let reflection = face([(0, 0), (0.53, 0), (0.26, 1), (-0.1, 1)])
+        glass.fill(reflection, with: .linearGradient(Gradient(colors: [
+            Color(red: 0.79, green: 0.88, blue: 0.96).opacity(on ? 0.15 : 0.07), .clear
+        ]), startPoint: at(0.1, 0), endPoint: at(0.6, 1)))
+        ctx.stroke(field, with: .color(.black.opacity(0.75)), lineWidth: u(0.45))
+        var highlight = Path()
+        highlight.move(to: at(0, 1))
+        highlight.addLine(to: at(0, 0))
+        highlight.addLine(to: at(1, 0))
+        ctx.stroke(highlight, with: .color(.white.opacity(0.8)),
+                   style: StrokeStyle(lineWidth: u(0.65), lineJoin: .miter))
+        ctx.stroke(frame, with: .color(.black.opacity(0.28)), lineWidth: u(0.35))
     }
+
 }
 
 private extension GraphicsContext {

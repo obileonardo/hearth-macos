@@ -34,7 +34,7 @@
 - **Activity.** A timeline of people seen, doorbell rings, motion, the alarm and the air conditioning, with pictures. Choose what sends a Mac notification.
 - **Live pill and desktop widgets.** Optional event alerts beneath the menu bar, plus clickable, movable and resizable widgets for climate, recent activity and energy. Choose widgets and the climate source in Settings. The overview adapts to connected readings. See [widgets](docs/widgets.md).
 - **Car illustrations.** Recognisable electric car models with a remembered paint choice. The vehicle demo lets you change both car and paint without controlling a real vehicle.
-- **Speakers, faces and maps.** Speaker playback lives in Devices. Optional familiar-face matching runs on this Mac. Import a home scan for the 3D map, with floor selection, plan view, transparent walls and device placement.
+- **Speakers, faces and maps.** Speaker playback lives in Assets. Optional familiar-face matching runs on this Mac. Import a home scan for the 3D map, with floor selection, plan view, transparent walls and device placement.
 - **Light, dark or system.** Choose in Settings. Theme text tokens have documented contrast calculations for light and dark appearances; Hearth supports Increase Contrast, Reduce Transparency and Reduce Motion. See [docs/accessibility.md](docs/accessibility.md).
 - **Native.** Built in SwiftUI. Hearth signs in to your Home Assistant and keeps its refresh token in your Keychain. Hearth has no analytics or account service; see [Privacy](#privacy) for its network and local storage behaviour.
 
@@ -56,13 +56,13 @@ These refreshed guides show the current source revision. The download above rema
 <table>
   <tr>
     <td valign="top" width="50%">
-      <h3>Devices · dark</h3>
-      <img src="docs/screenshots/guide-devices-dark.png" width="360" alt="Dark Devices overview with example home, energy and vehicle cards">
+      <h3>Assets · dark</h3>
+      <img src="docs/screenshots/guide-devices-dark.png" width="360" alt="Dark Assets overview with example home, energy and vehicle cards">
       <p>Open your home or a device family from one overview.</p>
     </td>
     <td valign="top" width="50%">
-      <h3>Devices · light</h3>
-      <img src="docs/screenshots/guide-devices-light.png" width="360" alt="Light Devices overview with the same example device families">
+      <h3>Assets · light</h3>
+      <img src="docs/screenshots/guide-devices-light.png" width="360" alt="Light Assets overview with the same example device families">
       <p>The same navigation, adapted for light appearance.</p>
     </td>
   </tr>
@@ -156,7 +156,7 @@ Rooms and floors come from Home Assistant:
 
 ### 6. Choose a view and use its controls
 
-Use **Devices** to browse families, **Rooms** to browse by location, or **3D Map** to place devices in a home scan. Open an air conditioner for temperature and mode controls. In **Devices → Speakers**, switch between grid and list, then use the playback controls on a connected speaker. Available controls depend on what its Home Assistant integration exposes.
+Use **Assets** to browse families, **Rooms** to browse by location, or **3D Map** to place devices in a home scan. Open an air conditioner for temperature and mode controls. In **Assets → Speakers**, switch between grid and list, then use the playback controls on a connected speaker. Available controls depend on what its Home Assistant integration exposes.
 
 <table>
   <tr>
@@ -172,6 +172,25 @@ Use **Devices** to browse families, **Rooms** to browse by location, or **3D Map
     </td>
   </tr>
 </table>
+
+#### Choose how much content shows through the bar
+
+Open **Settings → Navigation → Glass opacity**. Move the slider toward Clearer or More opaque; Hearth remembers the choice. Icons keep their full color. macOS Reduce Transparency and Increase Contrast keep the bar solid. [Navigation guide](docs/navigation.md).
+
+<table>
+  <tr>
+    <td valign="top">
+      <h4>Navigation settings · dark</h4>
+      <img src="docs/screenshots/guide-navigation-dark.png" width="360" alt="The Settings navigation section with a glass opacity slider and the Assets section enabled">
+    </td>
+    <td valign="top">
+      <h4>Navigation settings · light</h4>
+      <img src="docs/screenshots/guide-navigation-light.png" width="360" alt="The same Settings navigation section in light appearance">
+    </td>
+  </tr>
+</table>
+
+The navigation section is shown in isolation with offline demo data; the offscreen slider and glass use the static documentation fallback. The running app uses native interactive controls.
 
 ### 7. Get help or report a problem
 
@@ -252,7 +271,7 @@ HA_URL=http://localhost:8124 HA_TOKEN=... build/Hearth.app/Contents/MacOS/Hearth
 - `-gadgetsFile <path>` reads and writes the hand-made gadget list somewhere else, so tests leave yours alone.
 - `-homesFile <path>` does the same for the homes list; `-openHome main|demo` opens a home straight away.
 - `-activityFolder <path>` isolates the activity index and its pictures for development.
-- `--render-preview <folder>` exports sample-data car, Devices, pill, settings and widget previews, then exits before connecting or asking for notification permission. Supply `-activityFolder <temporary-folder>` to isolate the app delegate's initial activity load too.
+- `--render-preview <folder>` exports sample-data car, Assets, pill, settings and widget previews, then exits before connecting or asking for notification permission. Supply `-activityFolder <temporary-folder>` to isolate the app delegate's initial activity load too.
 - `--render-cars <folder>` exports the car contact sheets. `HEARTH_SDKROOT` selects an installed SDK; build scripts otherwise discover it, retaining the working macOS 26.5 SDK with Command Line Tools when available.
 - `--probe "find climate.; call climate.set_temperature climate.bedroom {\"temperature\":22}"` checks a real Home Assistant through the app's own sign-in and prints what happened. Steps: `dump`, `find`, `call`, `cmd`, `rest`, `energy`, `snap`, `wait`.
 - `docker-compose -f homeassistant/docker-compose.yml --profile dev up -d homeassistant-dev` runs a demo Home Assistant on port 8124, full of sample devices.

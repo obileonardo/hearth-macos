@@ -114,3 +114,23 @@ The installed 0.1.3 earlier preview is being updated to this final source after 
 The latest owner direction supersedes the fade experiment: scrolling content uses the full-height viewport behind the floating glass navigation capsule. There is no full-width fade or black footer band. Extra scroll padding keeps the last controls reachable; fixed climate controls and the demo exit stay clear of the dock. Native accessibility inspection confirmed the separate Open full map label and hint.
 
 Private PR #9 and public PR #4 are merged. Both hosted runs passed 107 XCTest cases with two GPU-dependent skips and no failures, plus release, contrast, shell and optional WidgetKit compilation checks. This small navigation/accessibility follow-up adds three isolated layout cases and refreshed demo guides; its hosted checks and final binary publication follow separately. No public 0.1.3 binary has been published yet.
+
+
+## Latest floating-navigation refinement — 15 October, implementation and review
+
+| Owner feedback | Work | Delivery status |
+|---|---|---|
+| Let users choose glass opacity | Settings → Navigation slider, remembered 0–100% surface opacity, default 55%; icons retain full opacity; accessibility overrides stay solid | Local build passed; native preference adjusted to 80% and restored to 55%; hosted checks pending |
+| Floating selection still feels unfinished | More restrained lens movement with cancellation of stale settling tasks | Implemented; visual review pending |
+| Floating Security title and count | Shared scrolled heading in a compact glass capsule; no full-width blur band | Implemented; native scrolling review pending |
+| Rename Devices overview | Assets display label and guide wording; saved route keys and Home Assistant names preserved | Local build and native Assets/demo navigation passed |
+| Demo-home back transition | Preserve departing demo content and stable route transition | Implemented; native demo-home Back returns to Assets, four isolated route fixtures prepared |
+| Panel shifts when menu status changes | Stable opening anchor and open-only bounded status slot; screen clamping/reanchoring retained | Implemented; integrated native/build review pending |
+| Solar illustration | Consistently projected 72-cell module, slim metal frame and coherent supports; on/off retained | Native on/off and 24/46/72/160pt scale renders reviewed |
+
+Private PR #10 and public PR #5 delivered the preceding floating-layout baseline with 110 XCTest cases, two hosted GPU skips and zero failures. The new refinements above are a separate follow-up. Public 0.1.3 binary publication is held until this latest batch is reviewed and its required checks pass.
+
+
+Local refinement review: the integrated debug build passed on 15 October. Native Assets → demo home → Back returned to the grid; retained engine snapshots prevent the departing demo from emptying mid-transition. Navigation opacity was adjusted using its native accessibility actions and restored to 55%. The slider is continuous. Source-linked contrast and release-script syntax checks pass. Solar on/off and scale renders were inspected. Hosted regression execution, public source transfer and the refreshed binary follow separately; broad animation smoothness and all supported machine/VoiceOver paths are not certified by these checks.
+
+The next owner-requested heading-card exploration is queued after this verification/GitHub batch: a compact rounded rectangle with 24-point top/side insets and overlapping circular camera/device illustrations. The current capsule is an interim stage, not claimed as acceptance of that queued direction.
