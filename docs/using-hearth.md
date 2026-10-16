@@ -84,6 +84,8 @@ Use [the HomeKit walkthrough](homekit.md) to choose **HomeKit Device** for impor
 
 Open the device itself rather than assuming every card offers the same functions. Online status, supported modes and exposed actions come from Home Assistant. A service accepting a request does not prove that a physical device carried it out. When an action fails, inspect the reported state and test the same action in Home Assistant before changing the installation.
 
+Airflow becomes more defined toward the device’s cooler set points, while mode and fan speed keep their own visual cues.
+
 ![Sample climate controls in dark appearance](screenshots/guide-climate-dark.png)
 
 Climate numbers are sample readings. A unit may expose cooling without heating, a different temperature step, or fewer fan/swing options. Unavailable functions are not invented.

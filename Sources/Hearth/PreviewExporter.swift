@@ -156,6 +156,15 @@ enum PreviewExporter {
                 try save(MediaPage(players: players, shown: true, previewLayout: layout), name: "speakers-\(layout)-\(suffix)", width: 368,
                          scheme: scheme, store: speakers, log: log, out: out)
             }
+            try save(HStack(alignment: .top, spacing: 16) {
+                ForEach([16.0, 24, 30], id: \.self) { value in
+                    VStack(spacing: 6) {
+                        Text("\(Int(value))°").font(.system(size: 18, weight: .medium)).foregroundStyle(Theme.ink)
+                        ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: false, width: 180, display: "\(Int(value))°",
+                                   reach: 0.46, chill: ACAirAppearance.normalizedChill(target: value, lowerBound: 16, upperBound: 30), previewTime: 1.4)
+                    }
+                }
+            }, name: "airflow-temperature-\(suffix)", width: 780, scheme: scheme, store: climateStore, log: log, out: out)
             try save(ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: true, width: 240, display: "24°", previewTime: 1.4),
                      name: "airflow-\(suffix)", width: 340, scheme: scheme, store: engine.store, log: log, out: out)
             try save(PillAndWidgetSettings(), name: "settings-\(suffix)", width: 368,

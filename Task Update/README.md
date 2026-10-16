@@ -92,3 +92,9 @@ These are the remaining requirements after the completed 0.1.3 implementation an
 The [0.1.3 verification](../docs/release-verification-0.1.3.md) records the current 137-case source batch and artifact. Earlier source batches passed 107, 110 and 129 cases. The historical [0.1.2 verification](../docs/release-verification-0.1.2.md) records its 57-case suite and exact app source/checksum; [0.1.1 verification](../docs/release-verification-0.1.1.md) also remains unchanged. Later changes do not alter an older DMG's provenance.
 
 See [source/release status](../docs/open-source-readiness.md), [navigation](../docs/navigation.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private records, owner recordings, credentials and household runtime stores are excluded from public Git history.
+
+## 16 October 2026 follow-up verification
+
+The Rooms, notification-geometry, native illustration and integration-guide batch passed 278 XCTest cases (two unsupported GPU skips, zero failures), 13 maintenance fixtures, 14 release-tool fixtures, release/contrast/shell and optional universal widget gates. The owner confirmed the revised room drag and ordinary click both work in the synthetic review. The first unsuccessful drag implementation was replaced before this confirmation.
+
+The subsequent AC appearance change is prepared separately: 15% larger body, an 8-point lower natural flow for the unit and all its controls, and restrained set-point-responsive airflow definition. Its own build/tests and final local installation are separate delivery checks. The previous 0.1.3 preview download remains unchanged.

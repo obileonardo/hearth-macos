@@ -201,7 +201,7 @@ Rooms and floors come from Home Assistant:
 3. Assign each device to its room in Home Assistant's device settings.
 4. Open **Rooms** in Hearth to browse that arrangement and its devices.
 
-Choose the overview for rooms grouped by floor, or the interactive view to select a room and see its devices without leaving the page. Both lead to the same existing device controls; the interactive layout is not a measured floor plan.
+Choose the overview for rooms grouped by floor, or drag/scroll the square cards in the interactive view to select a room and see its devices without leaving the page. Both lead to the same existing device controls; the interactive layout is not a measured floor plan.
 
 <table>
   <tr>

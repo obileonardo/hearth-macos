@@ -15,15 +15,18 @@ struct ACUnitView: View, Animatable {
     var display: String?
     /// How far the air falls, as a fraction of the width.
     var reach: CGFloat = 0.62
+    /// Normalized visual chill only: 1 is the device's coolest target, 0 its warmest.
+    /// Neutral keeps existing illustration callers unchanged; it never controls the AC.
+    var chill: Double = ACAirAppearance.neutralChill
     /// Fixed time is used only by the offline illustration renderer.
     var previewTime: Double?
     /// Reduce Motion: the air drifts at a third of the pace.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
-    var animatableData: Double {
-        get { power }
-        set { power = newValue }
+    var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(power, chill) }
+        set { power = newValue.first; chill = newValue.second }
     }
 
     private var h: CGFloat { width * 0.265 }
@@ -204,6 +207,7 @@ struct ACUnitView: View, Animatable {
         let ventW = width * 0.82
         let sway = swing ? sin(t * 0.7) * 0.4 : 0
         let strength = min(1, max(0, intensity))
+        let airAppearance = ACAirAppearance(chill: chill)
         let pace = 0.5 + strength * 0.8
 
         // A fine veil: many small, faint puffs that widen and fade as they fall.
@@ -224,7 +228,7 @@ struct ACUnitView: View, Animatable {
             let size = width * (0.018 + 0.085 * age)
             // Bright as it leaves the vent, thinning to nothing.
             let envelope = pow(min(age * 6, 1), 0.6) * pow(1 - age, 1.8)
-            let alpha = envelope * (0.03 + 0.028 * strength) * power
+            let alpha = envelope * (0.03 + 0.028 * strength) * power * airAppearance.mistStrength
             let puff = CGRect(x: x - size, y: y - size * 0.6, width: size * 2, height: size * 1.2)
             mist.fill(Path(ellipseIn: puff), with: .radialGradient(
                 Gradient(colors: [color.opacity(alpha), color.opacity(0)]),
@@ -237,7 +241,7 @@ struct ACUnitView: View, Animatable {
         sheet.addFilter(.blur(radius: width * 0.035))
         sheet.fill(Path(roundedRect: CGRect(x: ventMinX + ventW * 0.04, y: top - 2, width: ventW * 0.92, height: fall * 0.28),
                         cornerRadius: fall * 0.14),
-                   with: .linearGradient(Gradient(colors: [color.opacity(0.16 * power), color.opacity(0)]),
+                   with: .linearGradient(Gradient(colors: [color.opacity(0.16 * power * airAppearance.mistStrength), color.opacity(0)]),
                                          startPoint: CGPoint(x: r.midX, y: top), endPoint: CGPoint(x: r.midX, y: top + fall * 0.28)))
 
         // Continuous, gently spreading lanes connect the flow to the vent. A
@@ -266,9 +270,9 @@ struct ACUnitView: View, Animatable {
                 let pulse = exp(-pow((p - head) / 0.19, 2))
                 let alpha = power * envelope * (0.16 + pulse * (0.33 + strength * 0.21))
                 s == 0 ? path.move(to: point(p)) : path.addLine(to: point(p))
-                stops.append(.init(color: color.opacity(alpha * 0.5), location: p))
+                stops.append(.init(color: color.opacity(alpha * 0.5 * airAppearance.ribbonStrength), location: p))
                 let core = scheme == .dark ? Color.white : color
-                coreStops.append(.init(color: core.opacity(alpha * (scheme == .dark ? 0.7 : 0.85)), location: p))
+                coreStops.append(.init(color: core.opacity(alpha * (scheme == .dark ? 0.7 : 0.85) * airAppearance.coreStrength), location: p))
             }
             let start = CGPoint(x: r.midX, y: top), end = CGPoint(x: r.midX, y: top + fall * 0.92)
             var glow = ctx
@@ -286,4 +290,40 @@ struct ACUnitView: View, Animatable {
     }
 
     private func fract(_ x: Double) -> Double { x - floor(x) }
+}
+
+/// Appearance-only mapping, relative to the connected device's range rather than
+/// a Celsius threshold. The same physical targets therefore look alike in °C/°F.
+struct ACAirAppearance {
+    static let neutralChill = 0.5
+    let chill: Double
+
+    init(chill: Double) {
+        self.chill = chill.isFinite ? min(max(chill, 0), 1) : Self.neutralChill
+    }
+
+    static func normalizedChill(target: Double?, lowerBound: Double?, upperBound: Double?) -> Double {
+        guard let target, target.isFinite,
+              let lowerBound, lowerBound.isFinite,
+              let upperBound, upperBound.isFinite,
+              lowerBound < upperBound else { return neutralChill }
+        let span = upperBound - lowerBound
+        guard span.isFinite else { return neutralChill }
+        let bounded = min(max(target, lowerBound), upperBound)
+        return min(max(1 - (bounded - lowerBound) / span, 0), 1)
+    }
+
+    // More defined, icy lanes at cooler targets, with a much smaller change to
+    // the veil. Fan intensity still owns pace and particle count; mode owns hue.
+    var ribbonStrength: Double { 1 + (chill - Self.neutralChill) * 0.36 }
+    var coreStrength: Double { 1 + (chill - Self.neutralChill) * 0.40 }
+    var mistStrength: Double { 1 + (chill - Self.neutralChill) * 0.16 }
+}
+
+/// The canvas includes shadow and airflow outside the unit's physical body.
+/// Kept explicit so a layout fixture can guard the panel's 404 pt content width.
+enum ClimateIllustrationLayout {
+    static let bodyWidth: CGFloat = 246 * 1.15
+    static let topSpacing: CGFloat = 10
+    static let canvasWidth: CGFloat = bodyWidth * 1.36
 }

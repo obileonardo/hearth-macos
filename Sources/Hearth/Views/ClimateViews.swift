@@ -129,6 +129,9 @@ struct ClimatePage: View {
 
     private func page(_ c: Climate) -> some View {
         let target = dragTarget ?? c.target
+        let chill = ACAirAppearance.normalizedChill(target: target,
+                                                  lowerBound: c.temperatureRange?.lowerBound,
+                                                  upperBound: c.temperatureRange?.upperBound)
         let air = Theme.air(c.on ? c.mode : "off")
         let maker = store.device(of: entityID)?.manufacturer.map { $0 == "LGE" ? "LG" : $0 }
         let sensors = store.siblings(of: entityID, domain: "sensor")
@@ -152,10 +155,12 @@ struct ClimatePage: View {
 
             // The unit
             ACUnitView(power: c.on ? 1 : 0, mode: c.mode, intensity: c.intensity, swing: c.swinging,
-                       width: 246, display: c.on ? target.map(degrees) : nil, reach: 0.46)
+                       width: ClimateIllustrationLayout.bodyWidth, display: c.on ? target.map(degrees) : nil,
+                       reach: 0.46, chill: chill)
                 .animation(.glide, value: c.on)
+                .animation(reduceMotion ? .easeOut(duration: 0.1) : .glide, value: chill)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 2)
+                .padding(.top, ClimateIllustrationLayout.topSpacing)
                 .reveal(shown, 1)
 
             // Temperature and status

@@ -43,3 +43,7 @@ Generated with the 0.1.5 development candidate (build 20261016.2), separately fr
 New `guide-account-*`, `guide-integrations-*` and `guide-integration-add-*` captures use the actual native Account and integration-manager views with explicit in-memory snapshots. The generic Demo User, homeassistant.local address, sample entries and HomeKit catalog are fixtures. Preview tasks return before account attachment, catalog requests, setup flows or avatar loading; brand-icon requests are disabled and the standard fallback symbol is shown. No Apple Home household, pairing PIN/QR, saved account or physical device is used. Controls in these screenshots are illustrative, not a recorded integration setup.
 
 Room-card pixels, illustration scales and both integration screens were inspected after rendering. Actual mouse interaction is a separate verification step; a rendered image does not establish that dragging or physical controls work.
+
+### AC follow-up
+
+The two climate guides were refreshed again from the 0.1.5 build 20261016.3 candidate: the unit body is 15% larger, its natural layout begins 8 points lower and all following controls move with it. Airflow definition responds smoothly to the selected temperature relative to the device’s validated range; mode still determines hue and fan state determines pace. Fixed-time 16°/24°/30° comparisons are developer review aids, not household readings.
