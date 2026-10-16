@@ -46,7 +46,7 @@ enum ClimateReview {
         .preferredColorScheme(.dark)
         let window = NSWindow(contentRect: NSRect(x: 200, y: 180, width: Theme.panelSize.width, height: Theme.panelSize.height),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Hearth · Offline AC Review"
+        window.title = "Hearth · Offline AC Review · Feathered edge"
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: content)
         window.makeKeyAndOrderFront(nil)

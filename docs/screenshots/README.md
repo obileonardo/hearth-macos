@@ -44,6 +44,8 @@ New `guide-account-*`, `guide-integrations-*` and `guide-integration-add-*` capt
 
 Room-card pixels, illustration scales and both integration screens were inspected after rendering. Actual mouse interaction is a separate verification step; a rendered image does not establish that dragging or physical controls work.
 
-### AC follow-up
+### Current climate guides
 
-The two climate guides were refreshed again from the 0.1.5 build 20261016.3 candidate: the unit body is 15% larger, its natural layout begins 8 points lower and all following controls move with it. Airflow definition responds smoothly to the selected temperature relative to the device’s validated range; mode still determines hue and fan state determines pace. Fixed-time 16°/24°/30° comparisons are developer review aids, not household readings.
+The two climate guides use the 0.1.5 build 20261016.7 candidate: the unit body is 15% larger, its natural layout begins 8 points lower and all following controls move with it. Cooling air becomes a fuller, pale mist toward the lower endpoint of the device’s validated temperature range. Wider moving lanes and a bounded visual pace change strengthen the wind without changing a real fan command. A continuous drawing clock keeps target changes fluid; Reduce Motion and power-off pause are retained. Heat, dry and fan-only keep their original appearance. The airflow receives a smooth alpha fade after its blurred layers are composited, including fractional backing pixels, so the plume disappears before the canvas edge.
+
+Fixed-time 16°/24°/30° comparisons are developer review aids. The owner accepted size and spacing in the isolated review; the current mist balance is a subsequent refinement. Both appearances were inspected. No physical AC command was used to generate or review these images.

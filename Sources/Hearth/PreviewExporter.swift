@@ -156,6 +156,24 @@ enum PreviewExporter {
                 try save(MediaPage(players: players, shown: true, previewLayout: layout), name: "speakers-\(layout)-\(suffix)", width: 368,
                          scheme: scheme, store: speakers, log: log, out: out)
             }
+            for (index, time) in [0.0, 0.8, 1.6, 2.4, 3.2].enumerated() {
+                let edge = ACUnitView(power: 1, mode: "cool", intensity: 1, swing: true,
+                    width: ClimateIllustrationLayout.bodyWidth, display: "16°", reach: 0.46, chill: 1, previewTime: time)
+                    .environment(\.colorScheme, scheme)
+                let alphaRenderer = ImageRenderer(content: edge)
+                alphaRenderer.scale = 2
+                guard let image = alphaRenderer.cgImage,
+                      let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+                    throw ProviderError("Couldn't render the airflow edge review")
+                }
+                try png.write(to: out.appendingPathComponent("airflow-alpha-\(suffix)-\(index).png"), options: .atomic)
+                try save(VStack(spacing: 0) {
+                    edge
+                    Text("16°").font(.system(size: 76, weight: .thin)).foregroundStyle(Theme.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }, name: "airflow-edge-\(suffix)-\(index)", width: 404,
+                         scheme: scheme, store: climateStore, log: log, out: out)
+            }
             try save(HStack(alignment: .top, spacing: 16) {
                 ForEach([16.0, 24, 30], id: \.self) { value in
                     VStack(spacing: 6) {
