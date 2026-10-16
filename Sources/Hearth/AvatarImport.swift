@@ -32,6 +32,9 @@ enum AvatarImport {
         return (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil))?
             .filter { $0.lastPathComponent.hasPrefix("avatar.") && !$0.hasDirectoryPath }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }.first
+            // Enumeration may resolve /var into /private/var. Preserve the
+            // caller's folder identity, matching the manifest path and cleanup.
+            .map { folder.appendingPathComponent($0.lastPathComponent) }
     }
 
     static func writeSelection(_ name: String, in folder: URL) throws {
