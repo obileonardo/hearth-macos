@@ -30,7 +30,7 @@ the query was already across the home, not filtered to one door.
 Settings lets the owner enable each family independently and choose an AC. Automatic chooses
 an available running household AC first, then another available household AC; vehicle cabin
 climate is excluded. A chosen AC remains selected even when offline, with its availability shown.
-An unavailable or removed selection falls back to automatic. The standalone Energy widget is
+A removed selection falls back to automatic. The standalone Energy widget is
 retained when explicitly enabled, including its connection/setup state. No energy readings or
 speaker synchronization measurements are fabricated.
 

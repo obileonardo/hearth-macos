@@ -156,6 +156,14 @@ enum PreviewExporter {
                 try save(MediaPage(players: players, shown: true, previewLayout: layout), name: "speakers-\(layout)-\(suffix)", width: 368,
                          scheme: scheme, store: speakers, log: log, out: out)
             }
+            for (name, x, y) in [("left", 187.0, 350.0), ("right", 395.0, 350.0),
+                                  ("bottom-left", 187.0, 642.0), ("bottom-right", 395.0, 642.0)] {
+                try save(TooltipPreview(x: x, y: y), name: "tooltip-\(name)-\(suffix)", width: 448,
+                         scheme: scheme, store: climateStore, log: log, out: out)
+            }
+            try save(TooltipPreview(x: 395, y: 642, message: String(repeating: "A simulated long camera error. ", count: 90)),
+                     name: "tooltip-long-message-\(suffix)", width: 448,
+                     scheme: scheme, store: climateStore, log: log, out: out)
             for (index, time) in [0.0, 0.8, 1.6, 2.4, 3.2].enumerated() {
                 let edge = ACUnitView(power: 1, mode: "cool", intensity: 1, swing: true,
                     width: ClimateIllustrationLayout.bodyWidth, display: "16°", reach: 0.46, chill: 1, previewTime: time)
@@ -438,5 +446,37 @@ extension EnvironmentValues {
     var hearthDocumentationPreview: Bool {
         get { self[HearthDocumentationPreviewKey.self] }
         set { self[HearthDocumentationPreviewKey.self] = newValue }
+    }
+}
+
+/// Fixed synthetic anchor positions exercise the actual shared tooltip layout.
+private struct TooltipPreview: View {
+    let x: CGFloat
+    let y: CGFloat
+    var message = GridCamera.unreachableNote
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Theme.base
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Security").font(.system(size: 24, weight: .semibold))
+                Text("Demo cameras").foregroundStyle(Theme.muted)
+                HStack(spacing: 10) {
+                    ForEach(["Backyard", "Entrance"], id: \.self) { title in
+                        VStack(alignment: .leading, spacing: 8) {
+                            DeviceArtView(kind: .outdoorCamera, accent: Theme.brand, size: 58)
+                            Text(title).font(.system(size: 13, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                        .background(RoundedRectangle(cornerRadius: 18).fill(Theme.raised))
+                    }
+                }
+            }.padding(22)
+            Image(systemName: "info.circle").font(.system(size: 12, weight: .semibold))
+                .frame(width: 26, height: 26).background(Circle().fill(Theme.raised))
+                .panelTooltip(message, presented: true)
+                .position(x: x, y: y)
+        }
+        .frame(width: 448, height: Theme.panelSize.height)
+        .panelTooltipHost()
     }
 }

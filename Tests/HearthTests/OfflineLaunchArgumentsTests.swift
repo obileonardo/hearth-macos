@@ -38,7 +38,7 @@ final class OfflineLaunchArgumentsTests: XCTestCase {
     }
 
     func testNormalStartupAndDestinationFreeReviewModesRemainValid() throws {
-        for arguments in [["Hearth"], ["Hearth", "--window"], ["Hearth", "--review-rooms"], ["Hearth", "--review-climate"]] {
+        for arguments in [["Hearth"], ["Hearth", "--window"], ["Hearth", "--review-rooms"], ["Hearth", "--review-climate"], ["Hearth", "--review-tooltips"]] {
             try OfflineLaunchArguments.validate(arguments)
         }
     }
