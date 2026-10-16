@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     // AppDelegate is constructed before the exporter configures volatile stores.
     // Offline rendering must therefore select memory-only activity immediately.
     @MainActor let log = ActivityLog(previewItems: CommandLine.arguments.contains {
-        ["--render-preview", "--render-cars", "--render-art"].contains($0)
+        ["--render-preview", "--render-cars", "--render-art", "--review-rooms"].contains($0)
     } ? [] : nil)
     private var debugWindow: NSWindow?
     private var pendingWidgetPage: String?
@@ -73,6 +73,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        if CommandLine.arguments.contains("--review-rooms") {
+            debugWindow = RoomsReview.open()
+            return
+        }
+        #endif
         // Offline previews exit before sign-in, notifications or device subscriptions.
         if let i = CommandLine.arguments.firstIndex(of: "--render-preview"), i + 1 < CommandLine.arguments.count {
             do { try PreviewExporter.export(to: CommandLine.arguments[i + 1]) }
@@ -257,6 +263,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             NSLog("Hearth: snapshot written to \(path)")
         }
     }
+
+    #if DEBUG
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        CommandLine.arguments.contains("--review-rooms")
+    }
+    #endif
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
         -> UNNotificationPresentationOptions { [.banner, .sound] }

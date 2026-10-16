@@ -1133,9 +1133,8 @@ private struct DeviceArt {
 
     // MARK: Games console
 
-    /// A two-tone upright console, drawn from one fixed three-quarter viewpoint.
-    /// The broad near cover, recessed front spine and smaller far cover have distinct
-    /// materials. Details are subordinate to the silhouette at list-row sizes.
+    /// Near-front Slim-style proportions: the dark front is bounded by four curved
+    /// white covers, with a distinct lower disc-drive shoulder. All paths are native.
     private func gameConsole(_ ctx: GraphicsContext) {
         func polygon(_ points: [(CGFloat, CGFloat)]) -> Path {
             var path = Path()
@@ -1152,155 +1151,147 @@ private struct DeviceArt {
             for point in points.dropFirst() { path.addLine(to: P(point.0, point.1)) }
             return path
         }
-        let charcoal = Color(red: 0.065, green: 0.073, blue: 0.085)
-        let seamBlue = Color(red: 0.25, green: 0.62, blue: 1)
-        ground(ctx, 44, 88, w: 43, h: 5, opacity: 0.66)
-        ground(ctx, 74, 92, w: 38, h: 4, opacity: 0.5)
-
-        // Low circular foot: the enclosure has weight, rather than hovering on a glow.
-        let foot = Path(ellipseIn: R(25, 83.8, 38, 5.6))
-        ctx.fill(foot, with: vertical(R(25, 83.8, 38, 5.6), [
-            (Color(white: 0.24), 0), (Color(white: 0.075), 0.5), (Color(white: 0.035), 1)
+        let blue = Color(red: 0.3, green: 0.64, blue: 1)
+        ground(ctx, 43, 87.7, w: 48, h: 4.4, opacity: 0.55)
+        ground(ctx, 75, 92, w: 36, h: 3.4, opacity: 0.4)
+        let foot = Path(ellipseIn: R(21, 84.2, 45, 3.8))
+        ctx.fill(foot, with: vertical(R(21, 84.2, 45, 3.8), [
+            (Color(white: 0.34), 0), (Color(white: 0.13), 0.35), (Color(white: 0.045), 1)
         ]))
-        ctx.stroke(foot, with: .color(.white.opacity(0.13)), lineWidth: u(0.4))
+        ctx.stroke(foot, with: .color(.white.opacity(0.25)), lineWidth: u(0.35))
 
-        // Far cover first. Its narrow shaded face establishes the depth of the case.
-        var far = Path()
-        far.move(to: P(57, 18))
-        far.addCurve(to: P(66, 11), control1: P(61, 15), control2: P(64, 12))
-        far.addQuadCurve(to: P(68, 14), control: P(68.5, 10.5))
-        far.addCurve(to: P(60, 84), control1: P(65.5, 38), control2: P(61.8, 64))
-        far.addQuadCurve(to: P(54, 86), control: P(57, 86))
-        far.closeSubpath()
-        ctx.fill(far.offsetBy(dx: u(0.7), dy: u(0.4)), with: .color(Color(white: 0.41)))
-        ctx.fill(far, with: horizontal(R(54, 11, 14, 75), [
-            (Color(white: 0.67), 0), (Color(white: 0.9), 0.42), (Color(white: 0.74), 1)
+        var core = Path()
+        core.move(to: P(31, 13))
+        core.addQuadCurve(to: P(55.5, 13), control: P(43, 18))
+        core.addCurve(to: P(54, 84.5), control1: P(54.3, 36), control2: P(53.2, 64))
+        core.addQuadCurve(to: P(31.2, 84.5), control: P(42.5, 86))
+        core.addCurve(to: P(31, 13), control1: P(32, 62), control2: P(32.2, 35))
+        core.closeSubpath()
+        ctx.fill(core, with: horizontal(R(30, 13, 26, 73), [
+            (Color(white: 0.025), 0), (Color(white: 0.115), 0.38),
+            (Color(white: 0.075), 0.73), (Color(white: 0.018), 1)
         ]))
-        rim(ctx, far, R(54, 11, 14, 75), 0.65, reach: 0.12)
 
-        // Recessed dark spine. A matte centre avoids a glass-screen appearance.
-        let spine = polygon([(43, 15), (59, 18), (56, 84.5), (42, 86)])
-        ctx.fill(spine, with: horizontal(R(42, 15, 17, 71), [
-            (Color(white: 0.035), 0), (charcoal, 0.25),
-            (Color(red: 0.13, green: 0.145, blue: 0.16), 0.75), (Color(white: 0.04), 1)
+        var left = Path()
+        left.move(to: P(25.3, 8.4))
+        left.addQuadCurve(to: P(28, 9.5), control: P(26.5, 7.2))
+        left.addCurve(to: P(34, 15), control1: P(29.2, 12), control2: P(30.7, 14))
+        left.addCurve(to: P(32.5, 83.5), control1: P(32.5, 39), control2: P(32.3, 63))
+        left.addQuadCurve(to: P(25.5, 83.6), control: P(29, 86))
+        left.addCurve(to: P(26.3, 43), control1: P(27.4, 68), control2: P(28, 55))
+        left.addCurve(to: P(24.4, 11), control1: P(25.8, 31), control2: P(24.9, 18))
+        left.addQuadCurve(to: P(25.3, 8.4), control: P(23.9, 8.3))
+        left.closeSubpath()
+        ctx.fill(left.offsetBy(dx: u(-0.5), dy: u(0.4)), with: .color(Color(white: 0.48)))
+        ctx.fill(left, with: horizontal(R(24, 8, 10.5, 78), [
+            (Color(white: 0.87), 0), (Color(white: 0.98), 0.3), (Color(white: 0.74), 1)
         ]))
-        ctx.fill(polygon([(43, 15), (50, 12), (62, 15.5), (59, 18)]),
-                 with: .color(Color(white: 0.14)))
 
-        // The near cover is broad and only gently flared. A single continuous satin
-        // highlight follows the curved plastic; there are no detached white blades.
-        var cover = Path()
-        cover.move(to: P(25, 9))
-        cover.addCurve(to: P(46, 16), control1: P(30, 9), control2: P(40, 13))
-        cover.addCurve(to: P(44, 84.8), control1: P(44.2, 39), control2: P(43, 65))
-        cover.addQuadCurve(to: P(33, 84), control: P(38.5, 86))
-        cover.addCurve(to: P(23, 12), control1: P(30, 61), control2: P(25.5, 32))
-        cover.addQuadCurve(to: P(25, 9), control: P(22, 8.5))
-        cover.closeSubpath()
-        ctx.fill(cover.offsetBy(dx: u(-0.7), dy: u(0.5)), with: .color(Color(white: 0.58)))
-        ctx.fill(cover, with: .linearGradient(Gradient(stops: [
-            .init(color: Color(white: 0.98), location: 0),
-            .init(color: Color(white: 0.91), location: 0.42),
-            .init(color: Color(white: 0.76), location: 1)
-        ]), startPoint: P(29, 16), endPoint: P(49, 79)))
-        var plastic = ctx
-        plastic.clip(to: cover)
-        plastic.fill(Path(R(22, 9, 25, 77)), with: horizontal(R(22, 9, 25, 77), [
-            (.black.opacity(0.18), 0), (.clear, 0.18), (.white.opacity(0.14), 0.55),
-            (.black.opacity(0.07), 1)
+        var right = Path()
+        right.move(to: P(57.4, 8.5))
+        right.addQuadCurve(to: P(59.4, 11.2), control: P(60.8, 6.5))
+        right.addCurve(to: P(57.8, 40), control1: P(59, 21), control2: P(57.4, 31))
+        right.addCurve(to: P(61.4, 53), control1: P(57.3, 47), control2: P(58.7, 50))
+        right.addQuadCurve(to: P(65, 61), control: P(65, 56))
+        right.addLine(to: P(65, 83))
+        right.addQuadCurve(to: P(53, 84.3), control: P(60.3, 86.2))
+        right.addCurve(to: P(54, 15), control1: P(52.6, 63), control2: P(53.1, 38))
+        right.addQuadCurve(to: P(57.4, 8.5), control: P(56.6, 13.5))
+        right.closeSubpath()
+        ctx.fill(right.offsetBy(dx: u(0.65), dy: u(0.35)), with: .color(Color(white: 0.43)))
+        ctx.fill(right, with: horizontal(R(53, 8, 13, 78), [
+            (Color(white: 0.8), 0), (Color(white: 0.96), 0.38), (Color(white: 0.86), 0.8), (Color(white: 0.64), 1)
         ]))
-        rim(ctx, cover, R(23, 9, 23, 76), 0.8, reach: 0.16)
-
-        // The inner vent shadow and a short seam light sit inside the enclosure.
-        // Real status light is concentrated near the shoulder, not a neon full-height rail.
-        var innerEdge = Path()
-        innerEdge.move(to: P(46, 17))
-        innerEdge.addCurve(to: P(44.1, 83), control1: P(44.8, 38), control2: P(43.8, 63))
-        ctx.stroke(innerEdge, with: .color(.black.opacity(0.65)),
-                   style: StrokeStyle(lineWidth: u(1.3), lineCap: .round))
+        // The split is a physical gap between upper and lower covers, not a stripe.
+        for (shape, points) in [(left, [(25.9, 40.3), (32.9, 38.8)]),
+                                (right, [(53.7, 38.8), (58.1, 40.5)])] as [(Path, [(CGFloat, CGFloat)])] {
+            var split = ctx
+            split.clip(to: shape)
+            split.stroke(line(points), with: .color(Color(white: 0.07)),
+                         style: StrokeStyle(lineWidth: u(0.9), lineCap: .butt))
+        }
+        // Slight inner ventilation recesses ground the covers against the black core.
+        ctx.stroke(line([(34, 16), (33.2, 31), (32.8, 38)]), with: .color(.black.opacity(0.75)), lineWidth: u(0.65))
+        ctx.stroke(line([(54, 16), (53.6, 30), (53.7, 38)]), with: .color(.black.opacity(0.7)), lineWidth: u(0.65))
         if on {
-            let light = line([(46.7, 19), (46.2, 28), (45.9, 35)])
-            ctx.layer(blur: u(0.9), additive: true) {
-                $0.stroke(light, with: .color(seamBlue.opacity(0.5)), lineWidth: u(1.6))
+            for points in [[(33.7, 17.0), (33.2, 30.0)], [(54.1, 17.0), (53.7, 30.0)]] as [[(CGFloat, CGFloat)]] {
+                ctx.stroke(line(points), with: .color(blue.opacity(0.8)),
+                           style: StrokeStyle(lineWidth: u(0.48), lineCap: .round))
             }
-            ctx.stroke(light, with: .color(Color(red: 0.66, green: 0.84, blue: 1)),
-                       style: StrokeStyle(lineWidth: u(0.55), lineCap: .round))
         }
+        // Tall slot belongs to the lower drive bulge, with a small eject key beneath.
+        let slot = Path(roundedRect: R(59.3, 57.5, 1.55, 21.7), cornerRadius: u(0.65))
+        ctx.fill(slot, with: .color(Color(white: 0.035)))
+        ctx.stroke(slot, with: .color(Color(white: 0.56)), lineWidth: u(0.2))
+        ctx.fill(Path(roundedRect: R(59.5, 80.1, 1.1, 1.8), cornerRadius: u(0.3)), with: .color(Color(white: 0.5)))
         if size >= 60 {
-            // Short ventilation slots follow the exposed spine's perspective.
-            for index in 0..<7 {
-                let y = 22 + CGFloat(index) * 2.1
-                ctx.stroke(line([(48, y), (50.2, y + 0.3)]),
-                           with: .color(.black.opacity(0.62)), lineWidth: u(0.5))
+            for y: CGFloat in [61, 66] {
+                ctx.fill(Path(roundedRect: R(49.5, y, 1.1, 2.2), cornerRadius: u(0.35)), with: .color(Color(white: 0.025)))
+                ctx.stroke(Path(roundedRect: R(49.5, y, 1.1, 2.2), cornerRadius: u(0.35)), with: .color(.white.opacity(0.15)), lineWidth: u(0.18))
             }
-            // Two small front sockets; retain restrained metal rims.
-            for (x, y, w, h) in [(50.8, 64.0, 2.4, 0.8), (51.0, 68.1, 1.5, 0.7)] as [(CGFloat, CGFloat, CGFloat, CGFloat)] {
-                let port = Path(roundedRect: R(x, y, w, h), cornerRadius: u(0.25))
-                ctx.fill(port, with: .color(Color(white: 0.015)))
-                ctx.stroke(port, with: .color(.white.opacity(0.18)), lineWidth: u(0.22))
-            }
+            ctx.fill(disc(49.8, 79.8, 0.45), with: .color(on ? Color(white: 0.85) : Color(white: 0.25)))
         }
-        // Disc drive opening follows the far cover, with no fake labels or branding.
-        var discSlot = Path()
-        discSlot.move(to: P(61.9, 53))
-        discSlot.addQuadCurve(to: P(59.3, 76), control: P(60.3, 66))
-        ctx.stroke(discSlot, with: .color(Color(white: 0.27)),
-                   style: StrokeStyle(lineWidth: u(0.65), lineCap: .round))
 
-        // A separate controller with recognisable grips, touchpad and lower twin sticks.
-        // Its scale is intentional: these controls remain legible at the 44 px gadget size.
-        let px: CGFloat = 74, py: CGFloat = 81
+        // DualSense-like front: long tapered white grips, dark central bridge,
+        // broad trapezoid touchpad, aligned lower sticks and four separate directions.
+        let px: CGFloat = 77, py: CGFloat = 79.5
+        let padRect = R(px - 17, py - 7.5, 34, 23)
         var shell = Path()
-        shell.move(to: P(px - 11, py - 6))
-        shell.addCurve(to: P(px + 11, py - 6), control1: P(px - 5, py - 7.4), control2: P(px + 5, py - 7.4))
-        shell.addCurve(to: P(px + 17, py + 6), control1: P(px + 15, py - 5), control2: P(px + 17, py + 1))
-        shell.addCurve(to: P(px + 12, py + 12), control1: P(px + 17.5, py + 11), control2: P(px + 14, py + 14))
-        shell.addCurve(to: P(px + 7, py + 7), control1: P(px + 10.5, py + 11), control2: P(px + 9.5, py + 8.5))
-        shell.addQuadCurve(to: P(px - 7, py + 7), control: P(px, py + 4))
-        shell.addCurve(to: P(px - 12, py + 12), control1: P(px - 9.5, py + 8.5), control2: P(px - 10.5, py + 11))
-        shell.addCurve(to: P(px - 17, py + 6), control1: P(px - 14, py + 14), control2: P(px - 17.5, py + 11))
-        shell.addCurve(to: P(px - 11, py - 6), control1: P(px - 17, py + 1), control2: P(px - 15, py - 5))
+        shell.move(to: P(px - 12, py - 6))
+        shell.addQuadCurve(to: P(px + 12, py - 6), control: P(px, py - 9))
+        shell.addCurve(to: P(px + 17, py + 10), control1: P(px + 15, py - 1), control2: P(px + 17.8, py + 5))
+        shell.addQuadCurve(to: P(px + 13.2, py + 14), control: P(px + 17, py + 15.3))
+        shell.addCurve(to: P(px + 7, py + 5.5), control1: P(px + 11.5, py + 12), control2: P(px + 10.3, py + 6.2))
+        shell.addQuadCurve(to: P(px - 7, py + 5.5), control: P(px, py + 4.1))
+        shell.addCurve(to: P(px - 13.2, py + 14), control1: P(px - 10.3, py + 6.2), control2: P(px - 11.5, py + 12))
+        shell.addQuadCurve(to: P(px - 17, py + 10), control: P(px - 17, py + 15.3))
+        shell.addCurve(to: P(px - 12, py - 6), control1: P(px - 17.8, py + 5), control2: P(px - 15, py - 1))
         shell.closeSubpath()
-        let padRect = R(px - 17, py - 7.4, 34, 21)
-        ctx.fill(shell.offsetBy(dx: 0, dy: u(0.6)), with: .color(Color(white: 0.42)))
-        ctx.fill(shell, with: vertical(padRect, [
-            (Color(white: 0.97), 0), (Color(white: 0.88), 0.55), (Color(white: 0.67), 1)
-        ]))
+        ctx.fill(shell.offsetBy(dx: 0, dy: u(0.6)), with: .color(Color(white: 0.43)))
+        ctx.fill(shell, with: vertical(padRect, [(Color(white: 0.98), 0), (Color(white: 0.9), 0.55), (Color(white: 0.73), 1)]))
         var pad = ctx
         pad.clip(to: shell)
-        let middle = polygon([(px - 9, py - 3), (px + 9, py - 3),
-                              (px + 7, py + 7), (px, py + 5), (px - 7, py + 7)])
-        pad.fill(middle, with: vertical(padRect, [(Color(white: 0.19), 0), (Color(white: 0.045), 1)]))
-        let touchRect = R(px - 6.5, py - 6.1, 13, 5.3)
-        let touch = Path(roundedRect: touchRect, cornerRadius: u(1.2), style: .continuous)
-        pad.fill(touch, with: vertical(touchRect, [(Color(white: 0.95), 0), (Color(white: 0.8), 1)]))
-        pad.stroke(touch, with: .color(.black.opacity(0.16)), lineWidth: u(0.3))
+        var bridge = Path()
+        bridge.move(to: P(px - 7.6, py - 5))
+        bridge.addLine(to: P(px + 7.6, py - 5))
+        bridge.addCurve(to: P(px + 13.2, py + 14), control1: P(px + 7, py + 1), control2: P(px + 10.8, py + 8))
+        bridge.addLine(to: P(px - 13.2, py + 14))
+        bridge.addCurve(to: P(px - 7.6, py - 5), control1: P(px - 10.8, py + 8), control2: P(px - 7, py + 1))
+        bridge.closeSubpath()
+        pad.fill(bridge, with: vertical(padRect, [(Color(white: 0.19), 0), (Color(white: 0.055), 1)]))
+        let touch = polygon([(px - 7.4, py - 6.6), (px + 7.4, py - 6.6),
+                             (px + 6.1, py - 0.2), (px - 6.1, py - 0.2)])
+        pad.fill(touch, with: vertical(padRect, [(Color(white: 0.97), 0), (Color(white: 0.82), 1)]))
+        pad.stroke(touch, with: .color(.black.opacity(0.16)), lineWidth: u(0.25))
         if on {
-            for x in [px - 7.2, px + 7.2] {
-                pad.stroke(line([(x, py - 5), (x, py - 1.4)]),
-                           with: .color(seamBlue.opacity(0.9)),
-                           style: StrokeStyle(lineWidth: u(0.55), lineCap: .round))
+            for sign: CGFloat in [-1, 1] {
+                pad.stroke(line([(px + sign * 7.8, py - 6.2), (px + sign * 6.6, py - 0.4)]),
+                           with: .color(blue.opacity(0.9)), lineWidth: u(0.45))
             }
         }
-        for x in [px - 4, px + 4] {
-            pad.fill(disc(x, py + 3.5, 2.05), with: .color(Color(white: 0.035)))
-            pad.fill(disc(x, py + 3.1, 1.55), with: .radialGradient(
-                Gradient(colors: [Color(white: 0.25), Color(white: 0.11)]),
-                center: P(x - 0.4, py + 2.5), startRadius: 0, endRadius: u(2)))
+        for x in [px - 4.5, px + 4.5] {
+            pad.fill(disc(x, py + 3.3, 2.2), with: .color(Color(white: 0.025)))
+            pad.stroke(disc(x, py + 3.3, 1.75), with: .color(Color(white: 0.3)), lineWidth: u(0.35))
+            pad.fill(disc(x, py + 3.1, 1.45), with: .color(Color(white: 0.15)))
         }
-        // D-pad is a cross, not four detached decorative dots.
-        let dpad = Path(roundedRect: R(px - 12.6, py - 1.7, 4.2, 1.5), cornerRadius: u(0.3))
-            .union(Path(roundedRect: R(px - 11.25, py - 3.05, 1.5, 4.2), cornerRadius: u(0.3)))
-        pad.fill(dpad, with: .color(Color(white: 0.35)))
-        for (dx, dy) in [(10.5, -2.4), (8.6, -0.6), (12.4, -0.6), (10.5, 1.2)] as [(CGFloat, CGFloat)] {
-            pad.fill(disc(px + dx, py + dy, 0.83), with: .color(Color(white: 0.42)))
+        for (dx, dy) in [(-11.7, -2.1), (-9.9, -3.9), (-8.1, -2.1), (-9.9, -0.3)] as [(CGFloat, CGFloat)] {
+            let key = Path(roundedRect: R(px + dx - 0.7, py + dy - 0.7, 1.4, 1.4), cornerRadius: u(0.4))
+            pad.fill(key, with: .color(Color(white: 0.76)))
+            pad.stroke(key, with: .color(Color(white: 0.4)), lineWidth: u(0.25))
         }
-        if size >= 72 {
-            for x in [px - 0.9, px, px + 0.9] {
-                pad.fill(disc(x, py + 0.6, 0.18), with: .color(.black.opacity(0.45)))
-            }
+        for (dx, dy) in [(10, -4), (8.2, -2.1), (11.8, -2.1), (10, -0.2)] as [(CGFloat, CGFloat)] {
+            pad.fill(disc(px + dx, py + dy, 0.88), with: .color(Color(white: 0.84)))
+            pad.stroke(disc(px + dx, py + dy, 0.88), with: .color(Color(white: 0.45)), lineWidth: u(0.22))
         }
-        rim(ctx, shell, padRect, 0.7, reach: 0.18)
+        if size >= 100 {
+            let mark = Color(white: 0.43)
+            pad.stroke(polygon([(px + 10, py - 4.45), (px + 9.55, py - 3.65), (px + 10.45, py - 3.65)]), with: .color(mark), lineWidth: u(0.15))
+            pad.stroke(Path(R(px + 7.8, py - 2.5, 0.8, 0.8)), with: .color(mark), lineWidth: u(0.15))
+            pad.stroke(disc(px + 11.8, py - 2.1, 0.4), with: .color(mark), lineWidth: u(0.15))
+            pad.stroke(line([(px + 9.65, py - 0.55), (px + 10.35, py + 0.15)]), with: .color(mark), lineWidth: u(0.15))
+            pad.stroke(line([(px + 10.35, py - 0.55), (px + 9.65, py + 0.15)]), with: .color(mark), lineWidth: u(0.15))
+            for x: CGFloat in [-0.8, 0, 0.8] { pad.fill(disc(px + x, py + 1, 0.16), with: .color(Color(white: 0.4))) }
+        }
     }
 
     // MARK: Computer

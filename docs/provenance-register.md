@@ -1,12 +1,12 @@
 # Source and asset provenance register
 
-Reviewed 2026-10-15. This register identifies known sources and remaining evidence gaps; it is not a legal opinion or a claim that a repository author necessarily owns every input. [MIT](../LICENSE) is the intended license for original code whose rights permit it. Third-party material keeps its own terms.
+Baseline reviewed 2026-10-15; console/solar visual-reference notes added 2026-10-16. This register identifies known sources and remaining evidence gaps; it is not a legal opinion or a claim that a repository author necessarily owns every input. [MIT](../LICENSE) is the intended license for original code whose rights permit it. Third-party material keeps its own terms.
 
 ## Original code and generated documentation
 
 | Material | Evidence / generation path | Distribution and remaining review |
 |---|---|---|
-| `Sources/Hearth/`, tests and original tooling | Git-tracked Swift, Metal, Python, JavaScript and shell code; Claude/Codex assistance credited in README | Root license names 2026 Elvis Obi. Owner authority for employment/contractor/imported inputs cannot be established from Git identity; confirm privately and preserve exceptions |
+| `Sources/Hearth/`, tests and original tooling | Git-tracked Swift, Metal, Python, JavaScript and shell code; Claude/Codex assistance credited in README | Root license names 2026 Elvis Obi. The owner confirmed authority for original code and illustrations on 2026-10-15; documented third-party terms remain separate. Agreements were not independently supplied or reviewed |
 | `Resources/AppIcon.icns`, `docs/art/AppIcon-1024.png`, menu-bar image exports | Native icon/menu art generators in `Sources/Hearth/Views/ArtExporter.swift` and `scripts/render-art.sh` | Generated from project drawing code; any Apple symbols, fonts and product marks retain separate terms |
 | `docs/art/devices/*.png`, `devices.png` | Native `DeviceArt`, `EnergyArt`, vehicle drawing code and `ArtExporter` | Illustration code is tracked; model names/shapes may identify third-party products. No manufacturer endorsement or trademark license is implied |
 | `docs/art/hearth-native-showcase.png` | `PreviewProductShowcase` in `PreviewExporter.swift`, using actual AC/camera/speaker components | Current README hero; native render, not the archived generated raster scene |
@@ -16,6 +16,18 @@ Reviewed 2026-10-15. This register identifies known sources and remaining eviden
 | Runtime brand icons, media artwork and camera/face images | Home Assistant Brands or the user's integrations/data | Not bundled as Hearth-owned assets. Do not copy them from a working installation into public documentation |
 
 No external font files, recorded audio/video, datasets or photographed camera images are required by the reviewed source distribution. The register does not infer the rights of an unknown earlier reference image or copied snippet; report additional origins when discovered.
+
+## Console and solar visual-reference pass — 16 October 2026
+
+The current native drawing revision consulted the following primary visual references:
+
+| Reference | What it informed | Publication boundary |
+|---|---|---|
+| [Sony PS5 console product page](https://direct.playstation.com/en-us/buy-consoles/playstation5-console-1-tb) and its console/controller product photograph | Slim-style console proportions, curved split covers, recessed front and lower disc-drive shoulder | Reference photography remains Sony material; no reference pixels, product photograph or manufacturer drawing code were added to Hearth |
+| [Sony DualSense controller product page](https://www.playstation.com/en-us/accessories/dualsense-wireless-controller/) and its original white controller photograph | Tapered white grips, dark central bridge, touchpad, stick and directional/action-button placement | The illustration is defined by native SwiftUI paths; no controller photograph is bundled and no endorsement or trademark rights are implied |
+| [Canadian Solar HiKu CS3W-P datasheet](https://www.canadiansolar.com/wp-content/uploads/2019/12/Canadian_Solar-Datasheet-HiKu_CS3W-P_EN.pdf) | Regular 144-half-cell arrangement, described as two 12×6 sections, for a landscape module illustration | No datasheet, manufacturer artwork or product logo is bundled. The framed module and mounting supports are illustrative, not a model-specific installation or engineering specification |
+
+These references informed new code geometry and restrained materials; they do not make the illustrations manufacturer-certified or establish the rights to redistribute reference media. The existing MIT scope, third-party notices and trademark limits remain unchanged. Final renders, native review and refreshed documentation exports for this revision must be recorded separately after they actually run; this provenance entry does not record a visual review result.
 
 ## Quoted maintenance excerpts
 

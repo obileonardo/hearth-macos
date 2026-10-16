@@ -40,7 +40,20 @@ enum PreviewExporter {
         let energy = DemoEngine(.energy)
         let climate = Entity(["entity_id": "climate.preview_living_room", "state": "cool",
                               "attributes": ["friendly_name": "Living room", "temperature": 24,
-                                             "current_temperature": 25.5, "hvac_modes": ["off", "cool", "heat"]]])!
+                                             "current_temperature": 25.5,
+                                             "hvac_modes": ["off", "cool", "auto", "dry", "fan_only"],
+                                             "fan_modes": ["auto", "low", "medium", "high"], "fan_mode": "high",
+                                             "swing_modes": ["off", "on"], "swing_mode": "on", "supported_features": 128]])!
+        let climateCompanions = [
+            Entity(id: "number.preview_living_room_sleep_timer", state: "0", attributes: ["friendly_name": "Sleep timer", "min": 0, "max": 8]),
+            Entity(id: "switch.preview_living_room_lighting", state: "on", attributes: ["friendly_name": "Display light"])
+        ]
+        let climateStore = HomeStore()
+        let climateEntities = [climate] + climateCompanions
+        climateStore.playDemo(devices: [DeviceInfo(id: "preview-climate", name: "Living room air conditioner", manufacturer: "Demo Climate", model: "Wall air conditioner", areaID: "living")],
+                              entities: climateEntities,
+                              deviceOf: Dictionary(uniqueKeysWithValues: climateEntities.map { ($0.id, "preview-climate") }),
+                              areas: [Area(id: "living", name: "Living Room")], simulator: { _ in nil })
         energy.store.playDemo(update: [climate])
         let now = Date()
         let log = ActivityLog(previewItems: [
@@ -95,9 +108,20 @@ enum PreviewExporter {
                      name: "guide-activity-empty-\(suffix)", width: 448, scheme: scheme,
                      store: speakers, log: ActivityLog(previewItems: []), out: out, native: true)
             try save(PreviewScreenshotPanel(selected: .climate(climate.id)) { ClimatePage(entityID: climate.id, shown: true) },
-                     name: "guide-climate-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+                     name: "guide-climate-\(suffix)", width: 448, scheme: scheme, store: climateStore, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true, nativeScrollViewport: true) { SettingsView(previewSignedIn: false) {} },
                      name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out, native: true)
+            let adminGuide = HAAdminGuideSnapshot.example()
+            try save(PreviewScreenshotPanel(selected: nil, settings: true, nativeScrollViewport: true) {
+                AccountPage(documentation: adminGuide) {}
+            }, name: "guide-account-\(suffix)", width: 448, scheme: scheme,
+                     store: speakers, log: log, out: out, native: true)
+            try save(HAAdminWindow(documentation: adminGuide).frame(height: 560),
+                     name: "guide-integrations-\(suffix)", width: 940, scheme: scheme,
+                     store: speakers, log: log, out: out, native: true)
+            try save(HAAdminWindow(documentation: .example(section: .add)).frame(height: 560),
+                     name: "guide-integration-add-\(suffix)", width: 940, scheme: scheme,
+                     store: speakers, log: log, out: out, native: true)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport {} },
                      name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport(initialRequest: .bug) {} },

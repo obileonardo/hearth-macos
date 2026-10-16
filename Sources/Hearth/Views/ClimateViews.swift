@@ -213,7 +213,7 @@ struct ClimatePage: View {
                 } onSelect: { mode in
                     setMode(c, mode)
                 }
-                .padding(.top, 10)
+                .padding(.top, 12)
                 .reveal(shown, 4)
                 if let pendingMode {
                     HStack(spacing: 7) {
@@ -232,7 +232,7 @@ struct ClimatePage: View {
                     store.optimistic(entityID) { $0.attributes["fan_mode"] = fan }
                     store.call("climate", "set_fan_mode", entityID, ["fan_mode": fan])
                 }
-                .padding(.top, 8)
+                .padding(.top, 10)
                 .reveal(shown, 5)
             }
 
@@ -269,7 +269,7 @@ struct ClimatePage: View {
                     QuickChip(symbol: "leaf", label: "Eco", on: c.eco, tint: Theme.ok) { setEco(c, eco: eco) }
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 10)
             .reveal(shown, 6)
         }
         .disabled(c.e.isUnavailable || pendingMode != nil)

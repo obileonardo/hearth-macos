@@ -35,3 +35,11 @@ The native illustration contact sheet can be reviewed with the same candidate ex
 The refreshed guide series contains light/dark views for Assets, speakers, climate, connection, Help, bug drafts, navigation, Activity, empty Activity, two Rooms layouts and three floating-heading variants. Page images preserve the app viewport; long content may continue behind the floating dock and can be scrolled in the running app. Header close-ups are isolated components, not full-page screenshots.
 
 For this refresh, selected images were visually inspected and PNG metadata was checked for text and EXIF identity/time/location fields. Only dimensions, color-space and resolution tags were found. This review does not establish ownership of unknown earlier inputs or validate physical integrations. The archived generated raster showcase and app icon were not replaced by the guide refresh.
+
+## 16 October 2026 source refresh
+
+Generated with the 0.1.5 development candidate (build 20261016.2), separately from the installed app and the immutable 0.1.3 download. Room cards are 160-point squares in a 176-point horizontal viewport with 8-point vertical clearance; the strip reaches the panel edges. The climate guide now includes synthetic Auto/Dry/Fan modes, fan speeds and Swing/Sleep/Display companions, including the extra 2-point gaps. The console/controller and 144-half-cell solar library drawings were re-exported from the same source revision.
+
+New `guide-account-*`, `guide-integrations-*` and `guide-integration-add-*` captures use the actual native Account and integration-manager views with explicit in-memory snapshots. The generic Demo User, homeassistant.local address, sample entries and HomeKit catalog are fixtures. Preview tasks return before account attachment, catalog requests, setup flows or avatar loading; brand-icon requests are disabled and the standard fallback symbol is shown. No Apple Home household, pairing PIN/QR, saved account or physical device is used. Controls in these screenshots are illustrative, not a recorded integration setup.
+
+Room-card pixels, illustration scales and both integration screens were inspected after rendering. Actual mouse interaction is a separate verification step; a rendered image does not establish that dragging or physical controls work.

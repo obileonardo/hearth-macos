@@ -267,17 +267,15 @@ struct EnergyArt {
 
     // MARK: Solar panel
 
-    /// A framed photovoltaic module on two triangular aluminium supports. The cell
-    /// layout, glass and frame share one projection so the small illustration reads as
-    /// a single manufactured object. Producing power changes the reflected daylight;
-    /// the cells themselves never glow.
+    /// Landscape half-cell module on two equal mounting triangles. Cell boundaries,
+    /// slim aluminium frame and support attachment points share one projection.
+    /// Light changes the sheet reflection, never turns photovoltaic cells into lamps.
     private func solarPanel(_ ctx: GraphicsContext) {
-        let tl = CGPoint(x: 20, y: 16), tr = CGPoint(x: 91, y: 23)
-        let br = CGPoint(x: 80, y: 69), bl = CGPoint(x: 9, y: 62)
+        let tl = CGPoint(x: 20, y: 17), tr = CGPoint(x: 91, y: 24)
+        let bl = CGPoint(x: 9, y: 62)
         func at(_ s: CGFloat, _ t: CGFloat) -> CGPoint {
-            let top = CGPoint(x: tl.x + (tr.x - tl.x) * s, y: tl.y + (tr.y - tl.y) * s)
-            let bottom = CGPoint(x: bl.x + (br.x - bl.x) * s, y: bl.y + (br.y - bl.y) * s)
-            return P(top.x + (bottom.x - top.x) * t, top.y + (bottom.y - top.y) * t)
+            P(tl.x + (tr.x - tl.x) * s + (bl.x - tl.x) * t,
+              tl.y + (tr.y - tl.y) * s + (bl.y - tl.y) * t)
         }
         func face(_ points: [(CGFloat, CGFloat)]) -> Path {
             var path = Path()
@@ -290,114 +288,83 @@ struct EnergyArt {
         func quad(_ s0: CGFloat, _ t0: CGFloat, _ s1: CGFloat, _ t1: CGFloat) -> Path {
             face([(s0, t0), (s1, t0), (s1, t1), (s0, t1)])
         }
-        func strut(_ from: CGPoint, _ to: CGPoint, width: CGFloat) {
-            var line = Path()
-            line.move(to: from)
-            line.addLine(to: to)
-            ctx.stroke(line, with: .color(Color(white: 0.24)),
-                       style: StrokeStyle(lineWidth: u(width), lineCap: .square))
-            ctx.stroke(line, with: .color(Color(white: 0.67)),
-                       style: StrokeStyle(lineWidth: u(width * 0.48), lineCap: .square))
-        }
-
-        ground(ctx, 49, 83, w: 73, h: 6, opacity: 0.58)
-        // Each support is a closed triangle, with its long rear leg hidden by the
-        // module. The feet and rail sit on the same ground plane.
-        for s: CGFloat in [0.19, 0.82] {
-            let front = at(s, 1)
-            let foot = CGPoint(x: front.x + u(0.3), y: u(81 + s * 2))
-            let rearFoot = CGPoint(x: foot.x + u(11), y: foot.y - u(0.2))
-            strut(at(s, 0.18), rearFoot, width: 2.4)
-            strut(front, foot, width: 2.6)
-            strut(foot, rearFoot, width: 2.1)
-            strut(CGPoint(x: foot.x - u(2.5), y: foot.y),
-                  CGPoint(x: foot.x + u(3), y: foot.y), width: 2)
-        }
-
-        // A narrow extruded lower and right edge, separate from the glass surface.
-        let thickness = CGVector(dx: u(0.5), dy: u(2.5))
-        func edge(_ start: CGPoint, _ end: CGPoint) -> Path {
+        func rail(_ from: CGPoint, _ to: CGPoint, width: CGFloat) {
             var path = Path()
-            path.move(to: start)
-            path.addLine(to: end)
-            path.addLine(to: CGPoint(x: end.x + thickness.dx, y: end.y + thickness.dy))
-            path.addLine(to: CGPoint(x: start.x + thickness.dx, y: start.y + thickness.dy))
+            path.move(to: from); path.addLine(to: to)
+            ctx.stroke(path, with: .color(Color(white: 0.24)),
+                       style: StrokeStyle(lineWidth: u(width), lineCap: .square))
+            ctx.stroke(path, with: .color(Color(white: 0.59)),
+                       style: StrokeStyle(lineWidth: u(width * 0.38), lineCap: .square))
+        }
+        ground(ctx, 49, 83.5, w: 74, h: 4.8, opacity: 0.5)
+        // Parallel rails and identical side triangles attach at quarter-span points.
+        // Draw them first so the panel genuinely occludes its rear mounting legs.
+        for s: CGFloat in [0.23, 0.77] {
+            let front = at(s, 1)
+            let foot = CGPoint(x: front.x + u(0.2), y: u(81 + 2 * s))
+            let rear = CGPoint(x: foot.x + u(12), y: foot.y - u(0.2))
+            rail(at(s, 0.16), rear, width: 2.2)
+            rail(front, foot, width: 2.3)
+            rail(foot, rear, width: 1.7)
+            rail(CGPoint(x: foot.x - u(2.2), y: foot.y), CGPoint(x: foot.x + u(3), y: foot.y), width: 1.6)
+        }
+        let depth = CGVector(dx: u(0.35), dy: u(2.2))
+        func edge(_ a: CGPoint, _ b: CGPoint) -> Path {
+            var path = Path()
+            path.move(to: a); path.addLine(to: b)
+            path.addLine(to: CGPoint(x: b.x + depth.dx, y: b.y + depth.dy))
+            path.addLine(to: CGPoint(x: a.x + depth.dx, y: a.y + depth.dy))
             path.closeSubpath()
             return path
         }
-        ctx.fill(edge(at(0, 1), at(1, 1)), with: horizontal(R(9, 62, 72, 10), [
-            (Color(white: 0.63), 0), (Color(white: 0.36), 1)
-        ]))
-        ctx.fill(edge(at(1, 0), at(1, 1)), with: .color(Color(white: 0.31)))
-
+        ctx.fill(edge(at(0, 1), at(1, 1)), with: .color(Color(white: 0.4)))
+        ctx.fill(edge(at(1, 0), at(1, 1)), with: .color(Color(white: 0.27)))
         let frame = quad(0, 0, 1, 1)
-        ctx.fill(frame, with: .linearGradient(Gradient(stops: [
-            .init(color: Color(white: 0.93), location: 0),
-            .init(color: Color(white: 0.65), location: 0.42),
-            .init(color: Color(white: 0.78), location: 0.8),
-            .init(color: Color(white: 0.48), location: 1)
-        ]), startPoint: at(0, 0), endPoint: at(1, 1)))
-
-        let left: CGFloat = 0.025, right: CGFloat = 0.975
-        let top: CGFloat = 0.038, bottom: CGFloat = 0.962
-        let field = quad(left, top, right, bottom)
-        ctx.fill(field, with: .color(Color(red: 0.025, green: 0.045, blue: 0.075)))
+        ctx.fill(frame, with: .linearGradient(Gradient(colors: [Color(white: 0.78), Color(white: 0.5)]),
+                                             startPoint: at(0, 0), endPoint: at(1, 1)))
+        let field = quad(0.018, 0.027, 0.982, 0.973)
+        ctx.fill(field, with: .color(Color(red: 0.16, green: 0.19, blue: 0.23)))
         var glass = ctx
         glass.clip(to: field)
 
-        // Seventy-two flat half cells share one sheet of glass. Narrow separators
-        // and barely clipped corners avoid a tray of individually bevelled blue tiles.
-        // Fine conductors are omitted at small sizes to prevent moire.
-        let cols = 12, rows = 6
-        let cellWidth = (right - left) / CGFloat(cols)
-        let cellHeight = (bottom - top) / CGFloat(rows)
+        // 144 half cells: the conventional two 12×6 sections, rotated into
+        // landscape. No random cell tint, repeated bevel or per-cell highlight.
+        let left: CGFloat = 0.027, right: CGFloat = 0.973
+        let top: CGFloat = 0.041, bottom: CGFloat = 0.959
+        let columns = 24, rows = 6
+        let cw = (right - left) / CGFloat(columns), ch = (bottom - top) / CGFloat(rows)
         for row in 0..<rows {
-            for col in 0..<cols {
-                let gap: CGFloat = 0.0032
-                let s0 = left + CGFloat(col) * cellWidth + gap
-                let s1 = left + CGFloat(col + 1) * cellWidth - gap
-                let t0 = top + CGFloat(row) * cellHeight + (row == 3 ? 0.007 : 0.0038)
-                let t1 = top + CGFloat(row + 1) * cellHeight - (row == 2 ? 0.007 : 0.0038)
-                let sx = (s1 - s0) * 0.028, ty = (t1 - t0) * 0.025
-                let cell = face([(s0 + sx, t0), (s1 - sx, t0), (s1, t0 + ty),
-                                 (s1, t1 - ty), (s1 - sx, t1), (s0 + sx, t1),
-                                 (s0, t1 - ty), (s0, t0 + ty)])
-                let variation = Double((col * 3 + row * 5) % 7) * 0.0012
-                let light = on ? Color(red: 0.075 + variation, green: 0.12 + variation, blue: 0.19 + variation)
-                               : Color(red: 0.065 + variation, green: 0.085 + variation, blue: 0.12 + variation)
-                let dark = on ? Color(red: 0.035, green: 0.065, blue: 0.11)
-                              : Color(red: 0.035, green: 0.046, blue: 0.066)
-                // Every cell is lit by the same daylight field. Restarting a strong
-                // gradient for each cell creates an artificial raised-tile appearance.
-                glass.fill(cell, with: .linearGradient(Gradient(colors: [light, dark]),
-                                                       startPoint: at(0, 0), endPoint: at(1, 1)))
+            for column in 0..<columns {
+                let s0 = left + CGFloat(column) * cw + (column == 12 ? 0.006 : 0.0015)
+                let s1 = left + CGFloat(column + 1) * cw - (column == 11 ? 0.006 : 0.0015)
+                let t0 = top + CGFloat(row) * ch + 0.0028
+                let t1 = top + CGFloat(row + 1) * ch - 0.0028
+                let cell = quad(s0, t0, s1, t1)
+                glass.fill(cell, with: .linearGradient(Gradient(colors: [
+                    on ? Color(red: 0.085, green: 0.135, blue: 0.2) : Color(red: 0.06, green: 0.095, blue: 0.14),
+                    Color(red: 0.025, green: 0.05, blue: 0.085)
+                ]), startPoint: at(0, 0), endPoint: at(1, 1)))
                 if size >= 100 {
-                    var busbars = Path()
-                    for fraction: CGFloat in [0.2, 0.4, 0.6, 0.8] {
-                        let s = s0 + (s1 - s0) * fraction
-                        busbars.move(to: at(s, t0 + ty))
-                        busbars.addLine(to: at(s, t1 - ty))
+                    // Conductors follow the long side of each half cell.
+                    var wires = Path()
+                    for fraction: CGFloat in [0.25, 0.5, 0.75] {
+                        let x = s0 + (s1 - s0) * fraction
+                        wires.move(to: at(x, t0)); wires.addLine(to: at(x, t1))
                     }
-                    glass.stroke(busbars, with: .color(Color(red: 0.56, green: 0.65, blue: 0.73).opacity(on ? 0.2 : 0.12)),
-                                 lineWidth: u(0.1))
+                    glass.stroke(wires, with: .color(Color(white: 0.7).opacity(0.16)), lineWidth: u(0.075))
                 }
             }
         }
-
-        // One restrained cool reflection across the complete sheet of glass, rather
-        // than separate cell highlights or an artificial illuminated spot.
-        let reflection = face([(0, 0), (0.53, 0), (0.26, 1), (-0.1, 1)])
-        glass.fill(reflection, with: .linearGradient(Gradient(colors: [
-            Color(red: 0.79, green: 0.88, blue: 0.96).opacity(on ? 0.1 : 0.05), .clear
-        ]), startPoint: at(0.1, 0), endPoint: at(0.6, 1)))
-        ctx.stroke(field, with: .color(.black.opacity(0.75)), lineWidth: u(0.45))
-        var highlight = Path()
-        highlight.move(to: at(0, 1))
-        highlight.addLine(to: at(0, 0))
-        highlight.addLine(to: at(1, 0))
-        ctx.stroke(highlight, with: .color(.white.opacity(0.8)),
-                   style: StrokeStyle(lineWidth: u(0.65), lineJoin: .miter))
-        ctx.stroke(frame, with: .color(.black.opacity(0.28)), lineWidth: u(0.35))
+        // A single large, very faint reflection belongs to the glass sheet.
+        glass.fill(face([(0, 0), (0.47, 0), (0.24, 1), (-0.1, 1)]),
+                   with: .linearGradient(Gradient(colors: [.white.opacity(on ? 0.07 : 0.03), .clear]),
+                                         startPoint: at(0, 0), endPoint: at(0.55, 1)))
+        ctx.stroke(field, with: .color(Color(white: 0.025)), lineWidth: u(0.45))
+        var topRim = Path()
+        topRim.move(to: at(0, 1)); topRim.addLine(to: at(0, 0)); topRim.addLine(to: at(1, 0))
+        ctx.stroke(topRim, with: .color(Color(white: 0.87)),
+                   style: StrokeStyle(lineWidth: u(0.5), lineJoin: .miter))
+        ctx.stroke(frame, with: .color(.black.opacity(0.22)), lineWidth: u(0.3))
     }
 
 }

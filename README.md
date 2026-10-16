@@ -135,7 +135,9 @@ Review [the container isolation and maintenance notes](docs/optional-containers.
 
 ### 3. Add your devices to Home Assistant
 
-In Home Assistant, go to **Settings → Devices & services → Add integration** and add each brand you own (LG ThinQ, Ring, Philips Hue, Sonos and thousands more). Some brands need the community store [HACS](https://hacs.xyz) first. See [Brand notes](#brand-notes) for a few that need extra steps.
+In Home Assistant, go to **Settings → Devices & services → Add integration** and add your supported brands. Hearth reads their devices, state and available controls. Some community integrations need [HACS](https://hacs.xyz) first; see [Brand notes](#brand-notes).
+
+For Apple Home accessories, choose the right direction: **HomeKit Device** brings a supported accessory into Home Assistant; **HomeKit Bridge** exposes supported Home Assistant entities to Apple Home. Follow the [HomeKit walkthrough](docs/homekit.md) before changing any existing pairing.
 
 ### 4. Build or open Hearth
 
@@ -150,17 +152,45 @@ Quit an already running copy before opening a second build with the same bundle 
 
 ### 5. Sign in
 
-Click the Hearth icon in your menu bar. Enter your Home Assistant address (for example `http://homeassistant.local:8123` or `http://localhost:8123`) and your **Home Assistant username and password**. Hearth keeps the refresh token in Keychain; it does not save your password.
+1. Open Hearth from the Mac menu bar. Enter the Home Assistant address you already use in a browser, for example `http://homeassistant.local:8123`. Prefer HTTPS on shared or remote networks.
+2. Enter your **Home Assistant** username and password, then choose **Sign in**. Hearth stores the refresh token in Keychain, not your password.
+3. Open **Settings → Signed in as…** (the **Server & integrations** row) to check the connection. Then browse **Rooms** or **Assets**; empty categories mean the server has not exposed matching devices yet.
 
-**MFA sign-in is not supported yet.** If Home Assistant requests a second authentication step, Hearth reports that limitation. Keep MFA enabled; do not weaken your account to use this preview. The [development guide](docs/local-development.md#authentication-and-isolation) describes the separate developer-token path for an isolated test server.
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Connect your server</h3>
+      <img src="docs/screenshots/guide-connect-light.png" width="360" alt="Illustrated sign-in with generic Home Assistant address, demo username and empty password">
+      <p>Use your own Home Assistant address and account. These illustrated fields contain no real credentials.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Check your connection</h3>
+      <img src="docs/screenshots/guide-account-light.png" width="360" alt="Synthetic Account page showing a generic connected Home Assistant server and integration counts">
+      <p>Confirm the server and connection status before exploring Rooms and Assets. This account is synthetic.</p>
+    </td>
+  </tr>
+</table>
 
-macOS will ask to allow notifications. Say yes if you want doorbell and people alerts.
+**MFA sign-in is not supported yet.** Keep MFA enabled; do not weaken your account to use this preview. [Connection guide and troubleshooting](docs/using-hearth.md#connect-your-own-server).
 
-<p align="center">
-  <img src="docs/screenshots/guide-connect-light.png" width="360" alt="Illustrated Hearth sign-in setup with a generic Home Assistant address, demo username and empty password">
-</p>
+#### Manage integrations from Hearth
 
-The illustration uses a generic address and `demo` username, with an empty password. Enter your own Home Assistant details in the app.
+Open **Settings → Signed in as… → Integrations and devices → Add integration**. Search for a supported brand or service and follow Home Assistant's setup form. Some flows open a browser; unsupported steps offer **Open in Home Assistant**. Available integrations and permissions come from your server, and a community integration must already be installed there. [Integration setup guide](docs/using-hearth.md#add-and-review-integrations).
+
+Want Apple Home too? The [HomeKit walkthrough](docs/homekit.md) explains importing accessories, bridging entities to Apple Home and preserving existing pairings. Hearth does not directly import your Apple Home household.
+
+#### Review the integrations already connected
+
+<img src="docs/screenshots/guide-integrations-dark.png" width="960" alt="Synthetic integration manager showing sample HomeKit Bridge, HomeKit Device and climate entries">
+
+See which integrations Home Assistant has loaded. The names and working states here are offline examples.
+
+#### Find a supported integration
+
+<img src="docs/screenshots/guide-integration-add-dark.png" width="960" alt="Offline integration search distinguishing HomeKit Device from HomeKit Bridge">
+
+Search the server’s catalog, then follow its setup. These examples do not pair a real accessory.
+
 
 ### 6. Put devices in rooms
 
@@ -261,7 +291,7 @@ Hearth does not send the report automatically or attach logs, account details or
 | **Ring** (doorbells, cameras) | Built-in integration | Two-factor code once. Live view works through WebRTC. |
 | **Amazon Echo** | Built-in **Alexa Devices** | Needs Amazon 2-step verification with an **authenticator app**. Sign in with the email or phone number your Amazon account actually uses. If you see "Invalid authentication" with correct details, see [patches](homeassistant/patches). |
 | **Eufy** (cameras, HomeBase) | [Eufy Security](https://github.com/fuatakgun/eufy_security) from HACS, plus the `eufy-security-ws` bridge | Use a second Eufy account that your devices are shared with (Eufy allows one session per account). The bridge is in `homeassistant/docker-compose.yml` under the `eufy` profile. |
-| **Apple TV, HomePod** | Built-in **Apple TV** | Add by IP address. In the Home app, let anyone on the same network use your speakers and TVs, without a password. The Apple TV shows a PIN to type in once. In Docker, see [patches](homeassistant/patches). |
+| **Apple TV, HomePod** | Built-in **Apple TV** | Follow the [official pairing flow](https://www.home-assistant.io/integrations/apple_tv/); review your model’s AirPlay/Home permissions before changing them. Keep the PIN private. Docker discovery troubleshooting is separate from [HomeKit setup](docs/homekit.md); optional [patch notes](homeassistant/patches/README.md). |
 | **Bambu Lab** (3D printers) | [Bambu Lab](https://github.com/greghesp/ha-bambulab) from HACS | Sign in with your Bambu account, or use LAN mode with the printer's access code. Prints show on the Gadgets page. |
 | **PlayStation** | Built-in **PlayStation Network** | Sign in with your PSN account. Shows when the console is on and what's playing. |
 | **Tesla** | Built-in **Tesla Fleet**, or **Teslemetry** or **Tessie** | Charge, range, charging, location, locks and climate show on the Vehicles page. |

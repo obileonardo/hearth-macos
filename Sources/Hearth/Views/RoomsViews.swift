@@ -236,6 +236,14 @@ struct RoomsOverview: View {
     }
 }
 
+/// Shared dimensions keep cards square and preserve room for strokes and focus rings.
+enum RoomStripLayout {
+    static let tileSide: CGFloat = 160
+    static let spacing: CGFloat = 12
+    static let verticalClearance: CGFloat = 8
+    static let viewportHeight = tileSide + 2 * verticalClearance
+}
+
 /// Select a floor, then a room, while keeping that room's real devices in view.
 private struct RoomsExplorer: View {
     @EnvironmentObject var store: HomeStore
@@ -267,13 +275,9 @@ private struct RoomsExplorer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Explore rooms").font(.system(size: 14, weight: .semibold))
-                    Text("Choose a room to see its devices.")
-                        .font(.system(size: 12)).foregroundStyle(Theme.muted)
-                }
-                Spacer(minLength: 0)
+            HStack(spacing: 12) {
+                Text("Browse rooms").font(.system(size: 14, weight: .semibold)).fixedSize()
+                Spacer(minLength: 8)
                 Menu {
                     Button { chooseFloor(.all) } label: { floorLabel("All floors", selected: scope == .all) }
                     ForEach(floors) { floor in
@@ -285,35 +289,51 @@ private struct RoomsExplorer: View {
                         Button { chooseFloor(.unassigned) } label: { floorLabel("No floor", selected: scope == .unassigned) }
                     }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 7) {
                         Image(systemName: "square.3.layers.3d").accessibilityHidden(true)
                         Text(floorName).lineLimit(1)
                         Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).accessibilityHidden(true)
                     }
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 10).frame(height: 32)
-                    .background(Capsule().fill(Theme.fg.opacity(0.06)).overlay(Capsule().strokeBorder(Theme.hairline)))
+                    .padding(.horizontal, 12).frame(height: 36)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Theme.fg.opacity(0.045)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline)))
                 }
-                .menuStyle(.borderlessButton).frame(maxWidth: 160, alignment: .trailing)
+                .menuStyle(.borderlessButton).frame(maxWidth: 200, alignment: .trailing)
                 .accessibilityLabel("Floor").accessibilityValue(floorName)
             }
+            .frame(minHeight: 40)
             if items.isEmpty {
                 CenteredPageEmptyState {
                     emptyState(floors.isEmpty && store.areas.isEmpty ? "No rooms yet" : "No rooms on this floor",
                                detail: "Add rooms and floor assignments in Home Assistant to see them here.")
                 }
             } else {
-                ScrollView(.horizontal) {
-                    LazyHStack(alignment: .top, spacing: 10) {
-                        ForEach(items) { item in roomTile(item).frame(width: 148) }
+                VStack(alignment: .leading, spacing: 5) {
+                    ScrollView(.horizontal) {
+                        LazyHStack(alignment: .center, spacing: RoomStripLayout.spacing) {
+                            ForEach(items) { item in roomTile(item) }
+                        }
+                        .padding(.horizontal, PanelView.scrollContentInset)
+                        .padding(.vertical, RoomStripLayout.verticalClearance)
+                        .roomStripMouseDrag()
                     }
-                    .padding(2)
+                    .frame(height: RoomStripLayout.viewportHeight)
+                    .scrollIndicators(.never)
+                    .scrollClipDisabled()
+                    // The only horizontal edge is the actual panel edge. No
+                    // inset rectangular mask clips tiles, corners or focus rings.
+                    .padding(.horizontal, -PanelView.scrollContentInset)
+                    .accessibilityLabel("Rooms on \(floorName)")
+                    .accessibilityHint("Scroll horizontally or drag to browse rooms; select a room to show its devices")
+                    Text("Drag or scroll to browse")
+                        .font(.system(size: 10.5)).foregroundStyle(Theme.faint)
+                        .accessibilityHidden(true)
                 }
-                .scrollIndicators(.never)
-                .accessibilityLabel("Rooms on \(floorName)")
                 ScreenFlow(route: selection) { item in
                     if let item { roomDevices(item) }
                 }
+                .padding(.top, 4)
             }
         }
     }
@@ -333,33 +353,36 @@ private struct RoomsExplorer: View {
         let selected = item == selection
         let name = area?.name ?? "No room"
         return Button { state.selectedRoom = item } label: {
-            VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Image(systemName: RoomStyle.symbol(area)).font(.system(size: 14, weight: .medium))
+                    Image(systemName: RoomStyle.symbol(area)).font(.system(size: 16, weight: .medium))
                         .foregroundStyle(selected ? Theme.brand : Theme.muted)
                         .accessibilityHidden(true)
                     Spacer(minLength: 0)
-                    if selected {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.brand)
-                            .font(.system(size: 13)).accessibilityHidden(true)
-                    }
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.brand)
+                        .font(.system(size: 13)).opacity(selected ? 1 : 0).accessibilityHidden(true)
                 }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(2)
-                        .frame(height: 32, alignment: .topLeading)
-                    Text(roomFloorName(area)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
-                }
+                .frame(height: 22)
+                .padding(.bottom, 8)
+                Text(name).font(.system(size: 14, weight: .semibold)).lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 36, alignment: .topLeading)
+                Text(roomFloorName(area)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                    .frame(height: 14).padding(.top, 3)
+                Spacer(minLength: 8)
                 HStack(spacing: -4) {
                     ForEach(devices.prefix(3)) { device in
                         DeviceArtView(kind: device.kind, active: device.online, accent: device.accent, size: 24)
                             .frame(width: 26, height: 26)
                     }
-                    Spacer(minLength: 0)
-                    Text("\(devices.count)").font(.system(size: 12, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(Theme.muted)
+                    Spacer(minLength: 4)
+                    Text("\(devices.count) \(devices.count == 1 ? "device" : "devices")")
+                        .font(.system(size: 10.5, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(Theme.muted).lineLimit(1)
                 }.frame(height: 26).accessibilityHidden(true)
             }
-            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .frame(width: RoomStripLayout.tileSide, height: RoomStripLayout.tileSide, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(selected ? Theme.brand.opacity(0.08) : Theme.raised))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -382,7 +405,7 @@ private struct RoomsExplorer: View {
         let area = item.areaID.flatMap { store.areas[$0] }
         let devices = store.homeDevices(inArea: item.areaID)
         let name = area?.name ?? "No room"
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(name).font(.system(size: 16, weight: .semibold)).accessibilityAddTraits(.isHeader)

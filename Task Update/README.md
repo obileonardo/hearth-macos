@@ -1,6 +1,6 @@
 # Task update
 
-Updated 15 October 2026. This register covers Claude's foundation, interrupted work completed by Codex, subsequent product feedback and publication. Implemented source, reviewed behavior and a downloadable release are recorded separately. Fixture checks do not establish compatibility with every physical device or supported Mac.
+Updated 16 October 2026. This register covers Claude's foundation, interrupted work completed by Codex, subsequent product feedback and publication. Implemented source, reviewed behavior and a downloadable release are recorded separately. Fixture checks do not establish compatibility with every physical device or supported Mac.
 
 ## Current source follow-up
 
@@ -9,6 +9,10 @@ The follow-up source includes the queued illustration refinements, 12-point floa
 The repeated open-source audit has been performed; its sensitive findings and operational handoff stay private. Architecture, setup, usage, provenance and container guides are included, with 41 refreshed synthetic PNGs. All 92 documentation PNGs were checked for identifying metadata. The rights holder confirmed authority for original code and illustrations; documented third-party terms still apply.
 
 These source changes are distinct from the released 0.1.3 download below. The first combined private hosted check passed 220 XCTest cases with two GPU skips and no failures, plus 27 release/maintenance fixtures and the build/contrast/shell/optional WidgetKit gates. Additional regressions cover empty-room pages and malformed temperature, power, duration and battery readings; each final source revision must pass the required hosted check. Source preparation does not update an installed app or publish a new download. Final public-candidate checks and publication approval remain delivery gates.
+
+### Current illustration and Rooms pass — 16 October
+
+A further source revision responds to the latest visual feedback: the console now has a near-front Slim-style silhouette, four curved covers, a recessed front and distinct disc-drive shoulder, with a revised controller. The solar illustration uses a regular 144-half-cell layout, one projected frame and evenly spaced supports. The interactive Rooms strip uses square cards and adds mouse-drag browsing alongside native scrolling. These are prepared source changes; combined build, final art renders and native interaction review for this revision remain pending. Earlier image counts and completed checks above describe the preceding source revision. No new installed app or download is claimed here. Visual references and their limits are recorded in [provenance](../docs/provenance-register.md#console-and-solar-visual-reference-pass--16-october-2026).
 
 ## Released 0.1.3 baseline
 
@@ -34,7 +38,7 @@ The [0.1.3 universal preview](https://github.com/obileonardo/hearth-macos/releas
 | Speaker presentation | Codex | Grid/list, connected glow, playback waves and grouping; actual grouping distinguished from the same track | No new dependency |
 | Uniform asset cards and speaker text | Codex | Consistent tiles, room icons, centered hierarchy and wrapped names; owner accepted appearance | No new dependency |
 | Device proportions | Codex | Larger fridge, TV and AC; Echo Dot reduced 30%; camera proportions refined | Further art direction remains optional |
-| Native gadget illustrations | Codex | Console refined; solar panel rebuilt with a consistent 72-cell projection, slim frame, coherent supports and restrained daylight reflection; on/off and 24/46/72/160pt renders reviewed | Delivered in 0.1.3 |
+| Native gadget illustrations | Codex | The released 0.1.3 baseline used the earlier console and 72-cell solar projection, with on/off scale renders reviewed for that release. The current source has a further console/controller redraw and regular 144-half-cell solar layout, described above | Current revision awaits combined render/native review; 0.1.3 remains the published baseline |
 | 3D map shadows and rendering | Codex | Contact shadows, improved masking and directional SceneKit lighting retained | Supported GPU/OS coverage below |
 | Metal contact lighting | Codex | Native ray-traced contact pass with fallback; local M4 GPU checks passed | Not full path tracing; hosted GPU checks skip where unsupported |
 | Map defaults, controls and toolbar | Codex | See-through collapsed map, consolidated full-map toolbar and smoother plan/3D transitions | No new dependency |

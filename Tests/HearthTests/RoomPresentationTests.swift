@@ -58,4 +58,10 @@ final class RoomPresentationTests: XCTestCase {
         XCTAssertEqual(RoomPresentation.emptyRoomMessage(name: nil), fallback)
         XCTAssertEqual(RoomPresentation.emptyRoomMessage(name: "  \n"), fallback)
     }
+    func testRoomStripUsesSquareTilesAndClearanceForFocusAndCorners() {
+        XCTAssertEqual(RoomStripLayout.tileSide, 160)
+        XCTAssertEqual(RoomStripLayout.viewportHeight, 176)
+        XCTAssertGreaterThanOrEqual(RoomStripLayout.verticalClearance, 8)
+        XCTAssertEqual(RoomStripLayout.spacing, 12)
+    }
 }
