@@ -2,6 +2,16 @@ import AppKit
 import Combine
 import SwiftUI
 
+/// A malformed finite reading can still exceed Int. Keep normal notification
+/// rounding while omitting impossible values instead of trapping or inventing 0.
+enum LivePillClimateReading {
+    static func text(_ value: Double) -> String? {
+        guard value.isFinite, Int(exactly: value.rounded()) != nil else { return nil }
+        if value == value.rounded() { return degrees(value) }
+        return String(format: "%.1f", value)
+    }
+}
+
 /// Something worth a moment of attention: who's at the door, the alarm, a car that's charged.
 struct PillEvent: Equatable, Identifiable {
     enum Kind: String, CaseIterable, Identifiable {
@@ -135,7 +145,7 @@ final class LivePill: ObservableObject {
             guard c.on, let target = c.target, let room = c.room, let before = was.room else { return }
             let cooling = ["cool", "dry"].contains(new.state), heating = new.state == "heat"
             if (cooling && before > target && room <= target) || (heating && before < target && room >= target) {
-                let degrees = target == target.rounded() ? "\(Int(target))" : String(format: "%.1f", target)
+                guard let degrees = LivePillClimateReading.text(target) else { return }
                 present(PillEvent(kind: .climate, place: Climate.shortName(new.name), detail: "Reached \(degrees)°",
                                   symbol: Theme.modeSymbol(new.state), tint: Theme.air(new.state), page: new.id,
                                   actionSymbol: "thermometer.medium", actionLabel: "Open climate"))

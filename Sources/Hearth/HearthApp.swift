@@ -55,7 +55,16 @@ enum MenuBarIcon {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
-    @MainActor let store = HomeStore()
+    @MainActor let store: HomeStore = {
+        // Validate offline intent before constructing any saved-session store.
+        // A missing destination must never fall through to normal home startup.
+        do { try OfflineLaunchArguments.validate(CommandLine.arguments) }
+        catch {
+            fputs("Offline export stopped: \(error.localizedDescription)\n", stderr)
+            exit(2)
+        }
+        return HomeStore()
+    }()
     // AppDelegate is constructed before the exporter configures volatile stores.
     // Offline rendering must therefore select memory-only activity immediately.
     @MainActor let log = ActivityLog(previewItems: CommandLine.arguments.contains {
