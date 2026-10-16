@@ -122,6 +122,8 @@ final class LiftView<Content: View>: NSView, NSDraggingSource {
         lifting = false
         down = nil
         onEnd?()
-        NSCursor.arrow.set()
+        // The pointer may now be over a text field or another window. Let
+        // AppKit restore that view's cursor instead of imposing a global arrow.
+        window?.invalidateCursorRects(for: self)
     }
 }

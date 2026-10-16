@@ -97,15 +97,17 @@ for arch in arm64 x86_64; do
   lipo "$source_app/Contents/MacOS/Hearth" -verify_arch "$arch" || fail "The app must contain both arm64 and x86_64"
 done
 
+python3 scripts/bundle-notices.py "$source_app" --verify || fail "App license notices are missing or stale; rebuild before packaging"
+
 payload="$work_dir/payload"
 staged_app="$payload/Hearth.app"
 mkdir -p "$staged_app/Contents/MacOS" "$staged_app/Contents/Resources"
-# The current bundle has one compiled executable, one plist and its app icon.
+# The bundle contains the executable, plist, icon and exact reviewed license notices.
 # Reject unexpected payload files instead of silently including private material or dropping features.
 while IFS= read -r item; do
   relative="${item#"$source_app/"}"
   case "$relative" in
-    Contents/Info.plist|Contents/MacOS/Hearth|Contents/Resources/AppIcon.icns|Contents/_CodeSignature/*) ;;
+    Contents/Info.plist|Contents/MacOS/Hearth|Contents/Resources/AppIcon.icns|Contents/Resources/LICENSE|Contents/Resources/THIRD_PARTY_NOTICES.md|Contents/Resources/docs/licenses/Apache-2.0.txt|Contents/Resources/docs/licenses/eufy-security-client-MIT.txt|Contents/_CodeSignature/*) ;;
     *) fail "Unexpected bundle file: $relative. Review packaging before adding a new resource." ;;
   esac
 done < <(find "$source_app" -type f)
@@ -114,6 +116,8 @@ cp "$source_app/Contents/MacOS/Hearth" "$staged_app/Contents/MacOS/Hearth"
 if [[ -f "$source_app/Contents/Resources/AppIcon.icns" ]]; then
   cp "$source_app/Contents/Resources/AppIcon.icns" "$staged_app/Contents/Resources/AppIcon.icns"
 fi
+python3 scripts/bundle-notices.py "$staged_app"
+python3 scripts/bundle-notices.py "$staged_app" --verify
 chmod 755 "$staged_app/Contents/MacOS/Hearth"
 # All modifications affect the staged copy, never the supplied/running app.
 strip -S "$staged_app/Contents/MacOS/Hearth"
@@ -157,6 +161,8 @@ To install:
 4. Eject this disk image after copying the app.
 
 This image contains the app, an Applications shortcut and these instructions.
+The app includes LICENSE, THIRD_PARTY_NOTICES.md and the referenced upstream
+license texts in Contents/Resources. These notices remain with the installed copy.
 It contains no account credentials, saved homes, camera history or personal settings.
 Installing is your choice: creating this image does not change a running or installed Hearth.
 The preview and signed-unnotarized variants may be blocked by macOS Gatekeeper.

@@ -6,11 +6,12 @@ struct Climate {
 
     var on: Bool { e.state != "off" && !e.isUnavailable }
     var mode: String { e.state }
-    var room: Double? { e.num("current_temperature") }
-    var target: Double? { e.num("temperature") }
-    var minTemp: Double { e.num("min_temp") ?? 16 }
-    var maxTemp: Double { e.num("max_temp") ?? 30 }
-    var step: Double { max(e.num("target_temp_step") ?? 1, 0.5) }
+    var room: Double? { e.num("current_temperature").flatMap { $0.isFinite ? $0 : nil } }
+    var target: Double? { e.num("temperature").flatMap { $0.isFinite ? $0 : nil } }
+    var temperatureRange: ClosedRange<Double>? { ClimateTemperatureScale.range(e) }
+    var minTemp: Double { temperatureRange?.lowerBound ?? 16 }
+    var maxTemp: Double { temperatureRange?.upperBound ?? 30 }
+    var step: Double { ClimateTemperatureScale.step(e) }
     var modes: [String] {
         let order = ["cool", "heat", "heat_cool", "auto", "dry", "fan_only"]
         return e.list("hvac_modes").filter { $0 != "off" }.sorted {
@@ -52,7 +53,7 @@ struct Climate {
     var swinging: Bool { swingMode.map { !["off", "stop", "fixed"].contains($0.lowercased()) } ?? false }
     var ecoPreset: String? { presets.first { ["eco", "energy_saving", "power_save"].contains($0.lowercased()) } }
     var eco: Bool { preset != nil && preset == ecoPreset }
-    var canTurnOn: Bool { (Int(e.num("supported_features") ?? 0) & 128) != 0 }
+    var canTurnOn: Bool { ((e.num("supported_features").flatMap(Int.init(exactly:)) ?? 0) & 128) != 0 }
 
     var intensity: Double {
         let f = (fan ?? "").lowercased()
@@ -101,7 +102,9 @@ extension HomeStore {
 }
 
 func degrees(_ v: Double) -> String {
-    v.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(v))" : v.formatted(.number.precision(.fractionLength(1)))
+    guard v.isFinite else { return "—" }
+    if let whole = Int(exactly: v) { return "\(whole)" }
+    return v.formatted(.number.precision(.fractionLength(0...3)))
 }
 
 // MARK: Page
@@ -115,6 +118,7 @@ struct ClimatePage: View {
     @State private var sendTask: Task<Void, Never>?
     @State private var pendingMode: String?
     @State private var climateFailure: String?
+    @State private var climateFailureReport: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -125,6 +129,9 @@ struct ClimatePage: View {
 
     private func page(_ c: Climate) -> some View {
         let target = dragTarget ?? c.target
+        let chill = ACAirAppearance.normalizedChill(target: target,
+                                                  lowerBound: c.temperatureRange?.lowerBound,
+                                                  upperBound: c.temperatureRange?.upperBound)
         let air = Theme.air(c.on ? c.mode : "off")
         let maker = store.device(of: entityID)?.manufacturer.map { $0 == "LGE" ? "LG" : $0 }
         let sensors = store.siblings(of: entityID, domain: "sensor")
@@ -148,10 +155,12 @@ struct ClimatePage: View {
 
             // The unit
             ACUnitView(power: c.on ? 1 : 0, mode: c.mode, intensity: c.intensity, swing: c.swinging,
-                       width: 246, display: c.on ? target.map(degrees) : nil, reach: 0.46)
+                       width: ClimateIllustrationLayout.bodyWidth, display: c.on ? target.map(degrees) : nil,
+                       reach: 0.46, chill: chill)
                 .animation(.glide, value: c.on)
+                .animation(reduceMotion ? .easeOut(duration: 0.1) : .glide, value: chill)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 2)
+                .padding(.top, ClimateIllustrationLayout.topSpacing)
                 .reveal(shown, 1)
 
             // Temperature and status
@@ -181,8 +190,8 @@ struct ClimatePage: View {
                     }
                     if let energy, let used = Self.energyText(energy) {
                         Label("\(used) today", systemImage: "bolt")
-                    } else if let filter, let left = Double(filter.state) {
-                        Label("Filter \(Int(left))\(filter.str("unit_of_measurement") ?? "%")", systemImage: "aqi.low")
+                    } else if let filter, let left = Double(filter.state), let whole = Int(exactly: left.rounded(.towardZero)) {
+                        Label("Filter \(whole)\(filter.str("unit_of_measurement") ?? "%")", systemImage: "aqi.low")
                     }
                 }
                 .font(.system(size: 12.5, weight: .medium))
@@ -194,8 +203,8 @@ struct ClimatePage: View {
             .reveal(shown, 2)
 
             // Target slider
-            if c.target != nil {
-                TemperatureControl(value: target ?? c.minTemp, range: c.minTemp...c.maxTemp, step: c.step, tint: air, active: c.on) {
+            if c.target != nil, let range = c.temperatureRange {
+                TemperatureControl(value: target ?? range.lowerBound, range: range, step: c.step, tint: air, active: c.on) {
                     setTarget(c, $0)
                 }
                 .reveal(shown, 3)
@@ -209,7 +218,7 @@ struct ClimatePage: View {
                 } onSelect: { mode in
                     setMode(c, mode)
                 }
-                .padding(.top, 10)
+                .padding(.top, 12)
                 .reveal(shown, 4)
                 if let pendingMode {
                     HStack(spacing: 7) {
@@ -228,7 +237,7 @@ struct ClimatePage: View {
                     store.optimistic(entityID) { $0.attributes["fan_mode"] = fan }
                     store.call("climate", "set_fan_mode", entityID, ["fan_mode": fan])
                 }
-                .padding(.top, 8)
+                .padding(.top, 10)
                 .reveal(shown, 5)
             }
 
@@ -265,19 +274,32 @@ struct ClimatePage: View {
                     QuickChip(symbol: "leaf", label: "Eco", on: c.eco, tint: Theme.ok) { setEco(c, eco: eco) }
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 10)
             .reveal(shown, 6)
         }
         .disabled(c.e.isUnavailable || pendingMode != nil)
         .alert("Couldn’t change the air conditioner", isPresented: Binding(get: { climateFailure != nil }, set: { if !$0 { climateFailure = nil } })) {
             Button("OK") { climateFailure = nil }
+            if let climateFailureReport {
+                Button("Copy diagnostic details") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(climateFailureReport, forType: .string)
+                }
+            }
         } message: { Text(climateFailure ?? "") }
         .onDisappear { sendTask?.cancel() }
+        .onChange(of: store.authenticationGeneration) { _, _ in
+            sendTask?.cancel()
+            dragTarget = nil
+            pendingMode = nil
+            climateFailure = nil
+            climateFailureReport = nil
+        }
     }
 
     /// Energy in the unit the sensor reports, stepping Wh up to kWh past a thousand.
     static func energyText(_ sensor: Entity) -> String? {
-        guard let value = Double(sensor.state) else { return nil }
+        guard let value = Double(sensor.state), value.isFinite else { return nil }
         let unit = sensor.str("unit_of_measurement") ?? "kWh"
         if unit == "Wh", value >= 1000 {
             return "\((value / 1000).formatted(.number.precision(.fractionLength(0...1)))) kWh"
@@ -295,27 +317,35 @@ struct ClimatePage: View {
         sendTask?.cancel()
         dragTarget = nil
         pendingMode = mode
+        let epoch = store.authenticationGeneration
         Task {
             // A temperature command already on the wire finishes first; a merely
             // debounced value is cancelled before it can target the new mode.
             await previousTemperature?.value
-            defer { pendingMode = nil }
+            defer { if epoch == store.authenticationGeneration { pendingMode = nil } }
+            guard epoch == store.authenticationGeneration else { return }
             do {
                 try await ClimateModeRecovery.perform(action, initial: c.e, send: { request in
-                    _ = try await store.command(request.body)
-                }, refresh: { await store.refreshEntity(entityID) })
+                    _ = try await store.command(request.body, authenticationEpoch: epoch)
+                }, refresh: { await store.refreshEntity(entityID, authenticationEpoch: epoch) })
+                guard epoch == store.authenticationGeneration else { return }
                 if store.isDemo { store.optimistic(entityID) { $0.state = mode } }
                 for _ in 0..<20 {
+                    guard epoch == store.authenticationGeneration else { return }
                     if store.entities[entityID]?.state == mode { return }
                     try await Task.sleep(for: .milliseconds(250))
                 }
-                _ = await store.refreshEntity(entityID)
+                _ = await store.refreshEntity(entityID, authenticationEpoch: epoch)
+                guard epoch == store.authenticationGeneration else { return }
                 if store.entities[entityID]?.state != mode {
+                    climateFailureReport = ClimateDiagnostics.report(initial: c.e, reported: store.entities[entityID], requestedMode: mode, outcome: .unconfirmed)
                     climateFailure = "Home Assistant accepted the request but has not reported \(Theme.modeName(mode)). Check the unit before retrying."
                 }
             } catch {
-                _ = await store.refreshEntity(entityID)
+                _ = await store.refreshEntity(entityID, authenticationEpoch: epoch)
+                guard epoch == store.authenticationGeneration else { return }
                 if store.entities[entityID]?.state != mode {
+                    climateFailureReport = ClimateDiagnostics.report(initial: c.e, reported: store.entities[entityID], requestedMode: mode, outcome: .rejected, error: error)
                     climateFailure = "Home Assistant couldn’t switch to \(Theme.modeName(mode)). The last reported mode is still shown.\n\n\(error.localizedDescription)"
                 }
             }
@@ -329,39 +359,43 @@ struct ClimatePage: View {
         if value != dragTarget { Haptic.tick() }
         withAnimation(.snap) { dragTarget = value }
         sendTask?.cancel()
+        let epoch = store.authenticationGeneration
         sendTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, epoch == store.authenticationGeneration else { return }
             guard let current = store.entities[entityID],
                   let action = ClimateCommand.temperature(current, value: value) else {
                 if dragTarget == value { dragTarget = nil }
                 return
             }
             do {
-                try await store.command(action.body)
+                try await store.command(action.body, authenticationEpoch: epoch)
+                guard epoch == store.authenticationGeneration else { return }
                 if store.isDemo { store.optimistic(entityID) { $0.attributes["temperature"] = value } }
                 for _ in 0..<20 {
-                    if Task.isCancelled { return }
+                    if Task.isCancelled || epoch != store.authenticationGeneration { return }
                     if let reported = store.entities[entityID]?.num("temperature"), abs(reported - value) < 0.001 { break }
                     try await Task.sleep(for: .milliseconds(250))
                 }
                 if !Task.isCancelled {
-                    _ = await store.refreshEntity(entityID)
-                    guard !Task.isCancelled, dragTarget == value else { return }
+                    _ = await store.refreshEntity(entityID, authenticationEpoch: epoch)
+                    guard !Task.isCancelled, epoch == store.authenticationGeneration, dragTarget == value else { return }
                     if dragTarget == value,
                        store.entities[entityID]?.num("temperature").map({ abs($0 - value) < 0.001 }) != true {
+                        climateFailureReport = ClimateDiagnostics.report(initial: current, reported: store.entities[entityID], outcome: .unconfirmed)
                         climateFailure = "Home Assistant accepted the request but has not reported \(degrees(value))°. Check the unit before retrying."
                     }
                 }
             } catch {
-                guard !Task.isCancelled else { return }
-                _ = await store.refreshEntity(entityID)
-                guard !Task.isCancelled, dragTarget == value else { return }
+                guard !Task.isCancelled, epoch == store.authenticationGeneration else { return }
+                _ = await store.refreshEntity(entityID, authenticationEpoch: epoch)
+                guard !Task.isCancelled, epoch == store.authenticationGeneration, dragTarget == value else { return }
+                climateFailureReport = ClimateDiagnostics.report(initial: current, reported: store.entities[entityID], outcome: .rejected, error: error)
                 climateFailure = error.localizedDescription
             }
             // A newer drag owns its preview; finishing an older command cannot
             // clear that value or reset the displayed number.
-            if !Task.isCancelled, dragTarget == value { dragTarget = nil }
+            if !Task.isCancelled, epoch == store.authenticationGeneration, dragTarget == value { dragTarget = nil }
         }
     }
 
@@ -467,13 +501,18 @@ struct TemperatureControl: View {
     var body: some View {
         Bezel(radius: 24, inset: 4) {
             HStack(spacing: 4) {
-                key("minus") { onChange(max(value - step, range.lowerBound)) }
+                key("minus") { change(value - step) }
                 track
-                key("plus") { onChange(min(value + step, range.upperBound)) }
+                key("plus") { change(value + step) }
             }
             .padding(3)
         }
         .padding(.top, 2)
+    }
+
+    private func change(_ proposed: Double) {
+        let snapped = ClimateTemperatureScale.snapped(proposed, range: range, step: step)
+        if snapped != value { onChange(snapped) }
     }
 
     private func key(_ symbol: String, action: @escaping () -> Void) -> some View {
@@ -490,17 +529,17 @@ struct TemperatureControl: View {
     private var track: some View {
         GeometryReader { geo in
             let w = geo.size.width
-            let span = max(range.upperBound - range.lowerBound, 1)
-            let f = (min(max(value, range.lowerBound), range.upperBound) - range.lowerBound) / span
+            let span = range.upperBound - range.lowerBound
+            let f = span > 0 ? (min(max(value, range.lowerBound), range.upperBound) - range.lowerBound) / span : 0
             let x = 8 + (w - 16) * f
             ZStack(alignment: .leading) {
                 // Ticks, one per degree, longer every five.
                 Canvas { ctx, size in
-                    let whole = Int(span)
-                    for i in 0...whole {
-                        let tx = 8 + (size.width - 16) * CGFloat(i) / CGFloat(whole)
-                        let degree = Int(range.lowerBound) + i
-                        let long = degree % 5 == 0
+                    let intervals = Int(min(120, max(1, ceil(span))))
+                    for i in 0...intervals {
+                        let tx = 8 + (size.width - 16) * CGFloat(i) / CGFloat(intervals)
+                        let degree = range.lowerBound + span * Double(i) / Double(intervals)
+                        let long = abs(degree.truncatingRemainder(dividingBy: 5)) < 0.001
                         let lit = tx <= x
                         var p = Path()
                         p.move(to: CGPoint(x: tx, y: size.height / 2 - (long ? 7 : 4)))
@@ -524,9 +563,8 @@ struct TemperatureControl: View {
             .frame(height: geo.size.height)
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { g in
-                let p = min(max((g.location.x - 8) / (w - 16), 0), 1)
-                let snapped = ((range.lowerBound + p * span) / step).rounded() * step
-                if snapped != value { onChange(snapped) }
+                let p = min(max((g.location.x - 8) / max(w - 16, 1), 0), 1)
+                change(range.lowerBound + p * span)
             })
         }
         .frame(height: 38)

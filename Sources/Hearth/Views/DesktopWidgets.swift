@@ -403,14 +403,14 @@ private struct ClimateTile: View {
                 if entity.isUnavailable {
                     Text("Offline").font(.system(size: large ? 28 : 24, weight: .light)).foregroundStyle(Theme.muted)
                 } else if let t = c.target, c.on {
-                    Text(t == t.rounded() ? "\(Int(t))°" : String(format: "%.1f°", t))
+                    Text(Int(exactly: t).map { "\($0)°" } ?? String(format: "%.1f°", t))
                         .font(.system(size: large ? 46 : 40, weight: .light)).tracking(-1.5).monospacedDigit()
                         .foregroundStyle(Theme.ink)
                         .contentTransition(.numericText())
                 } else {
-                    Text("Off").font(.system(size: large ? 34 : 30, weight: .light)).foregroundStyle(Theme.muted)
+                    Text(c.on ? "—" : "Off").font(.system(size: large ? 34 : 30, weight: .light)).foregroundStyle(Theme.muted)
                 }
-                Text(c.on ? Theme.modeName(c.mode) + (c.room.map { " · room \(Int($0.rounded()))°" } ?? "") : (c.room.map { "Room \(Int($0.rounded()))°" } ?? " "))
+                Text(c.on ? Theme.modeName(c.mode) + (c.room.flatMap { Int(exactly: $0.rounded()) }.map { " · room \($0)°" } ?? "") : (c.room.flatMap { Int(exactly: $0.rounded()) }.map { "Room \($0)°" } ?? " "))
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted).monospacedDigit().lineLimit(1)
             } else {
                 WidgetLabel(text: "Climate", symbol: "snowflake")

@@ -50,10 +50,10 @@ struct DeviceCommand {
 enum SpeakerAction {
     /// Missing metadata keeps older integrations usable; explicit zero means unsupported.
     static func supports(_ entity: Entity, feature: Int) -> Bool {
-        guard let value = entity.num("supported_features"), value.isFinite, value >= 0, value < Double(Int.max) else {
+        guard let value = entity.num("supported_features"), value >= 0, let features = Int(exactly: value) else {
             return entity.attributes["supported_features"] == nil
         }
-        return Int(value) & feature != 0
+        return features & feature != 0
     }
 
     static func primaryService(_ entity: Entity) -> String? {

@@ -30,7 +30,7 @@ final class ActivityLog: ObservableObject {
             case .pet: "pawprint.fill"
             case .sound: "waveform"
             case .security: "shield.lefthalf.filled"
-            case .climate: "air.conditioner.horizontal.fill"
+            case .climate: "snowflake"
             }
         }
 
@@ -182,7 +182,7 @@ final class ActivityLog: ObservableObject {
         case "climate":
             let wasOn = old.state != "off", isOn = e.state != "off"
             guard wasOn != isOn else { return nil }
-            return (.climate, "\(Climate.shortName(e.name)) AC turned \(isOn ? "on" : "off")")
+            return (.climate, "\(Climate.shortName(e.name)) \(ActivityEventPresentation.climateLabel(e)) turned \(isOn ? "on" : "off")")
         default:
             return nil
         }

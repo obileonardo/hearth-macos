@@ -68,4 +68,62 @@ final class PillVisualGeometryTests: XCTestCase {
         XCTAssertEqual(bodyTop, FlashPillGeometry.visibleOffset + FlashPillGeometry.topPadding)
     }
 
+
+    func testFullBlurTailsFitDuringBothAnimationEndpoints() {
+        let bodyWidth: CGFloat = 376
+        let panelWidth: CGFloat = 456
+        let horizontalPadding = (panelWidth - bodyWidth) / 2
+        XCTAssertGreaterThanOrEqual(horizontalPadding, FlashPillGeometry.shadowBleed)
+        for shown in [false, true] {
+            for reduceMotion in [false, true] {
+                let top = FlashPillGeometry.offset(shown: shown, reduceMotion: reduceMotion) + FlashPillGeometry.topPadding
+                XCTAssertGreaterThanOrEqual(top + FlashPillGeometry.shadowOffset - FlashPillGeometry.shadowBleed, 0)
+                XCTAssertLessThanOrEqual(top + FlashPillGeometry.bodyHeight + FlashPillGeometry.shadowOffset + FlashPillGeometry.shadowBleed,
+                                         FlashPillGeometry.panelHeight)
+            }
+        }
+    }
+
+    func testFlashFollowsChangedLiveStatusCenterWithoutChangingMainPanelAnchor() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let visible = CGRect(x: 0, y: 0, width: 1440, height: 878)
+        let first = CGRect(x: 620, y: 878, width: 160, height: 22)
+        let changed = CGRect(x: 520, y: 878, width: 260, height: 22)
+        var session = MenuPanelAnchorSession()
+        let fixedAnchor = session.resolve(liveAnchor: first, screenFrame: screen)
+        let fixedPanel = MenuPanelGeometry.frame(anchor: fixedAnchor, visibleFrame: visible, panelSize: CGSize(width: 448, height: 696))
+        let firstFlash = FlashPillGeometry.frame(anchor: first, visibleFrame: visible, screenFrame: screen, panelWidth: 456)
+        let nextFlash = FlashPillGeometry.frame(anchor: changed, visibleFrame: visible, screenFrame: screen, panelWidth: 456)
+        XCTAssertEqual(firstFlash.midX, first.midX)
+        XCTAssertEqual(nextFlash.midX, changed.midX)
+        XCTAssertEqual(nextFlash.midX - firstFlash.midX, -50)
+        XCTAssertEqual(nextFlash.size, firstFlash.size)
+        XCTAssertEqual(MenuPanelGeometry.frame(anchor: session.resolve(liveAnchor: changed, screenFrame: screen),
+                                               visibleFrame: visible, panelSize: fixedPanel.size), fixedPanel)
+    }
+
+    func testClearShadowCanvasKeepsVisibleBodyGapConstant() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        for barHeight: CGFloat in [22, 24, 28, 38] {
+            let anchor = CGRect(x: 600, y: screen.maxY - barHeight, width: 180, height: barHeight)
+            let visible = CGRect(x: 0, y: 0, width: 1440, height: anchor.minY)
+            let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible, screenFrame: screen, panelWidth: 456)
+            let bodyTop = frame.maxY - FlashPillGeometry.visibleBodyTop
+            XCTAssertEqual(anchor.minY - bodyTop, FlashPillGeometry.bodyGap)
+            XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
+        }
+    }
+
+    func testFlashClampsScreenEdgesAndSupportsNegativeDisplayCoordinates() {
+        let screen = CGRect(x: -1920, y: 300, width: 1920, height: 1080)
+        let visible = CGRect(x: -1920, y: 330, width: 1920, height: 1026)
+        for x: CGFloat in [-1920, -80] {
+            let anchor = CGRect(x: x, y: 1356, width: 80, height: 24)
+            let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible, screenFrame: screen, panelWidth: 456)
+            XCTAssertGreaterThanOrEqual(frame.minX, visible.minX + 8)
+            XCTAssertLessThanOrEqual(frame.maxX, visible.maxX - 8)
+            XCTAssertGreaterThanOrEqual(frame.minY, visible.minY + 8)
+            XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
+        }
+    }
 }

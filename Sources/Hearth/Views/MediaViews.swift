@@ -42,7 +42,20 @@ struct MediaPage: View {
                 .padding(3).background(Capsule().fill(Theme.fg.opacity(0.05)).overlay(Capsule().strokeBorder(Theme.hairline)))
             }
                 .reveal(shown, 0)
-            if grid {
+            if players.isEmpty {
+                CenteredPageEmptyState {
+                    VStack(spacing: 10) {
+                        Image(systemName: "hifispeaker")
+                            .font(.system(size: 27, weight: .light)).foregroundStyle(Theme.faint)
+                            .accessibilityHidden(true)
+                        Text("No speakers connected").font(.system(size: 14, weight: .semibold))
+                        Text("Add a media player integration in Home Assistant to show your speakers here.")
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 24)
+                }
+            } else if grid {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(sorted) { player in
                         SpeakerGridCard(entity: player, playback: SpeakerPlayback(entity: player, players: players)) {

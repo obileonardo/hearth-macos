@@ -26,7 +26,7 @@ final class DeviceCommandTests: XCTestCase {
 
     func testMalformedCapabilitiesFailClosedAndMissingKeepsLegacyControls() {
         XCTAssertTrue(SpeakerAction.supports(player(), feature: 512))
-        for malformed in [Double.nan, Double.infinity, -1, Double(Int.max)] {
+        for malformed in [Double.nan, Double.infinity, -1, 512.5, Double(Int.max)] {
             XCTAssertFalse(SpeakerAction.supports(player(features: malformed), feature: 512))
         }
         XCTAssertFalse(SpeakerAction.supports(player(features: 0), feature: 512))

@@ -37,7 +37,7 @@ struct FacesPage: View {
             header
 
             if !faces.enabled {
-                intro
+                CenteredPageEmptyState { intro }
             } else {
                 status
                 if !faces.people.isEmpty {
@@ -58,8 +58,16 @@ struct FacesPage: View {
                         }
                     }
                 }
-                if faces.people.isEmpty && faces.unknown.isEmpty { emptyState }
-                note
+                if faces.people.isEmpty && faces.unknown.isEmpty {
+                    CenteredPageEmptyState {
+                        VStack(alignment: .leading, spacing: 14) {
+                            emptyState
+                            note
+                        }
+                    }
+                } else {
+                    note
+                }
             }
         }
         .animation(.glide, value: faces.people)

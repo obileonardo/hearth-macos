@@ -50,6 +50,7 @@ private final class PictureRedirects: NSObject, URLSessionTaskDelegate, @uncheck
 extension HomeStore {
     /// Keeps external artwork working, without handing its server the home session.
     func pictureData(at path: String, timeout: TimeInterval = 8) async -> Data? {
+        let epoch = authenticationGeneration
         guard !isDemo, let base = baseURL,
               let url = URL(string: path, relativeTo: base)?.absoluteURL,
               ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
@@ -57,9 +58,10 @@ extension HomeStore {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         if HAOrigin.matches(url, base) {
-            guard let token = try? await validAccessToken() else { return nil }
+            guard let token = try? await validAccessToken(), epoch == authenticationGeneration else { return nil }
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        guard epoch == authenticationGeneration, !Task.isCancelled else { return nil }
         let config = URLSessionConfiguration.ephemeral
         config.httpShouldSetCookies = false
         config.httpCookieStorage = nil
@@ -67,7 +69,8 @@ extension HomeStore {
         let session = URLSession(configuration: config, delegate: PictureRedirects(origin: base), delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         guard let (data, response) = try? await session.data(for: request),
-              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return nil }
+              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              epoch == authenticationGeneration, !Task.isCancelled else { return nil }
         return data
     }
 }

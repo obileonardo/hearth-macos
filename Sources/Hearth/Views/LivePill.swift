@@ -2,6 +2,16 @@ import AppKit
 import Combine
 import SwiftUI
 
+/// A malformed finite reading can still exceed Int. Keep normal notification
+/// rounding while omitting impossible values instead of trapping or inventing 0.
+enum LivePillClimateReading {
+    static func text(_ value: Double) -> String? {
+        guard value.isFinite, Int(exactly: value.rounded()) != nil else { return nil }
+        if value == value.rounded() { return degrees(value) }
+        return String(format: "%.1f", value)
+    }
+}
+
 /// Something worth a moment of attention: who's at the door, the alarm, a car that's charged.
 struct PillEvent: Equatable, Identifiable {
     enum Kind: String, CaseIterable, Identifiable {
@@ -135,7 +145,7 @@ final class LivePill: ObservableObject {
             guard c.on, let target = c.target, let room = c.room, let before = was.room else { return }
             let cooling = ["cool", "dry"].contains(new.state), heating = new.state == "heat"
             if (cooling && before > target && room <= target) || (heating && before < target && room >= target) {
-                let degrees = target == target.rounded() ? "\(Int(target))" : String(format: "%.1f", target)
+                guard let degrees = LivePillClimateReading.text(target) else { return }
                 present(PillEvent(kind: .climate, place: Climate.shortName(new.name), detail: "Reached \(degrees)°",
                                   symbol: Theme.modeSymbol(new.state), tint: Theme.air(new.state), page: new.id,
                                   actionSymbol: "thermometer.medium", actionLabel: "Open climate"))
@@ -251,6 +261,10 @@ final class LivePill: ObservableObject {
         timer = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { return }
+                // Also catches native menu-extra moves and display changes while
+                // hovered. Holding a notification must not freeze its anchor.
+                self.refreshAnchor()
                 if self.hovering { continue }
                 self.remaining -= 0.1
                 if self.remaining <= 0 { self.dismiss(); break }
@@ -281,20 +295,33 @@ final class LivePill: ObservableObject {
         host.wantsLayer = true
         host.layer?.backgroundColor = .clear
         host.layer?.isOpaque = false
+        host.layer?.masksToBounds = false
+        host.clipsToBounds = false
         p.contentView = host
         panel = p
     }
 
-    /// Centred under Hearth's menu bar item, kept on screen.
+    /// Reposition only the notification. The main panel owns its fixed opening
+    /// anchor; changing a status message never moves that window through here.
+    func refreshAnchor() {
+        guard panel?.isVisible == true else { return }
+        place()
+    }
+
+    /// Centred under the actual live capsule, including after its width changes.
     private func place() {
         guard let panel else { return }
-        let item = HearthMenuController.shared.anchorView?.window
-        let screen = item?.screen ?? NSScreen.main ?? NSScreen.screens[0]
-        let anchor = item?.frame ?? NSRect(x: screen.frame.maxX - 200, y: screen.frame.maxY - 24, width: 40, height: 24)
-        var x = anchor.midX - Self.size.width / 2
-        x = min(max(x, screen.visibleFrame.minX + 8), screen.visibleFrame.maxX - Self.size.width - 8)
-        let y = anchor.minY - Self.size.height + 4
-        panel.setFrame(NSRect(x: x, y: y, width: Self.size.width, height: Self.size.height), display: true)
+        let menu = HearthMenuController.shared
+        let item = menu.anchorView?.window
+        guard let screen = item?.screen ?? NSScreen.main ?? NSScreen.screens.first else { return }
+        let anchor = menu.liveStatusPillFrame ?? item?.frame
+            ?? NSRect(x: screen.frame.maxX - 200, y: screen.frame.maxY - 24, width: 40, height: 24)
+        let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: screen.visibleFrame,
+                                           screenFrame: screen.frame, panelWidth: Self.size.width)
+        if abs(frame.minX - panel.frame.minX) > 0.5 || abs(frame.minY - panel.frame.minY) > 0.5
+            || frame.size != panel.frame.size {
+            panel.setFrame(frame, display: true)
+        }
     }
 
     /// Opens the menu bar panel the way a click would.

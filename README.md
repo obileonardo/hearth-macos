@@ -20,7 +20,7 @@
 
 [Download Hearth 0.1.3 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.3-preview/Hearth-0.1.3-universal-PREVIEW.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.3-preview)
 
-**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#3-install-hearth). See [verification](docs/release-verification-0.1.3.md) and the [task register](Task%20Update/README.md).
+**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.3.md) and the [task register](Task%20Update/README.md).
 
 ## What it does
 
@@ -51,7 +51,7 @@ The [full artwork sheet](docs/art/devices.png) includes every device and its on/
 
 The views below use offline sample data, with no personal camera pictures, household configuration or account information. Sign-in fields, the bug draft's **Subject** and **Message** fields, and the optional version-information switch are static documentation illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
 
-These demo guides accompany the 0.1.3 preview. See its [verification record](docs/release-verification-0.1.3.md) for the exact binary source, checks and limitations.
+The download is the published 0.1.3 preview. Its [verification record](docs/release-verification-0.1.3.md) identifies its exact source and limitations. Source-guide images are regenerated separately from synthetic data; their [image register](docs/screenshots/README.md) records the export method and which controls are illustrated.
 
 <table>
   <tr>
@@ -94,9 +94,20 @@ The demo map shows floor selection and device placement. Import your own scan to
 
 ## Get started
 
-### 1. Have Home Assistant running
+### 1. Download the app or clone the source
 
-Hearth is a remote control for [Home Assistant](https://www.home-assistant.io), the open-source home automation platform. If you already run it, skip to step 2.
+Use the [preview download](#download) to try the packaged app. To build it yourself, or to use the optional Docker examples below, clone first:
+
+```sh
+git clone https://github.com/obileonardo/hearth-macos.git
+cd hearth-macos
+```
+
+The following repository-relative commands assume this directory. A source build can be reviewed without replacing an existing Hearth installation.
+
+### 2. Have Home Assistant running
+
+Hearth is a remote control for [Home Assistant](https://www.home-assistant.io), the open-source home automation platform. If you already run it, skip to step 3.
 
 If you don't, pick one:
 
@@ -112,40 +123,76 @@ If you don't, pick one:
 ```sh
 brew install colima docker docker-compose
 colima start --vm-type vz --cpu 2 --memory 3
-cp homeassistant/.env.example homeassistant/.env   # set HEARTH_DATA and TZ
+# Only for a new setup; do not overwrite an existing .env.
+cp -n homeassistant/.env.example homeassistant/.env
+# Set a new HEARTH_DATA directory and TZ before starting a service.
 docker-compose -f homeassistant/docker-compose.yml up -d
 ```
 
-Open <http://localhost:8123> and create your Home Assistant account. To start Colima at login, run `brew services start colima`. Home Assistant only runs while your Mac is awake; a dedicated box is better long-term.
+Review [the container isolation and maintenance notes](docs/optional-containers.md) first. The example publishes port 8123 without a loopback restriction; decide the appropriate network binding before use. Open <http://localhost:8123> and create your Home Assistant account. To start Colima at login, run `brew services start colima`. Home Assistant only runs while your Mac is awake; a dedicated box is better long-term.
 
 </details>
 
-### 2. Add your devices to Home Assistant
+### 3. Add your devices to Home Assistant
 
-In Home Assistant, go to **Settings → Devices & services → Add integration** and add each brand you own (LG ThinQ, Ring, Philips Hue, Sonos and thousands more). Some brands need the community store [HACS](https://hacs.xyz) first. See [Brand notes](#brand-notes) for a few that need extra steps.
+In Home Assistant, go to **Settings → Devices & services → Add integration** and add your supported brands. Hearth reads their devices, state and available controls. Some community integrations need [HACS](https://hacs.xyz) first; see [Brand notes](#brand-notes).
 
-### 3. Install Hearth
+For Apple Home accessories, choose the right direction: **HomeKit Device** brings a supported accessory into Home Assistant; **HomeKit Bridge** exposes supported Home Assistant entities to Apple Home. Follow the [HomeKit walkthrough](docs/homekit.md) before changing any existing pairing.
+
+### 4. Build or open Hearth
+
+If you downloaded the preview, follow its installation notes. For source builds:
 
 ```sh
-git clone https://github.com/obileonardo/hearth-macos.git
-cd hearth-macos
-scripts/build.sh            # builds Hearth.app and installs it in ~/Applications
-open ~/Applications/Hearth.app
+scripts/build.sh --no-install     # builds build/Hearth.app; preserves the installed app
+open build/Hearth.app
 ```
 
-### 4. Sign in
+Quit an already running copy before opening a second build with the same bundle identifier. A normal `scripts/build.sh` release build installs into `~/Applications`; use it only when ready to replace your installed copy. [Safe development setup](docs/local-development.md).
 
-Click the Hearth icon in your menu bar. Enter your Home Assistant address (for example `http://homeassistant.local:8123` or `http://localhost:8123`) and the **username and password you use for Home Assistant**. That's it: Hearth signs in like the Home Assistant app does and stays signed in. Your password is never stored; only a refresh token, in your Keychain.
+### 5. Sign in
 
-macOS will ask to allow notifications. Say yes if you want doorbell and people alerts.
+1. Open Hearth from the Mac menu bar. Enter the Home Assistant address you already use in a browser, for example `http://homeassistant.local:8123`. Prefer HTTPS on shared or remote networks.
+2. Enter your **Home Assistant** username and password, then choose **Sign in**. Hearth stores the refresh token in Keychain, not your password.
+3. Open **Settings → Signed in as…** (the **Server & integrations** row) to check the connection. Then browse **Rooms** or **Assets**; empty categories mean the server has not exposed matching devices yet.
 
-<p align="center">
-  <img src="docs/screenshots/guide-connect-light.png" width="360" alt="Illustrated Hearth sign-in setup with a generic Home Assistant address, demo username and empty password">
-</p>
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Connect your server</h3>
+      <img src="docs/screenshots/guide-connect-light.png" width="360" alt="Illustrated sign-in with generic Home Assistant address, demo username and empty password">
+      <p>Use your own Home Assistant address and account. These illustrated fields contain no real credentials.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Check your connection</h3>
+      <img src="docs/screenshots/guide-account-light.png" width="360" alt="Synthetic Account page showing a generic connected Home Assistant server and integration counts">
+      <p>Confirm the server and connection status before exploring Rooms and Assets. This account is synthetic.</p>
+    </td>
+  </tr>
+</table>
 
-The illustration uses a generic address and `demo` username, with an empty password. Enter your own Home Assistant details in the app.
+**MFA sign-in is not supported yet.** Keep MFA enabled; do not weaken your account to use this preview. [Connection guide and troubleshooting](docs/using-hearth.md#connect-your-own-server).
 
-### 5. Put devices in rooms
+#### Manage integrations from Hearth
+
+Open **Settings → Signed in as… → Integrations and devices → Add integration**. Search for a supported brand or service and follow Home Assistant's setup form. Some flows open a browser; unsupported steps offer **Open in Home Assistant**. Available integrations and permissions come from your server, and a community integration must already be installed there. [Integration setup guide](docs/using-hearth.md#add-and-review-integrations).
+
+Want Apple Home too? The [HomeKit walkthrough](docs/homekit.md) explains importing accessories, bridging entities to Apple Home and preserving existing pairings. Hearth does not directly import your Apple Home household.
+
+#### Review the integrations already connected
+
+<img src="docs/screenshots/guide-integrations-dark.png" width="960" alt="Synthetic integration manager showing sample HomeKit Bridge, HomeKit Device and climate entries">
+
+See which integrations Home Assistant has loaded. The names and working states here are offline examples.
+
+#### Find a supported integration
+
+<img src="docs/screenshots/guide-integration-add-dark.png" width="960" alt="Offline integration search distinguishing HomeKit Device from HomeKit Bridge">
+
+Search the server’s catalog, then follow its setup. These examples do not pair a real accessory.
+
+
+### 6. Put devices in rooms
 
 Rooms and floors come from Home Assistant:
 
@@ -154,7 +201,24 @@ Rooms and floors come from Home Assistant:
 3. Assign each device to its room in Home Assistant's device settings.
 4. Open **Rooms** in Hearth to browse that arrangement and its devices.
 
-### 6. Choose a view and use its controls
+Choose the overview for rooms grouped by floor, or drag/scroll the square cards in the interactive view to select a room and see its devices without leaving the page. Both lead to the same existing device controls; the interactive layout is not a measured floor plan.
+
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <h3>Rooms by floor</h3>
+      <img src="docs/screenshots/guide-rooms-overview-dark.png" width="360" alt="Synthetic Rooms overview with Ground floor and First floor groups">
+      <p>Home Assistant supplies rooms and floor assignments.</p>
+    </td>
+    <td valign="top" width="50%">
+      <h3>Select a room, see its devices</h3>
+      <img src="docs/screenshots/guide-rooms-interactive-dark.png" width="360" alt="Synthetic interactive Rooms view with room selection and a Kitchen speaker">
+      <p>Choose a floor or room, then open a device's controls.</p>
+    </td>
+  </tr>
+</table>
+
+### 7. Choose a view and use its controls
 
 Use **Assets** to browse families, **Rooms** to browse by location, or **3D Map** to place devices in a home scan. Open an air conditioner for temperature and mode controls. In **Assets → Speakers**, switch between grid and list, then use the playback controls on a connected speaker. Available controls depend on what its Home Assistant integration exposes.
 
@@ -192,7 +256,7 @@ Open **Settings → Navigation → Glass opacity**. Move the slider toward Clear
 
 The navigation section is shown in isolation with offline demo data; the offscreen slider and glass use the static documentation fallback. The running app uses native interactive controls.
 
-### 7. Get help or report a problem
+### 8. Get help or report a problem
 
 Open **Settings → Help & Support**. Start with the connection and device checks. App and macOS version numbers are optional and off by default.
 
@@ -227,7 +291,7 @@ Hearth does not send the report automatically or attach logs, account details or
 | **Ring** (doorbells, cameras) | Built-in integration | Two-factor code once. Live view works through WebRTC. |
 | **Amazon Echo** | Built-in **Alexa Devices** | Needs Amazon 2-step verification with an **authenticator app**. Sign in with the email or phone number your Amazon account actually uses. If you see "Invalid authentication" with correct details, see [patches](homeassistant/patches). |
 | **Eufy** (cameras, HomeBase) | [Eufy Security](https://github.com/fuatakgun/eufy_security) from HACS, plus the `eufy-security-ws` bridge | Use a second Eufy account that your devices are shared with (Eufy allows one session per account). The bridge is in `homeassistant/docker-compose.yml` under the `eufy` profile. |
-| **Apple TV, HomePod** | Built-in **Apple TV** | Add by IP address. In the Home app, let anyone on the same network use your speakers and TVs, without a password. The Apple TV shows a PIN to type in once. In Docker, see [patches](homeassistant/patches). |
+| **Apple TV, HomePod** | Built-in **Apple TV** | Follow the [official pairing flow](https://www.home-assistant.io/integrations/apple_tv/); review your model’s AirPlay/Home permissions before changing them. Keep the PIN private. Docker discovery troubleshooting is separate from [HomeKit setup](docs/homekit.md); optional [patch notes](homeassistant/patches/README.md). |
 | **Bambu Lab** (3D printers) | [Bambu Lab](https://github.com/greghesp/ha-bambulab) from HACS | Sign in with your Bambu account, or use LAN mode with the printer's access code. Prints show on the Gadgets page. |
 | **PlayStation** | Built-in **PlayStation Network** | Sign in with your PSN account. Shows when the console is on and what's playing. |
 | **Tesla** | Built-in **Tesla Fleet**, or **Teslemetry** or **Tessie** | Charge, range, charging, location, locks and climate show on the Vehicles page. |
@@ -274,7 +338,11 @@ HA_URL=http://localhost:8124 HA_TOKEN=... build/Hearth.app/Contents/MacOS/Hearth
 - `--render-preview <folder>` exports sample-data car, Assets, pill, settings and widget previews, then exits before connecting or asking for notification permission. Activity is explicitly in memory from app initialization; no saved event index, face reference or camera image is loaded for these renders.
 - `--render-cars <folder>` exports the car contact sheets. `HEARTH_SDKROOT` selects an installed SDK; build scripts otherwise discover it, retaining the working macOS 26.5 SDK with Command Line Tools when available.
 - `--probe "find climate.; call climate.set_temperature climate.bedroom {\"temperature\":22}"` checks a real Home Assistant through the app's own sign-in and prints what happened. Steps: `dump`, `find`, `call`, `cmd`, `rest`, `energy`, `snap`, `wait`.
-- `docker-compose -f homeassistant/docker-compose.yml --profile dev up -d homeassistant-dev` runs a demo Home Assistant on port 8124, full of sample devices.
+- The optional Compose `dev` profile starts a separate Home Assistant on port 8124; it does **not** seed devices automatically. Complete onboarding, then follow the [vehicle fixture setup](docs/local-development.md#optional-home-assistant-fixtures) in a disposable environment. Use `--render-preview` for offline sample screens without a server.
+
+[Local development](docs/local-development.md) explains safe first-run setup, isolated fixtures and authentication limits. [Using Hearth](docs/using-hearth.md) explains the main views and integration prerequisites. Optional container lifecycle and pinning are covered in [the deployment notes](docs/optional-containers.md).
+
+Read the [architecture overview](docs/architecture.md) for component and data-flow boundaries.
 
 How it fits together:
 

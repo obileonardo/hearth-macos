@@ -1,5 +1,37 @@
 import SwiftUI
 
+/// Explicit in-memory documentation data. It has no store, transport, token,
+/// avatar file or pairing code and never mutates HAAdmin.shared.
+struct HAAdminGuideSnapshot {
+    let section: HAAdmin.Section
+    let user: HAUser
+    let server: HAServer
+    let entries: [HAEntry]
+    let catalog: [HACatalogItem]
+
+    func name(of domain: String) -> String {
+        catalog.first { $0.domain == domain }?.name ?? domain.pretty
+    }
+
+    static func example(section: HAAdmin.Section = .integrations) -> Self {
+        let catalog = [
+            HACatalogItem(domain: "apple_tv", name: "Apple TV", isCustom: false),
+            HACatalogItem(domain: "homekit", name: "HomeKit Bridge", isCustom: false),
+            HACatalogItem(domain: "homekit_controller", name: "HomeKit Device", isCustom: false),
+            HACatalogItem(domain: "lg_thinq", name: "LG ThinQ", isCustom: false)
+        ]
+        return Self(section: section,
+                    user: HAUser(id: "preview-user", name: "Demo User", username: "demo", isAdmin: true, isOwner: true),
+                    server: HAServer(locationName: "Demo Home", version: "2026.10", timeZone: "UTC", units: "Metric",
+                                     internalURL: "http://homeassistant.local:8123", state: "RUNNING", safeMode: false),
+                    entries: [
+                        HAEntry(id: "preview-homekit-device", domain: "homekit_controller", title: "Thermostat", state: "loaded", source: "user", supportsUnload: true),
+                        HAEntry(id: "preview-homekit-bridge", domain: "homekit", title: "Demo Bridge", state: "loaded", source: "user", supportsUnload: true),
+                        HAEntry(id: "preview-climate", domain: "lg_thinq", title: "Demo climate", state: "loaded", source: "user", supportsUnload: true)
+                    ], catalog: catalog)
+    }
+}
+
 // MARK: Account page (in the panel)
 
 /// Who's signed in and the server Hearth talks to, live: connection, latency, what's set up,
@@ -9,6 +41,16 @@ struct AccountPage: View {
     @Environment(\.hearthOpenWindow) private var openWindow
     @ObservedObject private var admin = HAAdmin.shared
     let back: () -> Void
+    private let documentation: HAAdminGuideSnapshot?
+
+    init(documentation: HAAdminGuideSnapshot? = nil, back: @escaping () -> Void) {
+        self.documentation = documentation
+        self.back = back
+    }
+
+    private var shownUser: HAUser? { documentation.map { $0.user } ?? admin.user }
+    private var shownServer: HAServer? { documentation.map { $0.server } ?? admin.server }
+    private var shownEntries: [HAEntry] { documentation?.entries ?? admin.entries }
 
     @State private var reloading = false
     @State private var reloaded = false
@@ -31,7 +73,9 @@ struct AccountPage: View {
                 Text(actionError).font(.system(size: 12)).foregroundStyle(Theme.live).fixedSize(horizontal: false, vertical: true)
             }
         }
+        .allowsHitTesting(documentation == nil)
         .task {
+            guard documentation == nil else { return }
             admin.attach(store)
             await admin.refreshAccount()
             // Keep the status live while the page is open.
@@ -42,22 +86,32 @@ struct AccountPage: View {
         }
     }
 
-    private var failing: [HAEntry] { admin.entries.filter(\.isFailing) }
+    private func integrationName(of domain: String) -> String {
+        if let documentation { return documentation.name(of: domain) }
+        return admin.name(of: domain)
+    }
+
+    private var failing: [HAEntry] { shownEntries.filter(\.isFailing) }
 
     // MARK: Who
 
     private var userCard: some View {
         Bezel(radius: 20, inset: 3) {
             HStack(spacing: 14) {
-                LiveAvatar(name: admin.user?.name ?? "You", fallback: admin.avatar, size: 64)
+                if documentation != nil {
+                    // Do not instantiate LiveAvatar: its store reads a private avatar file.
+                    Avatar(name: shownUser?.name ?? "Demo User", image: nil, size: 64)
+                } else {
+                    LiveAvatar(name: shownUser?.name ?? "You", fallback: admin.avatar, size: 64)
+                }
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(admin.user?.name ?? "Signed in").font(.system(size: 17, weight: .semibold))
-                    if let username = admin.user?.username ?? UserDefaults.standard.string(forKey: "ha.username"), !username.isEmpty {
+                    Text(shownUser?.name ?? "Signed in").font(.system(size: 17, weight: .semibold))
+                    if let username = (documentation == nil ? shownUser?.username ?? UserDefaults.standard.string(forKey: "ha.username") : shownUser?.username), !username.isEmpty {
                         Text(username).font(.system(size: 13)).foregroundStyle(Theme.muted)
                     }
                     HStack(spacing: 6) {
-                        if admin.user?.isOwner == true { Badge(text: "Owner") }
-                        if admin.user?.isAdmin == true { Badge(text: "Administrator") }
+                        if shownUser?.isOwner == true { Badge(text: "Owner") }
+                        if shownUser?.isAdmin == true { Badge(text: "Administrator") }
                     }
                     .padding(.top, 4)
                 }
@@ -76,7 +130,7 @@ struct AccountPage: View {
                 HStack(spacing: 10) {
                     PulseDot(color: store.status == .connected ? Theme.ok : Theme.live, size: 7, live: store.status == .connected)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(admin.server?.locationName ?? "Home Assistant").font(.system(size: 15, weight: .semibold))
+                        Text(shownServer?.locationName ?? "Home Assistant").font(.system(size: 15, weight: .semibold))
                         Text(statusLine).font(.system(size: 12)).foregroundStyle(Theme.muted)
                     }
                     Spacer()
@@ -85,11 +139,15 @@ struct AccountPage: View {
                 divider
                 InfoRow(label: "Address", value: address)
                 divider
-                InfoRow(label: "Version", value: admin.server.map { "Home Assistant \($0.version)" } ?? "…")
+                InfoRow(label: "Version", value: shownServer.map { "Home Assistant \($0.version)" } ?? "…")
                 divider
-                LocationRow(actual: admin.server?.timeZone)
+                if documentation != nil {
+                    InfoRow(label: "Region", value: shownServer?.timeZone ?? "UTC")
+                } else {
+                    LocationRow(actual: shownServer?.timeZone)
+                }
                 divider
-                InfoRow(label: "Units", value: admin.server?.units ?? "…")
+                InfoRow(label: "Units", value: shownServer?.units ?? "…")
             }
         }
     }
@@ -99,7 +157,8 @@ struct AccountPage: View {
     }
 
     private var address: String {
-        let real = admin.server?.externalURL ?? admin.server?.internalURL ?? store.baseURL?.absoluteString ?? ""
+        if let documentation { return documentation.server.internalURL ?? "Not configured" }
+        let real = shownServer?.externalURL ?? shownServer?.internalURL ?? store.baseURL?.absoluteString ?? ""
         return LocationPrivacy.current == .real ? real : LocationPrivacy.maskAddress(real)
     }
 
@@ -107,8 +166,10 @@ struct AccountPage: View {
         switch store.status {
         case .connected:
             var parts = ["Connected"]
-            if let ms = admin.latency { parts.append("\(Int(ms.rounded())) ms") }
-            if let since = admin.connectedSince { parts.append("for \(Self.duration(since))") }
+            if documentation == nil {
+                if let ms = admin.latency { parts.append("\(Int(ms.rounded())) ms") }
+                if let since = admin.connectedSince { parts.append("for \(Self.duration(since))") }
+            }
             return parts.joined(separator: " · ")
         case .connecting: return "Connecting…"
         case .failed: return "Can't reach the server"
@@ -131,7 +192,7 @@ struct AccountPage: View {
     private var counts: some View {
         let devices = store.devices.values.filter { !$0.isService }.count
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-            CountTile(value: admin.entries.count, label: "Integrations", symbol: "puzzlepiece.extension",
+            CountTile(value: shownEntries.count, label: "Integrations", symbol: "puzzlepiece.extension",
                       note: failing.isEmpty ? nil : "\(failing.count) need attention") { openAdmin(.integrations) }
             CountTile(value: devices, label: "Devices", symbol: "cpu", note: nil) { openAdmin(.devices) }
             CountTile(value: store.entities.count, label: "Entities", symbol: "list.bullet", note: nil) { openWeb() }
@@ -151,7 +212,7 @@ struct AccountPage: View {
                             HStack(spacing: 11) {
                                 BrandIcon(domain: entry.domain, size: 28)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(IntegrationTitle.display(entry.title, integration: admin.name(of: entry.domain)) ?? admin.name(of: entry.domain))
+                                    Text(IntegrationTitle.display(entry.title, integration: integrationName(of: entry.domain)) ?? integrationName(of: entry.domain))
                                         .font(.system(size: 13, weight: .semibold)).lineLimit(1)
                                     Text([entry.stateText, entry.reason].compactMap { $0 }.joined(separator: ": "))
                                         .font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(2)
@@ -434,20 +495,24 @@ struct BrandIcon: View {
     let domain: String
     var size: CGFloat = 32
     @State private var image: NSImage?
+    @Environment(\.hearthDocumentationPreview) private var documentationPreview
 
     var body: some View {
         Group {
             if let image {
                 Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit).padding(size * 0.14)
             } else {
-                Image(systemName: "puzzlepiece.extension").font(.system(size: size * 0.42)).foregroundStyle(Theme.muted)
+                Image(systemName: "puzzlepiece.extension").font(.system(size: size * 0.42)).foregroundStyle(Color.black.opacity(0.64))
             }
         }
         .frame(width: size, height: size)
         // Brand icons are drawn for a white background, in either appearance.
         .background(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous).fill(Color.white))
         .accessibilityHidden(true)
-        .task(id: domain) { image = await HAAdmin.shared.icon(domain) }
+        .task(id: domain) {
+            guard !documentationPreview else { return }
+            image = await HAAdmin.shared.icon(domain)
+        }
     }
 }
 
@@ -459,17 +524,22 @@ struct HAAdminWindow: View {
     @EnvironmentObject var store: HomeStore
     @Environment(\.hearthOpenWindow) private var openWindow
     @ObservedObject private var admin = HAAdmin.shared
+    private let documentation: HAAdminGuideSnapshot?
+
+    init(documentation: HAAdminGuideSnapshot? = nil) { self.documentation = documentation }
+    private var shownSection: HAAdmin.Section { documentation?.section ?? admin.section }
+    private var shownServer: HAServer? { documentation.map { $0.server } ?? admin.server }
 
     var body: some View {
         HStack(spacing: 0) {
             sidebar
             Rectangle().fill(Theme.hairline).frame(width: 1)
             Group {
-                switch admin.section {
-                case .integrations: IntegrationsView()
-                case .add: AddIntegrationView()
-                case .areas: AreasView()
-                case .devices: DevicesView()
+                switch shownSection {
+                case .integrations: IntegrationsView(documentation: documentation)
+                case .add: AddIntegrationView(documentation: documentation)
+                case .areas: if documentation == nil { AreasView() }
+                case .devices: if documentation == nil { DevicesView() }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -478,7 +548,10 @@ struct HAAdminWindow: View {
         .background(Theme.base)
         .foregroundStyle(Theme.ink)
         .navigationTitle("Home Assistant")
+        .environment(\.hearthDocumentationPreview, documentation != nil)
+        .allowsHitTesting(documentation == nil)
         .task {
+            guard documentation == nil else { return }
             admin.attach(store)
             async let areas: Void = admin.refreshAreas()
             if admin.server == nil { await admin.refreshAccount() } else { await admin.refreshEntries() }
@@ -490,8 +563,8 @@ struct HAAdminWindow: View {
         VStack(alignment: .leading, spacing: 4) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("HOME ASSISTANT").eyebrow()
-                Text(admin.server?.locationName ?? "Home").font(.system(size: 18, weight: .semibold))
-                if let v = admin.server?.version { Text("Version \(v)").font(.system(size: 12)).foregroundStyle(Theme.muted) }
+                Text(shownServer?.locationName ?? "Home").font(.system(size: 18, weight: .semibold))
+                if let v = shownServer?.version { Text("Version \(v)").font(.system(size: 12)).foregroundStyle(Theme.muted) }
             }
             .padding(.horizontal, 10).padding(.bottom, 14)
 
@@ -504,11 +577,11 @@ struct HAAdminWindow: View {
                         if let n = count(s) { Text("\(n)").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted).monospacedDigit() }
                     }
                     .padding(.horizontal, 10).frame(height: 32)
-                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.ink.opacity(admin.section == s ? 0.1 : 0)))
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.ink.opacity(shownSection == s ? 0.1 : 0)))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PressStyle())
-                .accessibilityAddTraits(admin.section == s ? .isSelected : [])
+                .accessibilityAddTraits(shownSection == s ? .isSelected : [])
             }
 
             Spacer()
@@ -534,9 +607,9 @@ struct HAAdminWindow: View {
 
     private func count(_ s: HAAdmin.Section) -> Int? {
         switch s {
-        case .integrations: admin.entries.count
-        case .areas: admin.areas.count
-        case .devices: admin.devices.filter { !$0.isService }.count
+        case .integrations: documentation?.entries.count ?? admin.entries.count
+        case .areas: documentation == nil ? admin.areas.count : store.areas.count
+        case .devices: documentation == nil ? admin.devices.filter { !$0.isService }.count : store.devices.filter { !$0.value.isService }.count
         case .add: nil
         }
     }
@@ -602,6 +675,13 @@ private struct QuietButton: View {
 
 private struct IntegrationsView: View {
     @ObservedObject private var admin = HAAdmin.shared
+    private let documentation: HAAdminGuideSnapshot?
+    init(documentation: HAAdminGuideSnapshot? = nil) { self.documentation = documentation }
+    private var shownEntries: [HAEntry] { documentation?.entries ?? admin.entries }
+    private func name(of domain: String) -> String {
+        if let documentation { return documentation.name(of: domain) }
+        return admin.name(of: domain)
+    }
     @State private var search = ""
     @State private var pendingDelete: HAEntry?
     @State private var working: String?
@@ -625,7 +705,7 @@ private struct IntegrationsView: View {
             }
             .padding(24)
         }
-        .confirmationDialog("Delete \(pendingDelete.map { IntegrationTitle.display($0.title, integration: admin.name(of: $0.domain)) ?? admin.name(of: $0.domain) } ?? "")?",
+        .confirmationDialog("Delete \(pendingDelete.map { IntegrationTitle.display($0.title, integration: name(of: $0.domain)) ?? name(of: $0.domain) } ?? "")?",
                             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                             presenting: pendingDelete) { entry in
             Button("Delete", role: .destructive) { run(entry) { try await admin.delete(entry) } }
@@ -633,29 +713,29 @@ private struct IntegrationsView: View {
         } message: { _ in
             Text("Its devices and entities are removed from Home Assistant. You can add it again later.")
         }
-        .task { await admin.loadCatalog() }
+        .task { if documentation == nil { await admin.loadCatalog() } }
     }
 
     private var integrationSummary: String {
-        let attention = admin.entries.filter(\.isFailing).count
-        return attention == 0 ? "\(admin.entries.count) integrations"
-            : "\(admin.entries.count) integrations · \(attention) need attention"
+        let attention = shownEntries.filter(\.isFailing).count
+        return attention == 0 ? "\(shownEntries.count) integrations"
+            : "\(shownEntries.count) integrations · \(attention) need attention"
     }
 
     private var grouped: [(domain: String, entries: [HAEntry])] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        let list = admin.entries.filter { q.isEmpty || $0.title.lowercased().contains(q) || admin.name(of: $0.domain).lowercased().contains(q) || $0.domain.contains(q) }
+        let list = shownEntries.filter { q.isEmpty || $0.title.lowercased().contains(q) || name(of: $0.domain).lowercased().contains(q) || $0.domain.contains(q) }
         let byDomain = Dictionary(grouping: list, by: \.domain)
         return byDomain.map { ($0.key, $0.value) }
             .sorted { a, b in
                 let fa = a.entries.contains(where: \.isFailing), fb = b.entries.contains(where: \.isFailing)
                 if fa != fb { return fa }
-                return admin.name(of: a.domain).localizedCaseInsensitiveCompare(admin.name(of: b.domain)) == .orderedAscending
+                return name(of: a.domain).localizedCaseInsensitiveCompare(name(of: b.domain)) == .orderedAscending
             }
     }
 
     private func card(_ domain: String, _ entries: [HAEntry]) -> some View {
-        let name = admin.name(of: domain)
+        let name = name(of: domain)
         // A single entry named after its integration says nothing new: fold it into the header.
         let single = entries.count == 1 ? entries[0] : nil
         let folded = single.map { IntegrationTitle.display($0.title, integration: name) == nil } ?? false
@@ -736,7 +816,7 @@ private struct IntegrationsView: View {
             }
             .buttonStyle(PressStyle())
             .help("Reload, turn off or delete")
-            .accessibilityLabel("Options for \(IntegrationTitle.display(entry.title, integration: admin.name(of: entry.domain)) ?? admin.name(of: entry.domain))")
+            .accessibilityLabel("Options for \(IntegrationTitle.display(entry.title, integration: name(of: entry.domain)) ?? name(of: entry.domain))")
         }
     }
 
@@ -773,6 +853,12 @@ private struct IntegrationsView: View {
 
 private struct AddIntegrationView: View {
     @ObservedObject private var admin = HAAdmin.shared
+    private let documentation: HAAdminGuideSnapshot?
+    init(documentation: HAAdminGuideSnapshot? = nil) {
+        self.documentation = documentation
+        _search = State(initialValue: documentation == nil ? "" : "HomeKit")
+    }
+    private var shownCatalog: [HACatalogItem] { documentation?.catalog ?? admin.catalog }
     @State private var search = ""
     @State private var session: FlowSession?
 
@@ -782,11 +868,11 @@ private struct AddIntegrationView: View {
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    AdminHeader(title: "Add integration", detail: admin.catalog.isEmpty ? "Loading the catalogue…" : "\(admin.catalog.count) can be set up here") {
+                    AdminHeader(title: "Add integration", detail: shownCatalog.isEmpty ? "Loading the catalogue…" : "\(shownCatalog.count) can be set up here") {
                         QuietButton(title: "Back") { admin.section = .integrations }
                     }
                     HearthField(label: "Search integrations", placeholder: "Search brands and services", text: $search)
-                    if admin.catalog.isEmpty {
+                    if shownCatalog.isEmpty {
                         VStack(spacing: 10) {
                             ProgressView().controlSize(.small)
                             Text("Fetching every integration Home Assistant can set up")
@@ -819,6 +905,7 @@ private struct AddIntegrationView: View {
                 .padding(24)
             }
             .task {
+                guard documentation == nil else { return }
                 // `-haFlow <domain>` (and `-haFlowValues <json>` for a first answer) open a setup straight away, for renders.
                 if let domain = UserDefaults.standard.string(forKey: "haFlow"), session == nil {
                     let s = FlowSession(domain: domain, name: admin.name(of: domain))
@@ -842,8 +929,19 @@ private struct AddIntegrationView: View {
 
     private var results: [HACatalogItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return admin.catalog }
-        return admin.catalog.filter { $0.name.lowercased().contains(q) || $0.domain.contains(q) }
+        guard !q.isEmpty else { return shownCatalog }
+        return shownCatalog.filter { $0.name.lowercased().contains(q) || $0.domain.contains(q) }
+    }
+}
+
+/// Reject non-JSON numeric values before setup submission. Preserve ordinary
+/// integer/decimal behavior without trapping on a finite value outside Int range.
+enum FlowNumberPayload {
+    static func value(_ raw: Any, step: Double?) throws -> Any? {
+        guard let value = (raw as? Double) ?? Double("\(raw)".replacingOccurrences(of: ",", with: ".")) else { return nil }
+        guard value.isFinite else { throw ProviderError("Enter a finite number for this setup field.") }
+        if (step ?? 0) >= 1, value == value.rounded(), let integer = Int(exactly: value) { return integer }
+        return value
     }
 }
 
@@ -882,7 +980,10 @@ final class FlowSession: ObservableObject, Identifiable {
         guard let step else { return }
         busy = true
         defer { busy = false }
-        do { show(try await HAAdmin.shared.submit(step.flowID, extra ?? payload(step))) } catch { problem = error.localizedDescription }
+        do {
+            let outgoing = try (extra ?? payload(step))
+            show(try await HAAdmin.shared.submit(step.flowID, outgoing))
+        } catch { problem = error.localizedDescription }
     }
 
     /// Polls a step that's waiting on Home Assistant (a progress spinner, or a browser sign-in).
@@ -911,7 +1012,7 @@ final class FlowSession: ObservableObject, Identifiable {
     }
 
     /// The form's values, typed the way Home Assistant expects. Empty optional fields are left out.
-    private func payload(_ step: FlowStep) -> JSON {
+    private func payload(_ step: FlowStep) throws -> JSON {
         var out: JSON = [:]
         for f in step.fields {
             guard let v = values[f.name] else { continue }
@@ -920,8 +1021,7 @@ final class FlowSession: ObservableObject, Identifiable {
                 let s = "\(v)".trimmingCharacters(in: .whitespacesAndNewlines)
                 if !s.isEmpty || f.required { out[f.name] = s }
             case .number(_, _, let stepSize):
-                let d = (v as? Double) ?? Double("\(v)".replacingOccurrences(of: ",", with: "."))
-                if let d { out[f.name] = (stepSize ?? 0) >= 1 && d == d.rounded() ? Int(d) as Any : d as Any }
+                if let number = try FlowNumberPayload.value(v, step: stepSize) { out[f.name] = number }
             case .boolean:
                 out[f.name] = (v as? Bool) ?? false
             case .select(_, let multiple, _):

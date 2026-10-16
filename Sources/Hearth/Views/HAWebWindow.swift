@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import Combine
 
 /// Home Assistant's own web interface in a window, for everything Hearth doesn't draw natively:
 /// automations, dashboards, logs. It's signed in with Hearth's session, so there's no login page.
@@ -47,11 +48,11 @@ struct HAWebWindow: View {
             .background(Theme.base)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.hairline).frame(height: 1) }
 
-            WebView(view: web.view)
+            WebView(view: web.view).id(ObjectIdentifier(web.view))
         }
         .frame(minWidth: 760, minHeight: 520)
         .navigationTitle("Home Assistant")
-        .task {
+        .task(id: store.authenticationGeneration) {
             // Another screen can ask for a particular page, such as a setup flow to finish here.
             let next = UserDefaults.standard.string(forKey: "haWeb.next") ?? ""
             UserDefaults.standard.removeObject(forKey: "haWeb.next")
@@ -78,44 +79,68 @@ final class HAWebModel: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var canGoForward = false
     @Published var loading = false
     @Published var path = ""
-    let view: WKWebView
+    @Published private(set) var view: WKWebView
     private var base: URL?
+    private var authenticationChanges: AnyCancellable?
+    private weak var boundStore: HomeStore?
+    private var loadGeneration = 0
+
+    private static func makeView() -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        return WKWebView(frame: .zero, configuration: config)
+    }
 
     override init() {
-        let config = WKWebViewConfiguration()
-        // Nothing is kept on disk: the session is handed over fresh each time the window opens.
-        config.websiteDataStore = .nonPersistent()
-        view = WKWebView(frame: .zero, configuration: config)
+        view = Self.makeView()
         super.init()
         view.navigationDelegate = self
         view.allowsBackForwardNavigationGestures = true
     }
 
-    /// Signs the page in the way Home Assistant's frontend remembers a login: it reads `hassTokens`
-    /// from local storage. The client id must be the one the tokens were issued to, which is the
-    /// server's own address, the same as Hearth's sign-in uses.
+    /// Replacing the entire ephemeral view drops its token store, document and
+    /// scripts. A stale async load cannot reinstall the old authority afterward.
+    func invalidate() {
+        loadGeneration &+= 1
+        base = nil
+        canGoBack = false; canGoForward = false; loading = false; path = ""
+        let previous = view
+        previous.stopLoading()
+        previous.navigationDelegate = nil
+        previous.configuration.userContentController.removeAllUserScripts()
+        previous.loadHTMLString("", baseURL: nil)
+        previous.configuration.websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) {}
+        view = Self.makeView()
+        view.navigationDelegate = self
+        view.allowsBackForwardNavigationGestures = true
+    }
+
     func load(_ store: HomeStore, path: String = "") async {
-        guard let base = store.baseURL else { return }
+        if boundStore !== store {
+            if boundStore != nil { invalidate() }
+            boundStore = store
+            authenticationChanges = store.$authenticationGeneration.dropFirst().sink { [weak self] _ in self?.invalidate() }
+        }
+        let epoch = loadGeneration
+        let authEpoch = store.authenticationGeneration
+        guard let auth = try? await store.webAuthentication(),
+              !Task.isCancelled, epoch == loadGeneration,
+              authEpoch == store.authenticationGeneration else { return }
+        let base = auth.base
+        var tokens: JSON = ["hassUrl": base.absoluteString, "clientId": auth.clientID,
+                            "token_type": "Bearer", "access_token": auth.accessToken,
+                            "expires_in": 1800, "expires": Int(Date().addingTimeInterval(1700).timeIntervalSince1970 * 1000)]
+        if let refresh = auth.refreshToken { tokens["refresh_token"] = refresh }
+        guard let data = try? JSONSerialization.data(withJSONObject: tokens),
+              let json = String(data: data, encoding: .utf8),
+              let originGuard = HAOrigin.javaScriptGuard(for: base) else { return }
+        let literal = (try? JSONSerialization.data(withJSONObject: [json], options: [.fragmentsAllowed]))
+            .flatMap { String(data: $0, encoding: .utf8) }.map { String($0.dropFirst().dropLast()) } ?? "\"\""
+        let script = "if (\(originGuard)) { try { localStorage.setItem('hassTokens', \(literal)); } catch (e) {} }"
+        view.configuration.userContentController.removeAllUserScripts()
+        view.configuration.userContentController.addUserScript(
+            WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         self.base = base
-        let origin = base.absoluteString
-        var tokens: JSON = ["hassUrl": origin, "clientId": origin + "/", "token_type": "Bearer"]
-        if let access = try? await store.validAccessToken() {
-            tokens["access_token"] = access
-            tokens["expires_in"] = 1800
-            tokens["expires"] = Int(Date().addingTimeInterval(1700).timeIntervalSince1970 * 1000)
-        }
-        if let refresh = Keychain.get("ha.refresh") { tokens["refresh_token"] = refresh }
-        if tokens["access_token"] != nil,
-           let data = try? JSONSerialization.data(withJSONObject: tokens),
-           let json = String(data: data, encoding: .utf8) {
-            let literal = (try? JSONSerialization.data(withJSONObject: [json], options: [.fragmentsAllowed]))
-                .flatMap { String(data: $0, encoding: .utf8) }.map { String($0.dropFirst().dropLast()) } ?? "\"\""
-            guard let originGuard = HAOrigin.javaScriptGuard(for: base) else { return }
-            let script = "if (\(originGuard)) { try { localStorage.setItem('hassTokens', \(literal)); } catch (e) {} }"
-            view.configuration.userContentController.removeAllUserScripts()
-            view.configuration.userContentController.addUserScript(
-                WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        }
         open(path)
     }
 
@@ -126,15 +151,15 @@ final class HAWebModel: NSObject, ObservableObject, WKNavigationDelegate {
     }
 
     nonisolated func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        Task { @MainActor in self.update(loading: true) }
+        Task { @MainActor in if self.view === webView { self.update(loading: true) } }
     }
 
     nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        Task { @MainActor in self.update(loading: false) }
+        Task { @MainActor in if self.view === webView { self.update(loading: false) } }
     }
 
     nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        Task { @MainActor in self.update(loading: false) }
+        Task { @MainActor in if self.view === webView { self.update(loading: false) } }
     }
 
     private func update(loading: Bool) {

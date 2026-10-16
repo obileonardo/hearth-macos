@@ -58,7 +58,7 @@ enum StatusFeed {
             for e in store.entities.values.filter({ $0.domain == "climate" }).sorted(by: { $0.id < $1.id }) {
                 let c = Climate(e: e)
                 if c.on, let t = c.target {
-                    let degrees = t == t.rounded() ? "\(Int(t))" : String(format: "%.1f", t)
+                    let degrees = Int(exactly: t).map(String.init) ?? String(format: "%.1f", t)
                     lines.append(StatusLine(source: .climate, symbol: Theme.modeSymbol(e.state), text: "\(degrees)°"))
                 }
             }

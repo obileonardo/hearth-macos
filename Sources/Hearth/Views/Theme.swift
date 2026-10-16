@@ -251,6 +251,12 @@ struct Tray<Content: View>: View {
 
 /// Buttons press in like a physical key, and brighten a touch under the pointer so you can
 /// tell what's clickable before you click.
+enum PressFeedback {
+    static func scale(pressed: Bool, reduceMotion: Bool) -> CGFloat {
+        pressed && !reduceMotion ? 0.965 : 1
+    }
+}
+
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         PressBody(configuration: configuration)
@@ -261,16 +267,17 @@ struct PressStyle: ButtonStyle {
         @State private var hovering = false
         @Environment(\.colorScheme) private var scheme
         @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         var body: some View {
             configuration.label
                 .contentShape(Rectangle())
-                .scaleEffect(configuration.isPressed ? 0.965 : 1)
+                .scaleEffect(PressFeedback.scale(pressed: configuration.isPressed, reduceMotion: reduceMotion))
                 .brightness(configuration.isPressed ? (scheme == .light ? -0.05 : -0.04)
                             : hovering && enabled ? (scheme == .light ? -0.018 : 0.035) : 0)
                 .onHover { inside in hovering = inside }
-                .animation(.snap, value: configuration.isPressed)
-                .animation(.snap, value: hovering)
+                .animation(reduceMotion ? nil : .snap, value: configuration.isPressed)
+                .animation(reduceMotion ? nil : .snap, value: hovering)
         }
     }
 }

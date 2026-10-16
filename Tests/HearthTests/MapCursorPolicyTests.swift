@@ -6,6 +6,18 @@ final class MapCursorPolicyTests: XCTestCase {
         .init(active: true, visible: true, keyWindow: true, sameWindow: true, insideVisibleRect: true, canvasHit: true)
     }
 
+    func testMatchingNativeCursorIsNotRepeatedlySet() {
+        XCTAssertFalse(MapCursorPolicy.shouldSet(.openHand, currentMatches: true))
+        XCTAssertFalse(MapCursorPolicy.shouldSet(.arrow, currentMatches: true))
+        XCTAssertTrue(MapCursorPolicy.shouldSet(.openHand, currentMatches: false))
+        XCTAssertTrue(MapCursorPolicy.shouldSet(.arrow, currentMatches: false))
+    }
+
+    func testInheritedCursorIsNeverSetEvenAfterAnotherViewChangesIt() {
+        XCTAssertFalse(MapCursorPolicy.shouldSet(.inherited, currentMatches: false))
+        XCTAssertFalse(MapCursorPolicy.shouldSet(.inherited, currentMatches: true))
+    }
+
     func testHouseAndPinOwnOpenHandButBlankCanvasOwnsArrow() {
         XCTAssertEqual(MapCursorPolicy.choice(canvas, dragging: false, hitHouseOrPin: true), .openHand)
         XCTAssertEqual(MapCursorPolicy.choice(canvas, dragging: false, hitHouseOrPin: false), .arrow)

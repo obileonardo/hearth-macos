@@ -58,4 +58,62 @@ final class ClimateCommandTests: XCTestCase {
         XCTAssertEqual(reported.state, "cool")
         XCTAssertEqual(reported.num("temperature"), 24)
     }
+    func testFractionalStepsAreNotClampedToHalfADegree() {
+        var fine = entity
+        fine.attributes["target_temp_step"] = 0.1
+        XCTAssertEqual(Climate(e: fine).step, 0.1)
+        fine.attributes["target_temp_step"] = 0.25
+        XCTAssertEqual(Climate(e: fine).step, 0.25)
+        XCTAssertEqual(degrees(24.25), "24.25")
+    }
+
+    func testInvalidStepUsesSafeDefaultWithoutChangingAdvertisedModes() {
+        for invalid in [0.0, -1, Double.nan, Double.infinity] {
+            var invalidEntity = entity
+            invalidEntity.attributes["target_temp_step"] = invalid
+            XCTAssertEqual(Climate(e: invalidEntity).step, 1)
+            XCTAssertEqual(Climate(e: invalidEntity).modes.count, 4)
+        }
+    }
+
+    func testMalformedTemperatureBoundsDoNotConstructASliderOrCommand() {
+        for (low, high) in [(30.0, 16.0), (.nan, 30), (16, .infinity), (-Double.greatestFiniteMagnitude, Double.greatestFiniteMagnitude)] {
+            var invalidEntity = entity
+            invalidEntity.attributes["min_temp"] = low
+            invalidEntity.attributes["max_temp"] = high
+            XCTAssertNil(Climate(e: invalidEntity).temperatureRange)
+            XCTAssertNil(ClimateCommand.temperature(invalidEntity, value: 24))
+        }
+    }
+
+    func testNonFiniteSetpointAndRoomAreUnavailableRatherThanFormatted() {
+        for invalid in [Double.nan, Double.infinity, -Double.infinity] {
+            var invalidEntity = entity
+            invalidEntity.attributes["temperature"] = invalid
+            invalidEntity.attributes["current_temperature"] = invalid
+            invalidEntity.attributes["supported_features"] = invalid
+            XCTAssertNil(Climate(e: invalidEntity).target)
+            XCTAssertNil(Climate(e: invalidEntity).room)
+            XCTAssertFalse(Climate(e: invalidEntity).canTurnOn)
+            XCTAssertNil(ClimateCommand.temperature(invalidEntity, value: 24))
+            XCTAssertEqual(degrees(invalid), "—")
+        }
+    }
+
+    func testSnappingUsesAdvertisedLowerBoundAndNeverEscapesRange() {
+        let range = 16.2...30.4
+        XCTAssertEqual(ClimateTemperatureScale.snapped(17.16, range: range, step: 0.5), 17.2, accuracy: 0.00001)
+        XCTAssertEqual(ClimateTemperatureScale.snapped(100, range: range, step: 0.5), 30.4)
+        XCTAssertEqual(ClimateTemperatureScale.snapped(-100, range: range, step: 0.5), 16.2)
+        for target in stride(from: 16.2, through: 30.4, by: 0.01) {
+            XCTAssertTrue(range.contains(ClimateTemperatureScale.snapped(target, range: range, step: 0.5)))
+        }
+    }
+
+    func testFixedAndNarrowTemperatureRangesKeepTheirEndpoints() {
+        XCTAssertEqual(ClimateTemperatureScale.snapped(25, range: 24...24, step: 1), 24)
+        XCTAssertEqual(ClimateTemperatureScale.snapped(25, range: 24...24.4, step: 1), 24.4)
+        XCTAssertEqual(ClimateTemperatureScale.snapped(.nan, range: 24...24.4, step: 1), 24)
+    }
+
 }

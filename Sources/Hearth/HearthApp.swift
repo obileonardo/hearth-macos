@@ -55,11 +55,20 @@ enum MenuBarIcon {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
-    @MainActor let store = HomeStore()
+    @MainActor let store: HomeStore = {
+        // Validate offline intent before constructing any saved-session store.
+        // A missing destination must never fall through to normal home startup.
+        do { try OfflineLaunchArguments.validate(CommandLine.arguments) }
+        catch {
+            fputs("Offline export stopped: \(error.localizedDescription)\n", stderr)
+            exit(2)
+        }
+        return HomeStore()
+    }()
     // AppDelegate is constructed before the exporter configures volatile stores.
     // Offline rendering must therefore select memory-only activity immediately.
     @MainActor let log = ActivityLog(previewItems: CommandLine.arguments.contains {
-        ["--render-preview", "--render-cars", "--render-art"].contains($0)
+        ["--render-preview", "--render-cars", "--render-art", "--review-rooms", "--review-climate"].contains($0)
     } ? [] : nil)
     private var debugWindow: NSWindow?
     private var pendingWidgetPage: String?
@@ -73,6 +82,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--review-rooms") || CommandLine.arguments.contains("--review-climate") {
+            #if DEBUG
+            debugWindow = CommandLine.arguments.contains("--review-climate") ? ClimateReview.open() : RoomsReview.open()
+            return
+            #else
+            // Never silently turn an offline review into a saved-home session.
+            fputs("Offline interactive reviews require a debug build. No home connection was started.\n", stderr)
+            exit(2)
+            #endif
+        }
         // Offline previews exit before sign-in, notifications or device subscriptions.
         if let i = CommandLine.arguments.firstIndex(of: "--render-preview"), i + 1 < CommandLine.arguments.count {
             do { try PreviewExporter.export(to: CommandLine.arguments[i + 1]) }
@@ -257,6 +276,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             NSLog("Hearth: snapshot written to \(path)")
         }
     }
+
+    #if DEBUG
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        CommandLine.arguments.contains("--review-rooms") || CommandLine.arguments.contains("--review-climate")
+    }
+    #endif
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
         -> UNNotificationPresentationOptions { [.banner, .sound] }

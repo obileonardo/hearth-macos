@@ -33,13 +33,27 @@ enum PreviewExporter {
         arguments["appearance"] = "system"
         arguments[NavigationGlassPreference.key] = NavigationGlassPreference.defaultValue
         arguments["hiddenSections"] = ""
+        arguments[RoomsLayoutPreference.key] = RoomsLayoutPreference.overview.rawValue
         arguments["desktopWidgets.climateEntity"] = "climate.preview_living_room"
         UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
         let engine = DemoEngine(.vehicles)
         let energy = DemoEngine(.energy)
         let climate = Entity(["entity_id": "climate.preview_living_room", "state": "cool",
                               "attributes": ["friendly_name": "Living room", "temperature": 24,
-                                             "current_temperature": 25.5, "hvac_modes": ["off", "cool", "heat"]]])!
+                                             "current_temperature": 25.5,
+                                             "hvac_modes": ["off", "cool", "auto", "dry", "fan_only"],
+                                             "fan_modes": ["auto", "low", "medium", "high"], "fan_mode": "high",
+                                             "swing_modes": ["off", "on"], "swing_mode": "on", "supported_features": 128]])!
+        let climateCompanions = [
+            Entity(id: "number.preview_living_room_sleep_timer", state: "0", attributes: ["friendly_name": "Sleep timer", "min": 0, "max": 8]),
+            Entity(id: "switch.preview_living_room_lighting", state: "on", attributes: ["friendly_name": "Display light"])
+        ]
+        let climateStore = HomeStore()
+        let climateEntities = [climate] + climateCompanions
+        climateStore.playDemo(devices: [DeviceInfo(id: "preview-climate", name: "Living room air conditioner", manufacturer: "Demo Climate", model: "Wall air conditioner", areaID: "living")],
+                              entities: climateEntities,
+                              deviceOf: Dictionary(uniqueKeysWithValues: climateEntities.map { ($0.id, "preview-climate") }),
+                              areas: [Area(id: "living", name: "Living Room")], simulator: { _ in nil })
         energy.store.playDemo(update: [climate])
         let now = Date()
         let log = ActivityLog(previewItems: [
@@ -57,8 +71,8 @@ enum PreviewExporter {
         let speakers = HomeStore()
         let ids = ["media_player.living_homepod", "media_player.kitchen_homepod", "media_player.office_echo", "media_player.bedroom_homepod"]
         let names = ["Living Room HomePod", "Kitchen HomePod", "Echo Dot Upstairs Bedroom", "Guest Bedroom Speaker"]
-        let rooms = [Area(id: "living", name: "Living Room"), Area(id: "kitchen", name: "Kitchen"),
-                     Area(id: "master", name: "Upstairs Bedroom"), Area(id: "bedroom", name: "Guest Bedroom")]
+        let rooms = [Area(id: "living", name: "Living Room", floorID: "ground"), Area(id: "kitchen", name: "Kitchen", floorID: "ground"),
+                     Area(id: "master", name: "Upstairs Bedroom", floorID: "first"), Area(id: "bedroom", name: "Guest Bedroom", floorID: "first")]
         let states = ["playing", "playing", "paused", "unavailable"]
         let players = ids.enumerated().map { i, id in
             Entity(id: id, state: states[i], attributes: ["friendly_name": names[i], "media_title": "A quiet morning",
@@ -68,7 +82,8 @@ enum PreviewExporter {
         speakers.playDemo(devices: ids.enumerated().map { i, id in
             DeviceInfo(id: id, name: names[i], manufacturer: i == 2 ? "Amazon" : "Apple",
                        model: i == 2 ? "Echo Dot" : "HomePod mini", areaID: rooms[i].id)
-        }, entities: players, deviceOf: Dictionary(uniqueKeysWithValues: ids.map { ($0, $0) }), areas: rooms, simulator: { _ in nil })
+        }, entities: players, deviceOf: Dictionary(uniqueKeysWithValues: ids.map { ($0, $0) }), areas: rooms, floors: [Floor(id: "ground", name: "Ground floor", level: 0),
+                                                  Floor(id: "first", name: "First floor", level: 1)], simulator: { _ in nil })
         for scheme in [ColorScheme.dark, .light] {
             let suffix = scheme == .dark ? "dark" : "light"
             try save(PreviewProductShowcase(), name: "product-showcase-\(suffix)", width: 1020,
@@ -77,10 +92,36 @@ enum PreviewExporter {
                      name: "guide-devices-\(suffix)", width: 448, scheme: scheme, store: engine.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: .devices) { MediaPage(players: players, shown: true, previewLayout: "grid") },
                      name: "guide-speakers-\(suffix)", width: 448, scheme: scheme, store: speakers, log: log, out: out)
+            // Synthetic Home Assistant registry assignments, never a saved home.
+            for layout in RoomsLayoutPreference.allCases {
+                var previewArguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+                previewArguments[RoomsLayoutPreference.key] = layout.rawValue
+                UserDefaults.standard.setVolatileDomain(previewArguments, forName: UserDefaults.argumentDomain)
+                let explorer = RoomsExplorerState()
+                if layout == .interactive { explorer.selectedRoom = .area("kitchen") }
+                try save(PreviewScreenshotPanel(selected: .rooms, nativeScrollViewport: true) {
+                    RoomsOverview(shown: true, explorer: explorer, open: { _ in }, openDevice: { _ in })
+                }, name: "guide-rooms-\(layout.rawValue)-\(suffix)", width: 448,
+                         scheme: scheme, store: speakers, log: log, out: out, native: true)
+            }
+            try save(PreviewScreenshotPanel(selected: .activity, nativeScrollViewport: true) { ActivityPage(shown: true) },
+                     name: "guide-activity-empty-\(suffix)", width: 448, scheme: scheme,
+                     store: speakers, log: ActivityLog(previewItems: []), out: out, native: true)
             try save(PreviewScreenshotPanel(selected: .climate(climate.id)) { ClimatePage(entityID: climate.id, shown: true) },
-                     name: "guide-climate-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
-            try save(PreviewScreenshotPanel(selected: nil, settings: true) { SettingsView(previewSignedIn: false) {} },
-                     name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
+                     name: "guide-climate-\(suffix)", width: 448, scheme: scheme, store: climateStore, log: log, out: out)
+            try save(PreviewScreenshotPanel(selected: nil, settings: true, nativeScrollViewport: true) { SettingsView(previewSignedIn: false) {} },
+                     name: "guide-connect-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out, native: true)
+            let adminGuide = HAAdminGuideSnapshot.example()
+            try save(PreviewScreenshotPanel(selected: nil, settings: true, nativeScrollViewport: true) {
+                AccountPage(documentation: adminGuide) {}
+            }, name: "guide-account-\(suffix)", width: 448, scheme: scheme,
+                     store: speakers, log: log, out: out, native: true)
+            try save(HAAdminWindow(documentation: adminGuide).frame(height: 560),
+                     name: "guide-integrations-\(suffix)", width: 940, scheme: scheme,
+                     store: speakers, log: log, out: out, native: true)
+            try save(HAAdminWindow(documentation: .example(section: .add)).frame(height: 560),
+                     name: "guide-integration-add-\(suffix)", width: 940, scheme: scheme,
+                     store: speakers, log: log, out: out, native: true)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport {} },
                      name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport(initialRequest: .bug) {} },
@@ -115,6 +156,33 @@ enum PreviewExporter {
                 try save(MediaPage(players: players, shown: true, previewLayout: layout), name: "speakers-\(layout)-\(suffix)", width: 368,
                          scheme: scheme, store: speakers, log: log, out: out)
             }
+            for (index, time) in [0.0, 0.8, 1.6, 2.4, 3.2].enumerated() {
+                let edge = ACUnitView(power: 1, mode: "cool", intensity: 1, swing: true,
+                    width: ClimateIllustrationLayout.bodyWidth, display: "16°", reach: 0.46, chill: 1, previewTime: time)
+                    .environment(\.colorScheme, scheme)
+                let alphaRenderer = ImageRenderer(content: edge)
+                alphaRenderer.scale = 2
+                guard let image = alphaRenderer.cgImage,
+                      let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+                    throw ProviderError("Couldn't render the airflow edge review")
+                }
+                try png.write(to: out.appendingPathComponent("airflow-alpha-\(suffix)-\(index).png"), options: .atomic)
+                try save(VStack(spacing: 0) {
+                    edge
+                    Text("16°").font(.system(size: 76, weight: .thin)).foregroundStyle(Theme.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }, name: "airflow-edge-\(suffix)-\(index)", width: 404,
+                         scheme: scheme, store: climateStore, log: log, out: out)
+            }
+            try save(HStack(alignment: .top, spacing: 16) {
+                ForEach([16.0, 24, 30], id: \.self) { value in
+                    VStack(spacing: 6) {
+                        Text("\(Int(value))°").font(.system(size: 18, weight: .medium)).foregroundStyle(Theme.ink)
+                        ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: false, width: 180, display: "\(Int(value))°",
+                                   reach: 0.46, chill: ACAirAppearance.normalizedChill(target: value, lowerBound: 16, upperBound: 30), previewTime: 1.4)
+                    }
+                }
+            }, name: "airflow-temperature-\(suffix)", width: 780, scheme: scheme, store: climateStore, log: log, out: out)
             try save(ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: true, width: 240, display: "24°", previewTime: 1.4),
                      name: "airflow-\(suffix)", width: 340, scheme: scheme, store: engine.store, log: log, out: out)
             try save(PillAndWidgetSettings(), name: "settings-\(suffix)", width: 368,
@@ -231,6 +299,15 @@ enum PreviewExporter {
             window.appearance = NSApp.appearance
             window.contentView = host
             window.setContentSize(host.fittingSize)
+            // Give native controls, lazy scroll content and geometry preferences
+            // bounded layout passes before capture. Nothing is ordered on screen;
+            // only synthetic views are mounted and no device session is started.
+            for _ in 0..<6 {
+                host.needsLayout = true
+                host.layoutSubtreeIfNeeded()
+                host.displayIfNeeded()
+                _ = RunLoop.current.run(mode: .default, before: Date(timeIntervalSinceNow: 0.02))
+            }
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
             let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds)
@@ -252,6 +329,9 @@ enum PreviewExporter {
 private struct PreviewScreenshotPanel<Content: View>: View {
     let selected: Page?
     var settings = false
+    /// Menus and lazy room strips need an AppKit-backed scroll viewport. The
+    /// ImageRenderer path stays flat because it cannot render native scroll views.
+    var nativeScrollViewport = false
     @ViewBuilder let content: () -> Content
     private let pages: [Page] = [.climate("climate.preview_living_room"), .security, .rooms, .devices, .map, .activity]
 
@@ -262,11 +342,31 @@ private struct PreviewScreenshotPanel<Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            content().fixedSize(horizontal: false, vertical: true)
-                .frame(width: 404, height: Theme.panelSize.height - contentBottomInset - 44, alignment: .top)
-                .padding(22).clipped()
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.bottom, contentBottomInset)
+            if nativeScrollViewport {
+                // Mirror PanelView.scrolling so CenteredPageEmptyState receives
+                // the same viewport, unscrolled content origin and dock bounds.
+                GeometryReader { viewport in
+                    ScrollView {
+                        content()
+                            .padding(.horizontal, PanelView.scrollContentInset)
+                            .padding(.top, PanelView.scrollContentInset)
+                            .padding(.bottom, PanelView.scrollBottomPadding)
+                            .coordinateSpace(name: PageContentCoordinates.space)
+                            .environment(\.hearthPageViewportHeight, viewport.size.height)
+                            .environment(\.hearthPageDockObstruction, PanelView.footerHeight - PanelView.footerTopExtra)
+                    }
+                    .scrollIndicators(.never)
+                    .coordinateSpace(name: PinnedTitleBar.space)
+                    .overlayPreferenceValue(PinnedTitleKey.self, alignment: .top) { PinnedTitleBar(info: $0) }
+                }
+                .clipped()
+            } else {
+                content().fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 404, height: Theme.panelSize.height - contentBottomInset - 44, alignment: .top)
+                    .padding(22).clipped()
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .padding(.bottom, contentBottomInset)
+            }
             Dock(pages: pages, selected: selected, label: { page in
                 switch page {
                 case .climate: ("snowflake", "Workspace")

@@ -21,8 +21,10 @@ final class PinnedTitleProgressTests: XCTestCase {
     }
     @MainActor
     func testFloatingCardKeepsRequestedHeightAndPanelInsets() {
-        XCTAssertEqual(PinnedTitleBar.height, 84)
+        XCTAssertEqual(PinnedTitleBar.height, 68)
         XCTAssertEqual(PinnedTitleBar.cornerRadius, 18)
-        XCTAssertEqual(PinnedTitleBar.edgeInset, 16)
+        XCTAssertEqual(PinnedTitleBar.illustrationFrame, 35 * 0.75)
+        XCTAssertEqual(PinnedTitleBar.illustrationSize, 26.25 * 0.75)
+        XCTAssertEqual(PinnedTitleBar.edgeInset, 12)
     }
 }

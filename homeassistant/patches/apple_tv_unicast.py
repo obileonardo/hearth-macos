@@ -6,17 +6,14 @@ on a Mac, the device's answers to that service never come back, so setup says "N
 devices found" and a paired device never connects. pyatv's own unicast lookup does work
 there. This makes the integration use it whenever it already knows the address.
 
-Apply inside the Home Assistant container, then restart it:
-    docker cp apple_tv_unicast.py homeassistant:/tmp/ && \\
-    docker exec homeassistant python3 /tmp/apple_tv_unicast.py && docker restart homeassistant
-Safe to run twice. Re-run after a Home Assistant update.
+Check first with the read-only default; use --apply only after approval.
+Copy patch_safety.py beside this script. See README.md for preflight, compatibility
+limitations and an approved container rollback/restart procedure.
+
 """
 
-import pathlib
+from patch_safety import arguments, commit, replace_once
 
-import homeassistant.components.apple_tv as apple_tv
-
-folder = pathlib.Path(apple_tv.__file__).parent
 marker = "# unicast scan patch"
 
 edits = {
@@ -32,13 +29,27 @@ edits = {
     ),
 }
 
-for name, (old, new) in edits.items():
-    path = folder / name
-    source = path.read_text()
-    if marker in source:
-        print(f"{name}: already patched")
-    elif old in source:
-        path.write_text(source.replace(old, new, 1))
-        print(f"{name}: patched")
-    else:
-        raise SystemExit(f"{name}: the code has changed, so the patch wasn't applied")
+
+def plan(folder):
+    changes = []
+    for name, (old, new) in edits.items():
+        path = folder / name
+        source = path.read_text()
+        updated = replace_once(source, old, new, name)
+        if marker in source and source != updated:
+            raise ValueError(f"{name}: partial patch; nothing applied")
+        changes.append((path, source, updated))
+    return changes
+
+
+def main():
+    args = arguments("Check/apply the optional Apple TV unicast maintenance patch")
+    if args.root is None:
+        import homeassistant.components.apple_tv as apple_tv
+        from pathlib import Path
+        args.root = Path(apple_tv.__file__).parent
+    commit(plan(args.root), args.apply)
+
+
+if __name__ == "__main__":
+    main()

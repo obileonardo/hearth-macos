@@ -53,16 +53,19 @@ struct VehicleStatus {
                 || k.hasSuffix("_battery_level") || k.hasSuffix("state_of_charge"))
                 && e.str("unit_of_measurement") == "%"
         }
-        battery = batterySensor.flatMap { Double($0.state) } ?? vacuum?.num("battery_level")
+        battery = Self.percentage(batterySensor.flatMap { Double($0.state) })
+            ?? Self.percentage(vacuum?.num("battery_level"))
 
         range = find(["sensor"]) { e, k in
             k.contains("range") && ["km", "mi", "m"].contains(e.str("unit_of_measurement") ?? "")
         }.flatMap { e in
-            Double(e.state).map { "\(Int($0.rounded())) \(e.str("unit_of_measurement") ?? "km")" }
+            guard let value = Double(e.state), value.isFinite, value >= 0,
+                  let rounded = Int(exactly: value.rounded()) else { return nil }
+            return "\(rounded) \(e.str("unit_of_measurement") ?? "km")"
         }
 
         chargeLimit = find(["number", "sensor"]) { _, k in k.contains("charge_limit") || k.hasSuffix("charge_target") || k == "target_soc" }
-            .flatMap { Double($0.state) }
+            .flatMap { Self.percentage(Double($0.state)) }
 
         // Charging: a text state, a charging flag, then whether a cable is in.
         let stateSensor = find(["sensor"]) { e, k in
@@ -102,7 +105,10 @@ struct VehicleStatus {
         sessionEnergy = find(["sensor"]) { e, k in
             (k.contains("energy_added") || k.contains("session_energy") || k == "added_energy" || k == "charge_energy")
                 && cls(e) == "energy"
-        }.flatMap { e in Double(e.state).map { "\(String(format: "%.1f", $0)) \(e.str("unit_of_measurement") ?? "kWh")" } }
+        }.flatMap { e in
+            guard let value = Double(e.state), value.isFinite, Int(exactly: value.rounded()) != nil else { return nil }
+            return "\(String(format: "%.1f", value)) \(e.str("unit_of_measurement") ?? "kWh")"
+        }
 
         location = live.first { $0.domain == "device_tracker" }.map { t in
             switch t.state {
@@ -137,8 +143,13 @@ struct VehicleStatus {
         return nil
     }
 
+    private static func percentage(_ value: Double?) -> Double? {
+        guard let value, value.isFinite, (0...100).contains(value) else { return nil }
+        return value
+    }
+
     static func power(_ e: Entity) -> String? {
-        guard let v = Double(e.state), v > 0 else { return nil }
+        guard let v = Double(e.state), v.isFinite, v > 0, Int(exactly: v.rounded()) != nil else { return nil }
         let unit = e.str("unit_of_measurement") ?? "kW"
         if unit == "W" { return v >= 1000 ? "\(String(format: "%.1f", v / 1000)) kW" : "\(Int(v)) W" }
         return "\(String(format: v < 10 ? "%.1f" : "%.0f", v)) \(unit)"
@@ -160,8 +171,8 @@ struct VehicleStatus {
             default: minutes = v
             }
         }
-        guard let m = minutes, m >= 1 else { return nil }
-        let total = Int(m.rounded())
+        guard let m = minutes, m.isFinite, m >= 1,
+              let total = Int(exactly: m.rounded()) else { return nil }
         let h = total / 60, min = total % 60
         return h > 0 ? (min > 0 ? "\(h) h \(min) min to full" : "\(h) h to full") : "\(min) min to full"
     }

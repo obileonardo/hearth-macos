@@ -42,6 +42,14 @@ final class HearthMenuController: NSObject {
     var button: NSStatusBarButton? { statusItem?.button }
     var anchorView: NSView? { statusView ?? button }
 
+    /// The drawn capsule, not the status window's reserved slot or extra insets.
+    /// Flash notifications follow this live rectangle; an open main panel keeps
+    /// its separate opening-anchor session and fixed-width status reservation.
+    var liveStatusPillFrame: CGRect? {
+        guard let view = statusView, let window = view.window, view.image != nil else { return nil }
+        return window.convertToScreen(view.convert(view.imageFrame, to: nil))
+    }
+
     func attach(store: HomeStore, log: ActivityLog) {
         guard statusItem == nil else { return }
         self.store = store
@@ -153,6 +161,9 @@ final class HearthMenuController: NSObject {
         view.toolTip = line.map { "Hearth · \($0.text)" } ?? "Open Hearth"
         if LivePill.shared.statusLine != line { LivePill.shared.statusLine = line }
         if panel?.isVisible == true { positionPanel() }
+        // Width changes are laid out by AppKit after item.length is assigned.
+        // Recheck the toast after that layout without moving the main panel.
+        DispatchQueue.main.async { LivePill.shared.refreshAnchor() }
     }
 
     @objc private func toggle(_ sender: Any?) {
@@ -286,12 +297,16 @@ private final class HearthStatusView: NSView {
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    var imageFrame: CGRect {
+        guard let image else { return bounds }
+        return CGRect(x: bounds.midX - image.size.width / 2,
+                      y: bounds.midY - image.size.height / 2,
+                      width: image.size.width, height: image.size.height)
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let image else { return }
-        let rect = NSRect(x: (bounds.width - image.size.width) / 2,
-                          y: (bounds.height - image.size.height) / 2,
-                          width: image.size.width, height: image.size.height)
-        image.draw(in: rect, from: .zero, operation: .sourceOver,
+        image.draw(in: imageFrame, from: .zero, operation: .sourceOver,
                    fraction: trackingPress ? 0.88 : 1, respectFlipped: true, hints: nil)
     }
 

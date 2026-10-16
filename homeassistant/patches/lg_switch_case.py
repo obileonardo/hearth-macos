@@ -5,18 +5,14 @@ air clean, UV nano), but devices whose LG profile lists "ON"/"OFF" reject the lo
 value with "Fail device control", so the switch never moves. This retries a refused
 command with the value in upper case.
 
-Apply inside the Home Assistant container, then restart it:
-    docker cp lg_switch_case.py homeassistant:/tmp/ && \\
-    docker exec homeassistant python3 /tmp/lg_switch_case.py && docker restart homeassistant
-Safe to run twice. Re-run after a Home Assistant update.
+Check first with the read-only default; use --apply only after approval.
+Copy patch_safety.py beside this script. See README.md for preflight, compatibility
+limitations and an approved container rollback/restart procedure.
+
 """
 
-import pathlib
+from patch_safety import arguments, commit, replace_once
 
-import homeassistant.components.lg_thinq as lg
-
-path = pathlib.Path(lg.__file__).parent / "switch.py"
-source = path.read_text()
 marker = "# switch value case patch"
 
 helper = '''
@@ -43,16 +39,28 @@ replacements = [
      """            await self.async_call_api(self._post_value(off_command))"""),
 ]
 
-if marker in source:
-    print("already patched:", path)
-else:
+
+def plan(folder):
+    path = folder / "switch.py"
+    source = path.read_text()
+    if marker in source and (helper.lstrip("\n") not in source or any(new not in source for _, new in replacements)):
+        raise ValueError("switch.py: partial LG patch; nothing applied")
+    updated = source
     for old, new in replacements:
-        if old not in source:
-            raise SystemExit(f"switch.py has changed shape, patch not applied: {path}")
-        source = source.replace(old, new, 1)
-    anchor = "    async def async_turn_on(self, **kwargs: Any) -> None:"
-    if anchor not in source:
-        raise SystemExit(f"switch.py has changed shape, patch not applied: {path}")
-    source = source.replace("    @override\n" + anchor, helper.lstrip("\n") + "\n    @override\n" + anchor, 1)
-    path.write_text(source)
-    print("patched:", path)
+        updated = replace_once(updated, old, new, "LG switch command")
+    anchor = "    @override\n    async def async_turn_on(self, **kwargs: Any) -> None:"
+    updated = replace_once(updated, anchor, helper.lstrip("\n") + "\n" + anchor, "LG switch helper")
+    return [(path, source, updated)]
+
+
+def main():
+    args = arguments("Check/apply the optional LG switch case maintenance patch")
+    if args.root is None:
+        import homeassistant.components.lg_thinq as lg
+        from pathlib import Path
+        args.root = Path(lg.__file__).parent
+    commit(plan(args.root), args.apply)
+
+
+if __name__ == "__main__":
+    main()

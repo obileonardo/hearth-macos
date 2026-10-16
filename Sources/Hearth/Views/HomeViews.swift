@@ -26,6 +26,9 @@ struct PageHeader<Trailing: View>: View {
                 Text(eyebrow.uppercased()).eyebrow()
                 Text(title).font(.system(size: 22, weight: .semibold)).tracking(-0.4)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(HeadingAccessibility.label(title: title, summary: eyebrow))
+            .accessibilityAddTraits(.isHeader)
             Spacer()
             if let chrome, chrome.hasDemo {
                 Button(action: chrome.toggleDemo) {
@@ -50,6 +53,19 @@ struct PageHeader<Trailing: View>: View {
 }
 
 // MARK: Pinned title
+
+/// One semantic heading owns the scroll handoff, even when both drawings are visible.
+/// These values do not depend on animation timing or the user's motion preference.
+enum HeadingAccessibility {
+    static func usesFloatingHeading(progress: CGFloat) -> Bool {
+        progress.isFinite && progress >= 0.5
+    }
+
+    static func label(title: String, summary: String) -> String {
+        [title, summary].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+}
 
 /// The compact card replaces its original heading as that heading reaches the top edge.
 struct PinnedTitle {
@@ -89,18 +105,27 @@ private struct CollapsingPageHeading: ViewModifier {
         content
             .background(GeometryReader { proxy in
                 let rect = proxy.frame(in: .named(PinnedTitleBar.space))
-                let visible = PinnedTitleBar.progress(headerTop: rect.minY) >= 0.5
                 Color.clear.preference(key: PinnedTitleKey.self,
                     value: PinnedTitle(eyebrow: eyebrow, title: title, back: back,
                                        illustrations: illustrations, count: count, symbols: symbols, top: rect.minY, bottom: rect.maxY))
-                    // Only the accessibility handoff changes state; continuous
-                    // scrolling is handled by the visual effect below.
-                    .onChange(of: visible, initial: true) { _, value in pinnedVisible = value }
             })
+            // Observe scroll geometry directly. onChange inside a background
+            // GeometryReader can miss the scroll-only layout updates on macOS.
+            // Publish only the threshold crossing, never every scroll position.
+            .onGeometryChange(for: Bool.self) { proxy in
+                HeadingAccessibility.usesFloatingHeading(progress:
+                    PinnedTitleBar.progress(headerTop: proxy.frame(in: .named(PinnedTitleBar.space)).minY))
+            } action: { pinnedVisible = $0 }
             .visualEffect { effect, proxy in
                 effect.opacity(Double(1 - PinnedTitleBar.progress(headerTop: proxy.frame(in: .named(PinnedTitleBar.space)).minY)))
             }
             .accessibilityHidden(pinnedVisible)
+            // SwiftUI on macOS can retain descendants of an opacity-driven
+            // header despite accessibilityHidden on the container. Explicitly
+            // replace that subtree as well, as the floating header already does.
+            .accessibilityRepresentation {
+                if !pinnedVisible { content }
+            }
             .allowsHitTesting(!pinnedVisible)
     }
 }
@@ -108,9 +133,11 @@ private struct CollapsingPageHeading: ViewModifier {
 /// Inset glass follows the navigation opacity while keeping the heading fully legible.
 struct PinnedTitleBar: View {
     nonisolated static let space = "page-scroll"
-    static let height: CGFloat = 84
-    static let edgeInset: CGFloat = 16
+    static let height: CGFloat = 68
+    static let edgeInset: CGFloat = 12
     static let cornerRadius: CGFloat = 18
+    static let illustrationFrame: CGFloat = 26.25
+    static let illustrationSize: CGFloat = 19.6875
     let info: PinnedTitle?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
@@ -152,6 +179,7 @@ struct PinnedTitleBar: View {
     var body: some View {
         let p = progress
         let eased = p * p * (3 - 2 * p)
+        let ownsHeading = HeadingAccessibility.usesFloatingHeading(progress: p)
         Group {
             if let info, p > 0 {
                 HStack(alignment: .center, spacing: 12) {
@@ -162,7 +190,7 @@ struct PinnedTitleBar: View {
                         }
                         .buttonStyle(PressStyle())
                         .accessibilityLabel("Back")
-                        .accessibilityHidden(p < 0.5)
+                        .accessibilityHidden(!ownsHeading)
                     } else {
                         Group {
                             if let page { StaticSemanticNavigationGlyph(page: page, fallback: symbol) }
@@ -179,9 +207,9 @@ struct PinnedTitleBar: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(info.title), \(info.eyebrow)")
+                    .accessibilityLabel(HeadingAccessibility.label(title: info.title, summary: info.eyebrow))
                     .accessibilityAddTraits(.isHeader)
-                    .accessibilityHidden(p < 0.5)
+                    .accessibilityHidden(!ownsHeading)
                     if !info.illustrations.isEmpty || !info.symbols.isEmpty {
                         illustrationStack(info)
                     }
@@ -193,16 +221,16 @@ struct PinnedTitleBar: View {
                 .shadow(color: .black.opacity(contrast == .increased ? 0 : 0.14), radius: 5, y: 2)
                 .opacity(eased)
                 .offset(y: reduceMotion ? 0 : (1 - eased) * -2)
-                .allowsHitTesting(p >= 0.5)
+                .allowsHitTesting(ownsHeading)
                 // Replace the complete visual subtree so native accessibility
                 // cannot retain an invisible heading or decorative descendants.
                 .accessibilityRepresentation {
-                    if p >= 0.5 {
+                    if ownsHeading {
                         HStack {
                             if let back = info.back {
                                 Button("Back", action: back)
                             }
-                            Text("\(info.title), \(info.eyebrow)")
+                            Text(HeadingAccessibility.label(title: info.title, summary: info.eyebrow))
                                 .accessibilityAddTraits(.isHeader)
                         }
                         .accessibilityElement(children: .contain)
@@ -220,24 +248,24 @@ struct PinnedTitleBar: View {
         let symbols = shown.isEmpty ? Array(info.symbols.prefix(3)) : []
         let total = info.count ?? (shown.isEmpty ? info.symbols.count : info.illustrations.count)
         let remaining = max(0, total - shown.count - symbols.count)
-        return HStack(spacing: -9.5) {
+        return HStack(spacing: -7.125) {
             ForEach(Array(shown.enumerated()), id: \.offset) { _, kind in
-                DeviceArtView(kind: kind, active: false, size: 26.25)
-                    .frame(width: 35, height: 35)
+                DeviceArtView(kind: kind, active: false, size: Self.illustrationSize)
+                    .frame(width: Self.illustrationFrame, height: Self.illustrationFrame)
                     .background(Circle().fill(Theme.base))
-                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 2))
+                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 1.5))
             }
             ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
-                Image(systemName: symbol).font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(Theme.brand).frame(width: 35, height: 35)
+                Image(systemName: symbol).font(.system(size: 11.25, weight: .medium))
+                    .foregroundStyle(Theme.brand).frame(width: Self.illustrationFrame, height: Self.illustrationFrame)
                     .background(Circle().fill(Theme.base))
-                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 2))
+                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 1.5))
             }
             if remaining > 0 {
                 Text("+\(remaining)").font(.system(size: 10, weight: .semibold)).monospacedDigit()
-                    .foregroundStyle(Theme.ink).frame(width: 35, height: 35)
+                    .foregroundStyle(Theme.ink).frame(width: Self.illustrationFrame, height: Self.illustrationFrame)
                     .background(Circle().fill(Theme.base))
-                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 2))
+                    .overlay(Circle().strokeBorder(Theme.raised, lineWidth: 1.5))
             }
         }
         // DeviceArtView has its own semantic labels. This stack is decorative,

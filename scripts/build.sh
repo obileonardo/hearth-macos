@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Builds Hearth.app and installs it in ~/Applications.
+# Builds Hearth.app. Release builds install by default; --no-install leaves the app untouched.
+# Installation requires the existing destination app to be stopped and retains its old bundle.
 #   scripts/build.sh          release build, installed
 #   scripts/build.sh --debug  debug build, left in build/
 #   scripts/build.sh --universal --no-install  release for Apple silicon and Intel
@@ -52,7 +53,24 @@ fi
 
 app="${HEARTH_APP_OUTPUT:-build/Hearth.app}"
 [[ "$app" == */Hearth.app ]] || { print -u2 "HEARTH_APP_OUTPUT must end with /Hearth.app"; exit 1; }
-rm -rf "$app"
+# Refuse links: build/Hearth.app may point at an actively used installation.
+[[ ! -L "$app" ]] || { print -u2 "Build output is a symlink; choose a separate HEARTH_APP_OUTPUT."; exit 1; }
+if [[ -e "$app" ]]; then
+  [[ -d "$app" && -f "$app/Contents/Info.plist" ]] || { print -u2 "Existing output is not a Hearth app bundle."; exit 1; }
+  [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" == com.elvisobi.hearth ]] || { print -u2 "Existing output has an unexpected bundle identifier."; exit 1; }
+  python3 - "$app" <<'PY_CHECK'
+import pathlib
+import runpy
+import sys
+installer = runpy.run_path("scripts/install-app.py")
+if installer["running_bundle"](pathlib.Path(sys.argv[1])):
+    raise SystemExit("Build output is running. Choose a separate HEARTH_APP_OUTPUT; no process was changed.")
+PY_CHECK
+  # Retain the previous generated output too; never recursively remove a user path.
+  previous_output="${app:h}/.Hearth-before-build-$(uuidgen).app.backup"
+  mv "$app" "$previous_output"
+  print -r -- "Previous build retained: $previous_output"
+fi
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 if [[ $universal == true ]]; then
   lipo -create "${bins[@]}" -output "$app/Contents/MacOS/Hearth"
@@ -93,6 +111,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+python3 scripts/bundle-notices.py "$app"
 widget_entitlements=""
 if [[ "${HEARTH_INCLUDE_WIDGETKIT:-0}" == 1 ]]; then
   # Optional gallery target: desktop widgets remain the default distribution.
@@ -112,8 +131,5 @@ else
 fi
 
 if [[ $install_app == true ]]; then
-  mkdir -p ~/Applications
-  rm -rf ~/Applications/Hearth.app
-  cp -R "$app" ~/Applications/
-  echo "Installed ~/Applications/Hearth.app"
+  python3 scripts/install-app.py "$app" "$HOME/Applications/Hearth.app"
 fi

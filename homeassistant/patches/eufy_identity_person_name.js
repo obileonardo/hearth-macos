@@ -11,9 +11,10 @@
  * This copies the name and person id across, and gives cameras paired to a base the two
  * missing properties. Home Assistant's sensor.<camera>_person_name then shows the name.
  *
- * Apply inside the eufy-security-ws container, then restart it:
+ * Default invocation checks without writing. Only --apply changes files.
+ * Apply inside the eufy-security-ws container after an approved rollback plan:
  *     docker cp eufy_identity_person_name.js eufy-security-ws:/tmp/ && \
- *     docker exec eufy-security-ws node /tmp/eufy_identity_person_name.js && \
+ *     docker exec eufy-security-ws node /tmp/eufy_identity_person_name.js --apply && \
  *     docker restart eufy-security-ws
  * Safe to run twice. Re-run after updating the eufy-security-ws image.
  */
@@ -21,7 +22,13 @@
 const fs = require("fs");
 const path = require("path");
 
-const root = process.argv[2] || "/usr/src/app/node_modules/eufy-security-client/build";
+const args = process.argv.slice(2);
+if (args.some(arg => arg.startsWith("--") && arg !== "--apply") || args.filter(arg => arg !== "--apply").length > 1) {
+    console.error("usage: node eufy_identity_person_name.js [build-directory] [--apply] (default: read-only check)");
+    process.exit(1);
+}
+const apply = args.includes("--apply");
+const root = args.find(arg => arg !== "--apply") || "/usr/src/app/node_modules/eufy-security-client/build";
 const marker = "/* identity person name patch */";
 
 const patches = [
@@ -70,6 +77,11 @@ for (const patch of patches) {
     }
     const source = fs.readFileSync(patch.file, "utf8");
     if (source.includes(marker)) {
+        if (source.split(patch.anchor + patch.insert).length !== 2 ||
+            source.replace(patch.anchor + patch.insert, "").includes(patch.anchor)) {
+            console.error(`${path.basename(patch.file)}: incomplete patch; nothing applied`);
+            process.exit(1);
+        }
         console.log("already patched:", patch.file);
         continue;
     }
@@ -79,7 +91,34 @@ for (const patch of patches) {
     }
     pending.push({ ...patch, source });
 }
-for (const patch of pending) {
-    fs.writeFileSync(patch.file, patch.source.replace(patch.anchor, patch.anchor + patch.insert));
-    console.log("patched:", patch.file);
+if (!apply) {
+    for (const patch of pending) console.log("would patch:", path.basename(patch.file));
+    console.log(`check complete: ${pending.length} file(s) need changes; use --apply explicitly`);
+} else {
+    const written = [];
+    try {
+        for (const patch of pending) {
+            if (fs.readFileSync(patch.file, "utf8") !== patch.source) throw new Error("file changed since preflight");
+            const updated = patch.source.replace(patch.anchor, patch.anchor + patch.insert);
+            atomicWrite(patch.file, updated);
+            written.push({ ...patch, updated });
+        }
+    } catch (error) {
+        for (const patch of written.reverse()) {
+            if (fs.readFileSync(patch.file, "utf8") === patch.updated) atomicWrite(patch.file, patch.source);
+        }
+        throw error;
+    }
+    console.log(`applied: ${written.length} file(s); no service was restarted`);
+}
+
+function atomicWrite(file, source) {
+    if (!fs.lstatSync(file).isFile()) throw new Error("expected a regular file");
+    const temporary = `${file}.hearth-${process.pid}.tmp`;
+    try {
+        fs.writeFileSync(temporary, source, { flag: "wx", mode: fs.statSync(file).mode & 0o777 });
+        fs.renameSync(temporary, file);
+    } finally {
+        if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
 }

@@ -8,6 +8,9 @@ on:
       - 'Tests/**'
       - 'scripts/**'
       - 'WidgetExtension/**'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'docs/licenses/**'
       - 'Package.swift'
       - 'Package.resolved'
       - '.github/workflows/build.yml'
@@ -44,10 +47,14 @@ jobs:
         run: swift build --configuration release
       - name: Run isolated regressions
         run: swift test
+      - name: Verify optional maintenance patches with synthetic fixtures
+        run: python3 -m unittest discover -s Tests/MaintenancePatches -v
       - name: Verify appearance contrast
         run: python3 scripts/contrast.py --verify-source
       - name: Check release scripts
-        run: zsh -n scripts/*.sh
+        run: scripts/check-shell-syntax.sh
+      - name: Verify release tooling with isolated fixtures
+        run: python3 scripts/verify-release-tools.py
       - name: Compile optional widget extension
         run: scripts/build-widgets.sh --universal
 
