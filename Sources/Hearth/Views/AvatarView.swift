@@ -12,17 +12,23 @@ final class AvatarStore: ObservableObject {
     enum Kind { case video, gif, still }
 
     @Published private(set) var url: URL?
+    @Published private(set) var importError: String?
+    private let folder: URL
+    private var importAttempt = UUID()
 
-    private static let folder: URL = {
+    private static let defaultFolder: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("Hearth/avatar", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
 
-    private init() {
-        url = (try? FileManager.default.contentsOfDirectory(at: Self.folder, includingPropertiesForKeys: nil))?
-            .first { !$0.lastPathComponent.hasPrefix(".") }
+    private convenience init() { self.init(folder: Self.defaultFolder) }
+
+    /// Fixture callers provide a separate directory; never access the live store.
+    init(folder: URL) {
+        self.folder = folder
+        url = AvatarImport.selected(in: folder)
     }
 
     var kind: Kind? {
@@ -32,22 +38,47 @@ final class AvatarStore: ObservableObject {
         return .still
     }
 
-    /// Copies the file in, replacing whatever was there.
-    func use(_ source: URL) {
-        let fm = FileManager.default
-        try? fm.contentsOfDirectory(at: Self.folder, includingPropertiesForKeys: nil).forEach { try? fm.removeItem(at: $0) }
-        let target = Self.folder.appendingPathComponent("avatar." + source.pathExtension.lowercased())
+    /// Preserve the current picture until the new copy, media validation and
+    /// atomic selection update all succeed. A later choice owns the result.
+    func use(_ source: URL) async {
+        let attempt = UUID()
+        importAttempt = attempt
         do {
-            try fm.copyItem(at: source, to: target)
-            url = target
+            _ = try await AvatarImport.stage(source, in: folder,
+                stillCurrent: { self.importAttempt == attempt }, commit: { name, folder in
+                    guard self.importAttempt == attempt else { throw CancellationError() }
+                    try AvatarImport.writeSelection(name, in: folder)
+                    // Selection and displayed URL change in the same MainActor
+                    // turn, so an overlapping choice cannot publish stale state.
+                    let previous = self.url
+                    let next = folder.appendingPathComponent(name)
+                    self.url = next
+                    self.importError = nil
+                    if let previous, previous != next, previous.deletingLastPathComponent() == folder {
+                        try? FileManager.default.removeItem(at: previous)
+                    }
+                })
         } catch {
-            NSLog("Hearth: couldn't use that avatar: \(error.localizedDescription)")
+            guard importAttempt == attempt else { return }
+            importError = "Your existing picture is unchanged. " + error.localizedDescription
         }
     }
 
+    func dismissImportError() { importError = nil }
+
     func remove() {
-        if let url { try? FileManager.default.removeItem(at: url) }
-        url = nil
+        importAttempt = UUID()
+        do {
+            // An explicit empty choice prevents an older retained file from
+            // reappearing after a restart if its cleanup previously failed.
+            try AvatarImport.writeSelection("", in: folder)
+            let previous = url
+            url = nil
+            importError = nil
+            if let previous { try? FileManager.default.removeItem(at: previous) }
+        } catch {
+            importError = "Your existing picture is unchanged. " + error.localizedDescription
+        }
     }
 
     func choose() {
@@ -57,7 +88,7 @@ final class AvatarStore: ObservableObject {
         panel.allowedContentTypes = [.movie, .gif, .image]
         panel.allowsMultipleSelection = false
         NSApp.activate(ignoringOtherApps: true)
-        if panel.runModal() == .OK, let picked = panel.url { use(picked) }
+        if panel.runModal() == .OK, let picked = panel.url { Task { await use(picked) } }
     }
 }
 
@@ -117,6 +148,11 @@ struct LiveAvatar: View {
         .accessibilityLabel("Your picture")
         .accessibilityHint("Choose a picture, GIF or short video")
         .accessibilityAddTraits(.isButton)
+        .alert("Couldn’t change your picture", isPresented: Binding(
+            get: { store.importError != nil },
+            set: { if !$0 { store.dismissImportError() } })) {
+                Button("OK", role: .cancel) { store.dismissImportError() }
+            } message: { Text(store.importError ?? "") }
     }
 }
 

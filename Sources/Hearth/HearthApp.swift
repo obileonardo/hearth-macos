@@ -68,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     // AppDelegate is constructed before the exporter configures volatile stores.
     // Offline rendering must therefore select memory-only activity immediately.
     @MainActor let log = ActivityLog(previewItems: CommandLine.arguments.contains {
-        ["--render-preview", "--render-cars", "--render-art", "--review-rooms", "--review-climate"].contains($0)
+        ["--render-preview", "--render-cars", "--render-art", "--review-rooms", "--review-climate", "--review-tooltips"].contains($0)
     } ? [] : nil)
     private var debugWindow: NSWindow?
     private var pendingWidgetPage: String?
@@ -82,9 +82,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if CommandLine.arguments.contains("--review-rooms") || CommandLine.arguments.contains("--review-climate") {
+        if CommandLine.arguments.contains("--review-rooms") || CommandLine.arguments.contains("--review-climate") || CommandLine.arguments.contains("--review-tooltips") {
             #if DEBUG
-            debugWindow = CommandLine.arguments.contains("--review-climate") ? ClimateReview.open() : RoomsReview.open()
+            if CommandLine.arguments.contains("--review-tooltips") { debugWindow = TooltipReview.open() }
+            else { debugWindow = CommandLine.arguments.contains("--review-climate") ? ClimateReview.open() : RoomsReview.open() }
             return
             #else
             // Never silently turn an offline review into a saved-home session.
@@ -279,7 +280,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     #if DEBUG
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        CommandLine.arguments.contains("--review-rooms") || CommandLine.arguments.contains("--review-climate")
+        CommandLine.arguments.contains("--review-rooms") || CommandLine.arguments.contains("--review-climate") || CommandLine.arguments.contains("--review-tooltips")
     }
     #endif
 

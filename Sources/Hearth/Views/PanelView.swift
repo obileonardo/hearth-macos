@@ -151,6 +151,8 @@ struct PanelView: View {
         }
         .frame(width: nativePanelSize?.width ?? Theme.panelSize.width,
                height: Self.snapshotHeight ?? nativePanelSize?.height ?? Theme.panelSize.height)
+        // Help is positioned in the whole viewport, above scroll/dock clipping.
+        .panelTooltipHost()
         // Figures that change (temperatures, watts, times) keep their width, so nothing jitters.
         .monospacedDigit()
         .foregroundStyle(Theme.ink)

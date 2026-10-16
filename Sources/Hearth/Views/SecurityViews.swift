@@ -348,14 +348,8 @@ struct GridCamera: View {
             if let toggle = device?.entity(key: "camera_enabled"), !unreachable {
                 CameraPauseButton(entity: toggle, cameraName: device?.name ?? entity.name).padding(10)
             } else if unreachable {
-                Image(systemName: "info.circle")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 26, height: 26)
-                    .background(Circle().fill(.black.opacity(0.55)))
+                PanelInfoButton(message: Self.unreachableNote)
                     .padding(10)
-                    .help(Self.unreachableNote)
-                    .accessibilityLabel(Self.unreachableNote)
             }
         }
         // A screen: dark in either appearance, like the camera tiles in Apple's Home.
@@ -398,7 +392,7 @@ struct CameraPauseButton: View {
         }
         .buttonStyle(PressStyle())
         .disabled(waitingFor != nil || entity.isUnavailable)
-        .help(unanswered ? commandFailure ?? "\(cameraName) didn't respond. Its hub may not accept commands from Home Assistant."
+        .panelTooltip(unanswered ? commandFailure ?? "\(cameraName) didn't respond. Its hub may not accept commands from Home Assistant."
               : on ? "Pause \(cameraName) (privacy mode)" : "Turn \(cameraName) back on")
         .accessibilityLabel(on ? "Pause \(cameraName)" : "Turn \(cameraName) back on")
         .onChange(of: entity.state) { _, now in
