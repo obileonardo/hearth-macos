@@ -46,7 +46,7 @@ final class PanelTooltipPlacementTests: XCTestCase {
     }
 
     func testInvalidAndNonfiniteGeometryIsRejected() {
-        for size in [CGSize.zero, CGSize(width: -1, height: 10), CGSize(width: .infinity, height: 10), CGSize(width: .nan, height: 10)] {
+        for size in [CGSize.zero, CGSize(width: -1, height: 10), CGSize(width: CGFloat.infinity, height: 10), CGSize(width: CGFloat.nan, height: 10)] {
             XCTAssertNil(PanelTooltipPlacement.frame(anchor: .zero, viewport: size, bubble: bubble))
         }
         XCTAssertNil(PanelTooltipPlacement.frame(anchor: CGRect(x: CGFloat.nan, y: 10, width: 20, height: 20), viewport: viewport, bubble: bubble))
