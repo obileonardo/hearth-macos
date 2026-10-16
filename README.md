@@ -11,7 +11,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/art/hearth-native-showcase.png" width="960" alt="Hearth's native blue-accented climate, security and speaker illustrations">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/art/hearth-native-showcase-light.png">
+    <img src="docs/art/hearth-native-showcase.png" width="960" alt="Six native Hearth panels: Climate, Security, Speakers, Energy, Assets and Rooms">
+  </picture>
 </p>
 
 ---
@@ -22,7 +25,23 @@
 
 **Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.3.md) and the [task register](Task%20Update/README.md).
 
-## What it does
+## Your home, in six views
+
+Hearth brings the devices and services already connected to Home Assistant into a native Mac interface. Check a camera, change the temperature or find a room’s controls without opening a browser. Your Home Assistant server supplies the readings and supported actions; Hearth brings them together on your desktop.
+
+| View | What you can do |
+|---|---|
+| **Climate** | Open an air conditioner’s own page for temperature, mode and fan controls, with animated airflow that follows its reported state. |
+| **Security** | See camera and doorbell updates, open supported live streams, review activity and access the alarm controls your integration exposes. |
+| **Speakers** | Browse a grid or list by room, see playback and reported groups, and play, pause or announce on supported devices. |
+| **Energy** | Follow solar, battery, grid and home power; inspect the readings and history available from your connected sensors. |
+| **Assets** | Start with your home, then explore energy, vehicles, gadgets and speakers. Add a manual entry when a device has no integration. |
+| **Rooms** | Browse by floor in Overview, or select a room in the interactive browser while its devices stay in view. |
+
+The opening showcase is a native illustration of these six areas. The guides below show their actual views with offline sample data. Device support depends on the Home Assistant integration; a demo reading is not a compatibility claim.
+
+<details>
+<summary><b>Explore the views and their controls</b></summary>
 
 - **Climate.** Every air conditioner gets its own page: an illustrated unit whose louver opens when it runs, airflow that streams out in the colour of the mode, a set-point track with a tick for every degree, mode and fan speed controls, swing, sleep timer, display light and today's energy use.
 - **Security.** Your doorbell leads, streaming live (WebRTC, the same way Home Assistant's own app does it). Every other camera sits in a grid with its latest picture and when it last saw movement. Alarm systems arm and disarm in one tap.
@@ -34,9 +53,12 @@
 - **Activity.** A timeline of people seen, doorbell rings, motion, the alarm and the air conditioning, with pictures. Choose what sends a Mac notification.
 - **Live pill and desktop widgets.** Optional event alerts beneath the menu bar, plus clickable, movable and resizable widgets for climate, recent activity and energy. Choose widgets and the climate source in Settings. The overview adapts to connected readings. See [widgets](docs/widgets.md).
 - **Car illustrations.** Recognisable electric car models with a remembered paint choice. The vehicle demo lets you change both car and paint without controlling a real vehicle.
-- **Speakers, faces and maps.** Speaker playback lives in Assets. Optional familiar-face matching runs on this Mac. Import a home scan for the 3D map, with floor selection, plan view, transparent walls and device placement.
+- **Speakers.** Open **Assets → Speakers** for a room-labelled grid or list, connection state, animated playback waves and reported groups. Resume existing playback, request music or choose a media source where supported; announcements use the device’s exposed notification action.
+- **Faces and maps.** Optional familiar-face matching runs on this Mac. Import a home scan for the 3D map, with floor selection, plan view, transparent walls and device placement.
 - **Light, dark or system.** Choose in Settings. Theme text tokens have documented contrast calculations for light and dark appearances; Hearth supports Increase Contrast, Reduce Transparency and Reduce Motion. See [docs/accessibility.md](docs/accessibility.md).
 - **Native.** Built in SwiftUI. Hearth signs in to your Home Assistant and keeps its refresh token in your Keychain. Hearth has no analytics or account service; see [Privacy](#privacy) for its network and local storage behaviour.
+
+</details>
 
 <details>
 <summary><b>Explore the full device illustration library</b></summary>
@@ -80,11 +102,25 @@ The download is the published 0.1.3 preview. Its [verification record](docs/rele
   </tr>
 </table>
 
-<p align="center">
-  <img src="docs/screenshots/map-layout-dark.png" width="960" alt="Interactive two-floor demo house with transparent walls, device models and energy paths">
-</p>
+### A map of your home
 
-The demo map shows floor selection and device placement. Import your own scan to arrange your home.
+Import a home scan, choose a floor and place your devices. Switch between 3D and Plan, or change the wall visibility to see inside. This two-floor demo uses generated rooms, device placements and simulated energy readings.
+
+<img src="docs/screenshots/map-layout-dark.png" width="960" alt="Dark Hearth map with the synthetic two-floor house, transparent walls, device models and simulated energy paths">
+
+### Light, Dark or System
+
+Choose **Settings → Appearance → Light, Dark or System**. System follows your Mac; the other choices keep Hearth in the appearance you prefer. The map, cards, text and controls adapt together.
+
+<img src="docs/screenshots/guide-appearance-light.png" width="448" alt="Hearth's Appearance setting with System, Light and Dark choices; System is selected">
+
+#### The same home, in light mode
+
+<img src="docs/screenshots/map-layout-light.png" width="960" alt="Light Hearth map showing the same synthetic house, camera angle and device placements as the dark view">
+
+The light view uses the same demo scene and camera position, rendered with the map’s light surfaces, labels and controls.
+
+For the floating navigation and page headings, adjust **Settings → Navigation → Glass opacity**. Icons and labels retain full opacity. macOS **Reduce Transparency** or **Increase Contrast** uses a solid surface without discarding your saved preference; **Reduce Motion** limits animation. These offscreen images show the authored layout, not the Mac’s live glass composition. [Appearance and accessibility](docs/accessibility.md) · [Map guide](docs/3d-map.md)
 
 ## Requirements
 
