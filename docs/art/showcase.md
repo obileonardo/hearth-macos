@@ -20,4 +20,4 @@ The composition uses a landscape frame, one active example per device, consisten
 
 ## Current README showcase — 14 October 2026
 
-The README now uses `hearth-native-showcase.png`, rendered by `PreviewProductShowcase` from Hearth's own AC, camera, doorbell and speaker illustration components in equal blue cards. It is not the generated raster scene described above. That older image and its provenance remain archived. Documentation guide images and their isolated demo/illustrated-input method are described in `docs/screenshots/README.md`.
+The README now uses `hearth-native-showcase.png`, rendered by `PreviewProductShowcase` from Hearth's own illustration components. The16October refresh presents Climate, Security, Speakers, Energy, Assets and Rooms in six equally sized panels with aligned captions and quieter surfaces; light and dark exports follow the reader's appearance. It is not the generated raster scene described above. That older image and its provenance remain archived. Documentation guide images and their isolated demo/illustrated-input method are described in `docs/screenshots/README.md`.

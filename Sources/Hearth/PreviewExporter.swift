@@ -122,6 +122,8 @@ enum PreviewExporter {
             try save(HAAdminWindow(documentation: .example(section: .add)).frame(height: 560),
                      name: "guide-integration-add-\(suffix)", width: 940, scheme: scheme,
                      store: speakers, log: log, out: out, native: true)
+            try save(AppearanceSettings(), name: "guide-appearance-\(suffix)", width: 416,
+                     scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport {} },
                      name: "guide-help-\(suffix)", width: 448, scheme: scheme, store: energy.store, log: log, out: out)
             try save(PreviewScreenshotPanel(selected: nil, settings: true) { HelpAndSupport(initialRequest: .bug) {} },
@@ -275,17 +277,29 @@ enum PreviewExporter {
         view.scene = controller.scene
         view.pointOfView = controller.scene.rootNode.childNode(withName: "camera", recursively: false)
         view.antialiasingMode = .multisampling4X
-        view.backgroundColor = NSColor.black
         controller.view = view
-        controller.setAppearance(dark: true)
         controller.fit(animated: false)
         controller.orbit(yaw: -0.52, pitch: 0)
-        controller.finishContactShadowsForPreview()
-        let image = view.snapshot()
-        guard let tiff = image.tiffRepresentation,
-              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
-        try png.write(to: out.appendingPathComponent("map-scale-dark.png"), options: .atomic)
-        try save(MapWindow(previewImage: image).frame(height: 760), name: "map-layout-dark", width: 1180, scheme: .dark, store: store, log: ActivityLog(previewItems: []), out: out, native: true)
+        // Keep camera, floors and generated devices identical in both appearances.
+        // Repaint the actual renderer rather than tinting a dark screenshot.
+        for scheme in [ColorScheme.dark, .light] {
+            let dark = scheme == .dark
+            let suffix = dark ? "dark" : "light"
+            NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            controller.setAppearance(dark: dark)
+            view.backgroundColor = dark ? NSColor(calibratedRed: 0.027, green: 0.027, blue: 0.034, alpha: 1)
+                                        : NSColor(calibratedRed: 0.96, green: 0.96, blue: 0.975, alpha: 1)
+            controller.finishContactShadowsForPreview()
+            let image = view.snapshot()
+            guard let tiff = image.tiffRepresentation,
+                  let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else {
+                throw ProviderError("Couldn't render the \(suffix) demo map")
+            }
+            try png.write(to: out.appendingPathComponent("map-scale-\(suffix).png"), options: .atomic)
+            try save(MapWindow(previewImage: image).frame(height: 760), name: "map-layout-\(suffix)",
+                     width: 1180, scheme: scheme, store: store,
+                     log: ActivityLog(previewItems: []), out: out, native: true)
+        }
     }
 
     private static func save<V: View>(_ view: V, name: String, width: CGFloat, scheme: ColorScheme,
@@ -402,36 +416,74 @@ private struct PreviewScreenshotPanel<Content: View>: View {
 /// generated raster scene or invented device artwork.
 private struct PreviewProductShowcase: View {
     var body: some View {
-        HStack(spacing: 18) {
-            feature("Climate", detail: "Comfort, one degree at a time") {
-                ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: false, width: 196, display: "24°", previewTime: 1.4).scaleEffect(0.78)
-            }
-            feature("Security", detail: "A clearer view of your home") {
-                HStack(spacing: 12) {
-                    DeviceArtView(kind: .outdoorCamera, accent: Theme.brand, size: 116)
-                    DeviceArtView(kind: .doorbell, accent: Theme.brand, size: 90)
+        Grid(horizontalSpacing: 16, verticalSpacing: 16) {
+            GridRow {
+                feature("Climate", detail: "Temperature, mode and airflow") {
+                    ACUnitView(power: 1, mode: "cool", intensity: 0.8, swing: false,
+                               width: 214, display: "24°", previewTime: 1.4).scaleEffect(0.82)
+                }
+                feature("Security", detail: "Cameras, doorbells and events") {
+                    HStack(spacing: 14) {
+                        DeviceArtView(kind: .outdoorCamera, accent: Theme.brand, size: 112)
+                        DeviceArtView(kind: .doorbell, accent: Theme.brand, size: 82)
+                    }
+                }
+                feature("Speakers", detail: "Playback, rooms and groups") {
+                    HStack(spacing: 18) {
+                        DeviceArtView(kind: .smartSpeaker, accent: Theme.brand, size: 98)
+                        DeviceArtView(kind: .meshSpeaker, accent: Theme.brand, size: 98)
+                    }
                 }
             }
-            feature("Speakers", detail: "The right sound, in every room") {
-                HStack(spacing: 16) {
-                    DeviceArtView(kind: .smartSpeaker, accent: Theme.brand, size: 104)
-                    DeviceArtView(kind: .meshSpeaker, accent: Theme.brand, size: 104)
+            GridRow {
+                feature("Energy", detail: "Solar, battery and home power") {
+                    HStack(alignment: .bottom, spacing: 16) {
+                        DeviceArtView(kind: .solarPanel, accent: Theme.brand, size: 122)
+                        DeviceArtView(kind: .battery, accent: Theme.brand, size: 84)
+                    }
+                }
+                feature("Assets", detail: "Your connected hardware, together") {
+                    HStack(alignment: .bottom, spacing: 14) {
+                        DeviceArtView(kind: .gameConsole, accent: Theme.brand, size: 120)
+                        DeviceArtView(kind: .computer, accent: Theme.brand, size: 86)
+                    }
+                }
+                feature("Rooms", detail: "Browse by room and floor") {
+                    HStack(alignment: .bottom, spacing: 16) {
+                        HomeArt(style: .apartment, glow: 0.5, size: 116)
+                        DeviceArtView(kind: .meshSpeaker, accent: Theme.brand, size: 66)
+                    }
                 }
             }
         }
         .padding(12)
     }
 
-    private func feature<Illustration: View>(_ title: String, detail: String, @ViewBuilder illustration: () -> Illustration) -> some View {
-        Bezel(radius: 22, inset: 3, lit: true, tint: Theme.brand) {
-            VStack(spacing: 14) {
-                illustration().frame(height: 132)
-                VStack(spacing: 5) {
-                    Text(title).font(.system(size: 20, weight: .semibold))
-                    Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted)
-                }
+    private func feature<Illustration: View>(_ title: String, detail: String,
+                                             @ViewBuilder illustration: () -> Illustration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            illustration()
+                .frame(maxWidth: .infinity)
+                .frame(height: 150)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 21, weight: .semibold)).tracking(-0.35)
+                    .foregroundStyle(Theme.ink)
+                Text(detail).font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(22).frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 12)
+        }
+        .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 26)
+        .frame(width: (1020 - 24 - 32) / 3, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(LinearGradient(colors: [Theme.raised, Theme.raised.opacity(0.65)],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Theme.hairline, lineWidth: 0.75)
         }
     }
 }
