@@ -289,9 +289,11 @@ private struct RoomsExplorer: View {
                         Button { chooseFloor(.unassigned) } label: { floorLabel("No floor", selected: scope == .unassigned) }
                     }
                 } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: "square.3.layers.3d").accessibilityHidden(true)
-                        Text(floorName).lineLimit(1)
+                    HStack(spacing: 24) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "square.3.layers.3d").accessibilityHidden(true)
+                            Text(floorName).lineLimit(1)
+                        }
                         Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).accessibilityHidden(true)
                     }
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.ink)
@@ -299,7 +301,10 @@ private struct RoomsExplorer: View {
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(Theme.fg.opacity(0.045)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline)))
                 }
-                .menuStyle(.borderlessButton).frame(maxWidth: 200, alignment: .trailing)
+                // A borderless menu draws its own title and arrow and drops this label's
+                // spacing and background; the button style keeps the label as designed.
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+                .frame(maxWidth: 200, alignment: .trailing)
                 .accessibilityLabel("Floor").accessibilityValue(floorName)
             }
             .frame(minHeight: 40)

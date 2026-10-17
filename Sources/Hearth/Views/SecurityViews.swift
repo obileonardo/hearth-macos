@@ -111,7 +111,7 @@ struct SecurityPage: View {
         .task(id: visible) {
             guard visible else { return }
             while !Task.isCancelled {
-                if Date().timeIntervalSince(updated) >= refreshSeconds - 1 { await refresh() }
+                if Date().timeIntervalSince(updated) >= UpdateIntervalPreference.cameraRefresh.seconds(for: refreshSeconds) - 1 { await refresh() }
                 try? await Task.sleep(for: .seconds(5))
             }
         }

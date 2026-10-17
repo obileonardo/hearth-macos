@@ -155,14 +155,19 @@ struct HomeEnergy {
         let all = store.devices.values.filter { !$0.isService }.compactMap { store.homeDevice($0.id) }
             .filter { !$0.entities.isEmpty }
         devices = all.filter { everything || list.home(of: $0.id).id == home.id }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            .sorted {
+                let names = $0.name.localizedCaseInsensitiveCompare($1.name)
+                return names == .orderedSame ? $0.id < $1.id : names == .orderedAscending
+            }
         gadgets = everything ? manual : manual.filter { list.home(of: $0.id.uuidString).id == home.id }
 
         for d in devices where !Self.suppliers.contains(d.kind) {
             if let w = Self.watts(of: d), w >= 0.5 { users.append(User(device: d, watts: w)) }
             if let kwh = Self.today(of: d) { deviceToday[d.id] = kwh }
         }
-        users.sort { $0.watts > $1.watts }
+        // Keep actual descending readings authoritative. Only exact ties use
+        // an identity key, so dictionary traversal cannot reshuffle equal users.
+        users.sort { $0.watts == $1.watts ? $0.id < $1.id : $0.watts > $1.watts }
 
         if home.isMain || everything {
             let sys = EnergySystem.read(store, prefs: nil)
@@ -284,5 +289,27 @@ final class HomesFeed: ObservableObject {
             }
         }
         countedToday = counted
+    }
+}
+
+/// Local home-reading presentation only; never changes a sample or its ranking.
+enum HomeEnergyPresentation {
+    /// Finish before the existing 500 ms demo sample cadence, without spring overshoot.
+    static let animationDuration = 0.32
+
+    static func share(watts: Double, total: Double) -> Double {
+        guard watts.isFinite, total.isFinite, watts > 0, total > 0 else { return 0 }
+        return min(watts / total, 1)
+    }
+
+    static func fraction(_ value: Double) -> Double {
+        value.isFinite ? min(max(value, 0), 1) : 0
+    }
+
+    static func barWidth(available: Double, fraction: Double) -> Double {
+        guard available.isFinite, available > 0 else { return 0 }
+        let ratio = self.fraction(fraction)
+        guard ratio > 0 else { return 0 }
+        return min(available, max(available * ratio, min(4, available)))
     }
 }

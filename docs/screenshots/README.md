@@ -53,15 +53,15 @@ Fixed-time 16°/24°/30° comparisons are developer review aids. The owner accep
 
 ## Six-area showcase and map appearance refresh — 16 October 2026
 
-Rendered from the focused branding source revision on `codex/brand-appearance-20261016`, based on the verified0.1.6 source. `PreviewExporter` uses fresh isolated stores; the same SceneKit controller/camera supplies each map appearance. The actual `AppearanceSettings` control is rendered separately to explain **Settings → Appearance → Light, Dark or System**. The native icon comes from `AppIconArt` and the matching ICNS family uses all standard16–1024 pixel sizes. See [identity notes](../art/brand-notes.md).
+Rendered from the focused branding source revision on `codex/brand-appearance-20261016`, based on the verified 0.1.6 source. `PreviewExporter` uses fresh isolated stores; the same SceneKit controller/camera supplies each map appearance. The actual `AppearanceSettings` control is rendered separately to explain **Settings → Appearance → Light, Dark or System**. The native icon comes from `AppIconArt` and the matching ICNS family uses all standard 16–1024 pixel sizes. See [identity notes](../art/brand-notes.md).
 
 | Output | Dimensions | Content and verification |
 |---|---|---|
-| `../art/AppIcon-1024.png` | 1024×1024 | Native silver/blue mark on a navy tile; inspected at1024,128,32and16pixels; menu-bar glyph unchanged |
+| `../art/AppIcon-1024.png` | 1024×1024 | Native silver/blue mark on a navy tile; inspected at 1024, 128, 32 and 16 pixels; menu-bar glyph unchanged |
 | `../art/hearth-native-showcase.png`, `../art/hearth-native-showcase-light.png` | 2104×1152 each | Six equal panels: Climate, Security, Speakers, Energy, Assets, Rooms. Actual project illustration components, aligned captions and synthetic temperature; both appearances visually inspected |
 | `map-layout-dark.png`, `map-layout-light.png` | 2424×1584 each | Matching generated two-floor scene/camera/placements in the actual map layout. Both inspected; power is simulated |
 | `guide-appearance-dark.png`, `guide-appearance-light.png` | 896×280 each | Actual shared Appearance setting, with System selected. Both inspected; no setting was changed through interaction |
 
 All seven selected PNGs passed the metadata check: only dimensions, color-space and resolution EXIF tags, with no PNG text or identity/time/location metadata. Local OCR and face-region screening flagged none; this heuristic supplements visual review and does not guarantee detection of every private pixel. No owner screenshot, home scan, camera image, face, live account or recording was copied. Offscreen rendering does not establish live system-glass composition, universal contrast or physical integration support.
 
-These source-guide changes are separate from the installed app and do not imply a new packaged release. The public download remains the immutable0.1.3 preview until a separately verified release is published.
+These source-guide changes are separate from the installed app and do not imply a new packaged release. The public download remains the immutable 0.1.3 preview until a separately verified release is published.

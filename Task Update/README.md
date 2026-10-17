@@ -102,3 +102,7 @@ The subsequently delivered AC appearance change includes: 15% larger body, an 8-
 ## Camera help and safe avatar imports
 
 A subsequent source follow-up replaces cursor-positioned camera help with a viewport-bounded overlay: centered over the control where possible, shifted inward near the sides and moved above lower controls. Long text is bounded, full help remains available to assistive tools, and the overlay does not consume camera/dock interactions. The owner confirmed left/right/lower tooltips in the offline native review. Avatar imports stage and validate the new media before changing the selection, preserving the previous avatar and showing an error on failure. Isolated geometry and media-import regressions accompany this follow-up; its checks and installed delivery are separate from the recorded 0.1.5 results above.
+
+### Follow-up source: controls and motion
+
+The next focused source update refines the fan AUTO key, checks an acknowledged climate mode immediately before retaining the bounded confirmation wait, uses a 24-point floor-label/chevron gap, extends camera-grid refresh choices to480seconds and menu-bar rotation to60seconds, and gives the visible alert capsule a48-point menu-bar gap where the display permits it. Demo home samples publish coherently; power ties retain stable identities and local rank/bar/number transitions respect Reduce Motion. These are source changes until the exact candidate's CI, installation and native acceptance are recorded separately. No physical AC timing improvement is claimed from fixtures alone.

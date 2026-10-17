@@ -141,7 +141,7 @@ final class StatusTicker: ObservableObject {
     init() {
         task = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                let seconds = UserDefaults.standard.object(forKey: "status.interval") as? Double ?? 6
+                let seconds = UpdateIntervalPreference.statusRotation.saved()
                 try? await Task.sleep(for: .seconds(seconds))
                 self?.tick += 1
             }
