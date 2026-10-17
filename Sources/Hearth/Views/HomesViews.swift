@@ -400,6 +400,7 @@ struct HomeDetail: View {
 
 /// Now and today, and how much of the house's use the devices that report power account for.
 private struct HomeTotals: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let energy: HomeEnergy
     let today: Double?
     let demo: Bool
@@ -413,7 +414,8 @@ private struct HomeTotals: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(now.map(EnergyUnits.power) ?? "No live reading")
                             .font(.system(size: now == nil ? 20 : 30, weight: .semibold)).monospacedDigit()
-                            .contentTransition(.numericText())
+                            .contentTransition(reduceMotion ? .opacity : .numericText(value: now ?? 0))
+                            .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: now)
                         Text(energy.houseWatts != nil ? "The whole house, now" : "Using now").font(.system(size: 12)).foregroundStyle(Theme.muted)
                     }
                     Spacer(minLength: 0)
@@ -425,7 +427,7 @@ private struct HomeTotals: View {
                     }
                 }
                 if let house = energy.houseWatts, let seen = energy.devicesWatts, house > 0 {
-                    let share = min(seen / house, 1)
+                    let share = HomeEnergyPresentation.share(watts: seen, total: house)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Devices you can see add up to \(EnergyUnits.power(seen)) of \(EnergyUnits.power(house))")
                             .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
@@ -447,36 +449,39 @@ private struct HomeTotals: View {
 
 /// A slim bar showing a share of a whole.
 struct ShareBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let value: Double
     var tint: Color = HomeArt.light
 
     var body: some View {
+        let fraction = HomeEnergyPresentation.fraction(value)
         GeometryReader { g in
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.fg.opacity(0.07))
                 Capsule().fill(LinearGradient(colors: [tint, tint.opacity(0.7)], startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(g.size.width * value, value > 0 ? 4 : 0))
+                    .frame(width: HomeEnergyPresentation.barWidth(available: Double(g.size.width), fraction: fraction))
             }
         }
         .frame(height: 5)
-        .animation(.glide, value: value)
+        .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: fraction)
         .accessibilityHidden(true)
     }
 }
 
 /// The devices drawing the most right now, with their share of the total.
 private struct BiggestUsers: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let energy: HomeEnergy
     @ObservedObject var feed: HomesFeed
 
     var body: some View {
         let total = energy.nowWatts ?? energy.devicesWatts ?? 1
+        let users = Array(energy.users.prefix(6))
         VStack(alignment: .leading, spacing: 8) {
             Text("BIGGEST USERS RIGHT NOW").eyebrow().padding(.leading, 4)
             Bezel(radius: 20, inset: 3) {
                 VStack(spacing: 0) {
-                    ForEach(Array(energy.users.prefix(6).enumerated()), id: \.element.id) { i, u in
-                        if i > 0 { Divider().overlay(Theme.hairline).padding(.leading, 52) }
+                    ForEach(Array(users.enumerated()), id: \.element.id) { i, u in
                         HStack(spacing: 11) {
                             DeviceArtView(kind: u.device.kind, active: true, accent: u.device.accent, size: 30)
                                 .frame(width: 32, height: 32)
@@ -485,15 +490,22 @@ private struct BiggestUsers: View {
                                     Text(u.device.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                                     Spacer(minLength: 6)
                                     Text(EnergyUnits.power(u.watts)).font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                                        .contentTransition(reduceMotion ? .opacity : .numericText(value: u.watts))
+                                        .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: u.watts)
+                                        .frame(width: 70, alignment: .trailing)
                                 }
-                                ShareBar(value: total > 0 ? min(u.watts / total, 1) : 0)
+                                ShareBar(value: HomeEnergyPresentation.share(watts: u.watts, total: total))
                             }
                         }
                         .padding(.horizontal, 12).padding(.vertical, 9)
+                        .overlay(alignment: .top) {
+                            if i > 0 { Divider().overlay(Theme.hairline).padding(.leading, 52) }
+                        }
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel("\(u.device.name), \(EnergyUnits.power(u.watts))")
                     }
                 }
+                .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: users.map(\.id))
             }
         }
     }
@@ -676,6 +688,7 @@ private struct HomeLinker: View {
 
 /// The home's use on the Energy page: now, today, and the biggest users. In a demo it's the demo home.
 struct HomeUseCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject var store: HomeStore
     @ObservedObject private var list = HomeList.shared
     @ObservedObject private var gadgets = GadgetStore.shared
@@ -728,7 +741,8 @@ struct HomeUseCard: View {
                             }
                             Text(energy.nowWatts.map(EnergyUnits.power) ?? "No reading now")
                                 .font(.system(size: 22, weight: .semibold)).monospacedDigit()
-                                .contentTransition(.numericText())
+                                .contentTransition(reduceMotion ? .opacity : .numericText(value: energy.nowWatts ?? 0))
+                                .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: energy.nowWatts)
                         }
                         Spacer(minLength: 0)
                         if let today {
@@ -747,11 +761,15 @@ struct HomeUseCard: View {
                                         Text(u.device.name).font(.system(size: 12.5, weight: .medium)).lineLimit(1)
                                         Spacer()
                                         Text(EnergyUnits.power(u.watts)).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
+                                            .contentTransition(reduceMotion ? .opacity : .numericText(value: u.watts))
+                                            .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: u.watts)
+                                            .frame(width: 68, alignment: .trailing)
                                     }
-                                    ShareBar(value: total > 0 ? min(u.watts / total, 1) : 0)
+                                    ShareBar(value: HomeEnergyPresentation.share(watts: u.watts, total: total))
                                 }
                             }
                         }
+                        .animation(reduceMotion ? nil : .easeInOut(duration: HomeEnergyPresentation.animationDuration), value: Array(energy.users.prefix(3)).map(\.id))
                         if let house = energy.houseWatts, let seen = energy.devicesWatts {
                             Text("Devices you can see add up to \(EnergyUnits.power(seen)) of \(EnergyUnits.power(house)).")
                                 .font(.system(size: 12)).foregroundStyle(Theme.muted)

@@ -487,9 +487,13 @@ struct SettingsView: View {
                     Text("Camera refresh").font(.system(size: 13, weight: .medium))
                     Spacer()
                     Button {
-                        PopupMenu.show(["30", "60", "90", "120"], selected: String(Int(refresh)), label: { "Every \($0) seconds" }) { refresh = Double($0) ?? 60 }
+                        let policy = UpdateIntervalPreference.cameraRefresh
+                        PopupMenu.show(policy.choices(including: refresh), selected: policy.label(for: refresh),
+                                       label: { "Every \($0) seconds" }) { choice in
+                            if let seconds = policy.seconds(fromChoice: choice) { refresh = seconds }
+                        }
                     } label: {
-                        Text("Every \(Int(refresh))s").font(.system(size: 13, weight: .medium))
+                        Text("Every \(UpdateIntervalPreference.cameraRefresh.label(for: refresh))s").font(.system(size: 13, weight: .medium))
                             .padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(Theme.fg.opacity(0.07)))
                     }
                     .buttonStyle(PressStyle())
@@ -634,13 +638,17 @@ private struct MenuBarSettings: View {
                         Text("Rotate every").font(.system(size: 13, weight: .medium))
                         Spacer()
                         Button {
-                            PopupMenu.show(["4", "6", "10", "20"], selected: String(Int(interval)), label: { "\($0) seconds" }) { interval = Double($0) ?? 6 }
+                            let policy = UpdateIntervalPreference.statusRotation
+                            PopupMenu.show(policy.choices(including: interval), selected: policy.label(for: interval),
+                                           label: { "\($0) seconds" }) { choice in
+                                if let seconds = policy.seconds(fromChoice: choice) { interval = seconds }
+                            }
                         } label: {
-                            Text("\(Int(interval))s").font(.system(size: 13, weight: .medium))
+                            Text("\(UpdateIntervalPreference.statusRotation.label(for: interval))s").font(.system(size: 13, weight: .medium))
                                 .padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(Theme.fg.opacity(0.07)))
                         }
                         .buttonStyle(PressStyle())
-                        .accessibilityLabel("Change every \(Int(interval)) seconds")
+                        .accessibilityLabel("Change every \(UpdateIntervalPreference.statusRotation.label(for: interval)) seconds")
                     }
                     .padding(.horizontal, 12)
                     .frame(height: 40)

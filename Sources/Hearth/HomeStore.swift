@@ -757,10 +757,13 @@ final class HomeStore: ObservableObject {
         status = .connected
     }
 
-    /// The demo's next moment.
+    /// Publish one coherent demo sample. Per-entity publication briefly mixed
+    /// different simulated moments and made ranks/ratios redraw repeatedly.
     func playDemo(update: [Entity]) {
-        guard isDemo else { return }
-        for e in update { entities[e.id] = e }
+        guard isDemo, !update.isEmpty else { return }
+        var next = entities
+        for entity in update { next[entity.id] = entity }
+        entities = next
     }
 
     // MARK: Cameras

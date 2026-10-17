@@ -128,3 +128,9 @@ In **Settings → Navigation**, choose glass opacity. Floating headings share th
 Use **Settings → Help & Support** to prepare a draft. Review its text before opening your mail app, or copy it into webmail for `contact@elvisobi.com`. Hearth does not send it automatically. Do not include tokens, private camera pictures, exact household addresses or unredacted logs. [Support guide](../README.md#8-get-help-or-report-a-problem) and [security reporting](../SECURITY.md) have separate routes.
 
 All images in this guide are generated from isolated sample data; see the [image register](screenshots/README.md) for limitations.
+
+## Refresh and status timing
+
+In **Settings**, **Camera refresh** offers intervals from 30 to 480 seconds for the camera grid's periodic snapshots. This preference does not stop an open live stream or change its independent fallback behavior. Longer intervals reduce periodic snapshot requests; device battery behavior also depends on the integration and camera.
+
+Under **Menu bar**, **Rotate every** offers intervals through 60 seconds. Alerts retain their existing priority. Existing saved choices are preserved; changing these menus does not reconnect or re-pair devices.

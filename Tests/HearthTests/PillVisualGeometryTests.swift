@@ -126,4 +126,28 @@ final class PillVisualGeometryTests: XCTestCase {
             XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
         }
     }
+    func testNotificationCapsuleHasRequestedFortyEightPointGap() {
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let anchor = CGRect(x: 600, y: 876, width: 180, height: 24)
+        let visible = CGRect(x: 0, y: 0, width: 1440, height: 876)
+        let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible,
+                                           screenFrame: screen, panelWidth: 456)
+        let visibleCapsuleTop = frame.maxY - FlashPillGeometry.visibleBodyTop
+        XCTAssertEqual(anchor.minY - visibleCapsuleTop, 48)
+        XCTAssertEqual(frame.midX, anchor.midX)
+    }
+
+    func testConstrainedDisplayKeepsNotificationInsideScreenBeforePreservingGap() {
+        let screen = CGRect(x: -800, y: 100, width: 800, height: 180)
+        let visible = CGRect(x: -800, y: 100, width: 800, height: 156)
+        let anchor = CGRect(x: -440, y: 256, width: 180, height: 24)
+        let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible,
+                                           screenFrame: screen, panelWidth: 456)
+        XCTAssertGreaterThanOrEqual(frame.minY, visible.minY + 8)
+        XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
+        let gap = anchor.minY - (frame.maxY - FlashPillGeometry.visibleBodyTop)
+        XCTAssertGreaterThanOrEqual(gap, 0)
+        XCTAssertLessThanOrEqual(gap, 48)
+    }
+
 }

@@ -213,7 +213,16 @@ struct ClimatePage: View {
             // Mode
             if !c.modes.isEmpty {
                 Segmented(options: c.modes, selected: c.on ? c.mode : nil, tint: air, id: "mode") { mode in
-                    Image(systemName: Theme.modeSymbol(mode)).font(.system(size: 14, weight: .light))
+                    ZStack {
+                        Image(systemName: Theme.modeSymbol(mode))
+                            .font(.system(size: 14, weight: .light))
+                            .opacity(pendingMode == mode ? 0 : 1)
+                        if pendingMode == mode {
+                            ProgressView().controlSize(.mini).tint(Theme.ink)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .frame(width: 16, height: 16)
                     Text(Theme.modeName(mode)).font(.system(size: 12, weight: .medium))
                 } onSelect: { mode in
                     setMode(c, mode)
@@ -330,17 +339,17 @@ struct ClimatePage: View {
                 }, refresh: { await store.refreshEntity(entityID, authenticationEpoch: epoch) })
                 guard epoch == store.authenticationGeneration else { return }
                 if store.isDemo { store.optimistic(entityID) { $0.state = mode } }
-                for _ in 0..<20 {
-                    guard epoch == store.authenticationGeneration else { return }
-                    if store.entities[entityID]?.state == mode { return }
-                    try await Task.sleep(for: .milliseconds(250))
-                }
-                _ = await store.refreshEntity(entityID, authenticationEpoch: epoch)
+                let confirmed = try await ClimateModeConfirmation.wait(for: mode,
+                    currentMode: { store.entities[entityID]?.state },
+                    refresh: { _ = await store.refreshEntity(entityID, authenticationEpoch: epoch) },
+                    isCurrent: { epoch == store.authenticationGeneration })
                 guard epoch == store.authenticationGeneration else { return }
-                if store.entities[entityID]?.state != mode {
+                if !confirmed {
                     climateFailureReport = ClimateDiagnostics.report(initial: c.e, reported: store.entities[entityID], requestedMode: mode, outcome: .unconfirmed)
                     climateFailure = "Home Assistant accepted the request but has not reported \(Theme.modeName(mode)). Check the unit before retrying."
                 }
+            } catch is CancellationError {
+                return
             } catch {
                 _ = await store.refreshEntity(entityID, authenticationEpoch: epoch)
                 guard epoch == store.authenticationGeneration else { return }
@@ -653,7 +662,11 @@ struct FanControl: View {
                             .foregroundStyle(isAuto ? Theme.onKey : Theme.muted)
                             .frame(width: 46, height: 30)
                             .background {
-                                if isAuto { Key(shape: Capsule(), glow: tint.opacity(0.45)) } else { Capsule().fill(Theme.fg.opacity(0.05)) }
+                                if isAuto {
+                                    Key(shape: RoundedRectangle(cornerRadius: 12, style: .continuous), glow: tint.opacity(0.45))
+                                } else {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.fg.opacity(0.05))
+                                }
                             }
                     }
                     .buttonStyle(PressStyle())
