@@ -25,6 +25,14 @@
 
 **Signed with a Developer ID and notarized by Apple**, with the notarization ticket stapled to both the disk image and the app, so macOS opens it without an unidentified-developer warning. Requires macOS 14 or later. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.8.md) and the [task register](Task%20Update/README.md).
 
+Or install it from Terminal with [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask obileonardo/hearth/hearth
+```
+
+This installs the same notarized disk image, checked against its SHA-256. Update with `brew upgrade --cask hearth`; remove with `brew uninstall --cask hearth`, adding `--zap` to also remove Hearth's settings and saved data. The [Hearth tap](https://github.com/obileonardo/homebrew-hearth) follows each release once it installs and verifies on a clean Mac.
+
 ## Your home, in six views
 
 Hearth brings the devices and services already connected to Home Assistant into a native Mac interface. Check a camera, change the temperature or find a room’s controls without opening a browser. Your Home Assistant server supplies the readings and supported actions; Hearth brings them together on your desktop.
@@ -177,7 +185,7 @@ For Apple Home accessories, choose the right direction: **HomeKit Device** bring
 
 ### 4. Build or open Hearth
 
-If you downloaded the app, follow the installation notes in the disk image. For source builds:
+If you downloaded the app, follow the installation notes in the disk image; a Homebrew install is ready in Applications. For source builds:
 
 ```sh
 scripts/build.sh --no-install     # builds build/Hearth.app; preserves the installed app
