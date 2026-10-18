@@ -47,7 +47,7 @@ final class HearthMenuController: NSObject {
     /// its separate opening-anchor session and fixed-width status reservation.
     var liveStatusPillFrame: CGRect? {
         guard let view = statusView, let window = view.window, view.image != nil else { return nil }
-        return window.convertToScreen(view.convert(view.imageFrame, to: nil))
+        return StatusPillGeometry.capsule(in: window.convertToScreen(view.convert(view.imageFrame, to: nil)))
     }
 
     func attach(store: HomeStore, log: ActivityLog) {

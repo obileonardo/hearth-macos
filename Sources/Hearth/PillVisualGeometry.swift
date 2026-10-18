@@ -12,6 +12,13 @@ struct StatusPillGeometry: Equatable {
         canvasHeight = min(26, safe.rounded(.down))
         bodyHeight = min(24, canvasHeight)
     }
+
+    /// The drawn capsule inside the status image: the body is centred in a canvas
+    /// up to 2 points taller, so measuring from the image would add that margin.
+    static func capsule(in imageFrame: CGRect) -> CGRect {
+        let inset = max(0, (imageFrame.height - min(24, imageFrame.height)) / 2)
+        return imageFrame.insetBy(dx: 0, dy: inset)
+    }
 }
 
 /// Keep the alert's complete capsule, dismiss badge and shadow inside its clear
@@ -37,7 +44,7 @@ enum FlashPillGeometry {
     /// Blur radius is not its full extent. Reserve three radii so the faint
     /// outer gradient fades before a native window edge, including during entry.
     static let shadowBleed: CGFloat = shadowRadius * 3
-    static let bodyGap: CGFloat = 48
+    static let bodyGap: CGFloat = 16
     static var visibleBodyTop: CGFloat { visibleOffset + topPadding }
 
     static func frame(anchor: CGRect, visibleFrame: CGRect, screenFrame: CGRect,
@@ -46,7 +53,7 @@ enum FlashPillGeometry {
         let height = min(panelHeight, max(1, screenFrame.height))
         let x = min(max(anchor.midX - width / 2, visibleFrame.minX + 8), visibleFrame.maxX - width - 8)
         // The clear shadow canvas reaches into the menu bar; the actual capsule
-        // starts 48 points below its live status anchor when screen space permits.
+        // starts 16 points below the drawn status capsule when screen space permits.
         let requestedY = anchor.minY - bodyGap + visibleBodyTop - height
         let y = min(max(requestedY, visibleFrame.minY + 8), screenFrame.maxY - height)
         return CGRect(x: x, y: y, width: width, height: height)

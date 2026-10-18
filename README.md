@@ -21,9 +21,9 @@
 
 ## Download
 
-[Download Hearth 0.1.3 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.3-preview/Hearth-0.1.3-universal-PREVIEW.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.3-preview)
+[Download Hearth 0.1.8 for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.8/Hearth-0.1.8-universal.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.8)
 
-**Preview: ad-hoc signed, not notarized.** macOS may block a downloaded copy. A Developer ID signed and notarized release awaits local signing setup. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.3.md) and the [task register](Task%20Update/README.md).
+**Signed with a Developer ID and notarized by Apple**, with the notarization ticket stapled to both the disk image and the app, so macOS opens it without an unidentified-developer warning. Requires macOS 14 or later. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.8.md) and the [task register](Task%20Update/README.md).
 
 ## Your home, in six views
 
@@ -73,7 +73,7 @@ The [full artwork sheet](docs/art/devices.png) includes every device and its on/
 
 The views below use offline sample data, with no personal camera pictures, household configuration or account information. Sign-in fields, the bug draft's **Subject** and **Message** fields, and the optional version-information switch are static documentation illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
 
-The download is the published 0.1.3 preview. Its [verification record](docs/release-verification-0.1.3.md) identifies its exact source and limitations. Source-guide images are regenerated separately from synthetic data; their [image register](docs/screenshots/README.md) records the export method and which controls are illustrated.
+The download is the published 0.1.8 release. Its [verification record](docs/release-verification-0.1.8.md) identifies its exact source and limitations. Source-guide images are regenerated separately from synthetic data; their [image register](docs/screenshots/README.md) records the export method and which controls are illustrated.
 
 <table>
   <tr>
@@ -132,7 +132,7 @@ For the floating navigation and page headings, adjust **Settings → Navigation 
 
 ### 1. Download the app or clone the source
 
-Use the [preview download](#download) to try the packaged app. To build it yourself, or to use the optional Docker examples below, clone first:
+Use the [download](#download) to try the packaged app. To build it yourself, or to use the optional Docker examples below, clone first:
 
 ```sh
 git clone https://github.com/obileonardo/hearth-macos.git
@@ -177,7 +177,7 @@ For Apple Home accessories, choose the right direction: **HomeKit Device** bring
 
 ### 4. Build or open Hearth
 
-If you downloaded the preview, follow its installation notes. For source builds:
+If you downloaded the app, follow the installation notes in the disk image. For source builds:
 
 ```sh
 scripts/build.sh --no-install     # builds build/Hearth.app; preserves the installed app

@@ -15,7 +15,7 @@ Describe the affected commit, the reproduction steps using sample data, the expe
 - Familiar-face matching runs locally. Saved camera pictures and face samples are personal data; display blur does not erase them.
 - `--probe`, integration setup flags and environment overrides remain available in release builds under the [release policy](docs/release-policy.md). They act only when explicitly invoked, can use the user's existing session and must be treated as developer tools with real home access.
 - HTTP Home Assistant connections do not encrypt sign-in or session traffic. Use HTTPS outside a trusted local development connection.
-- The main app is not App Sandbox enabled. Preview downloads are ad-hoc signed and not notarized; the optional WidgetKit extension has separate sandbox/provisioning requirements. Developer ID signing and hardened runtime are supported by the distribution script but require the maintainer's local signing credentials and accepted notarization. Import only scans you trust.
+- The main app is not App Sandbox enabled. Release downloads from 0.1.8 onward are Developer ID signed with hardened runtime and notarized by Apple; the earlier 0.1.1–0.1.3 previews were ad-hoc signed and not notarized. The optional WidgetKit extension has separate sandbox/provisioning requirements. Import only scans you trust.
 - The supplied Docker configuration includes LAN-accessible Home Assistant bindings and floating image tags. Development network isolation and image pinning need separate operational review before recreating any working containers.
 
 ## Release review

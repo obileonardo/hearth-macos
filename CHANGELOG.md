@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+No changes yet.
+
+## 0.1.8 — 18 October 2026
+
+The first Developer ID signed and Apple-notarized download, with tickets stapled to the disk image and the app. It collects every source change since the 0.1.3 preview, listed below, and places the menu-bar alert capsule 16 points below the drawn status pill.
+
 ### Interface and interaction
 
 - Add Settings → Help & Support with editable support/bug-report drafts to contact@elvisobi.com, a copy-address fallback, and optional version details.
