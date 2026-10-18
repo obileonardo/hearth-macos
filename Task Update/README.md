@@ -62,7 +62,7 @@ The [0.1.3 universal preview](https://github.com/obileonardo/hearth-macos/releas
 | Open-source preparation | Codex agents | License/notices, attribution, contributor/security guidance, issue/PR templates, generic examples and independently reviewed public history; current 306-file export and intended independent public history reviewed | Review every future export and release asset |
 | Repository security and CI | Codex | Required PR/build checks, force-push/deletion protection, secret scanning/push protection, private security reports, dependency updates and pinned Actions | Keep protections active; latest batch evidence above |
 | Universal build and DMG tooling | Codex agents | Final 0.1.3 universal payload, separate staging, provenance, signatures and disk-image validation; optional notarization workflow retained | Developer ID/notarization input below |
-| Preview download | Codex | [0.1.3 preview](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.3-preview), build `20261015.5`; SHA-256 recorded above. A fresh unauthenticated download matched both the packaged SHA-256 and published checksum. | Developer ID/notarization input below |
+| Download | Claude | [0.1.8](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.8), build `20261017.2`, Developer ID signed, notarized and stapled; see the [verification record](../docs/release-verification-0.1.8.md). The 0.1.3 preview remains as a prerelease. | Done |
 | Installed app and source continuity | Codex | Canonical `~/Applications/Hearth.app` updated; existing Apple Development signing retains Keychain trust, one Hearth process verified, older app backed up recoverably. current source synchronized with baseline checks and recovery copies; original Git bookkeeping untouched | Current source follow-up and installation/release validation are recorded above |
 | External-drive project relocation | Codex | Working files/history retained; original paths linked | External drive must remain connected |
 | Task register and Claude handoff | Codex | Current public source/artifact evidence here and in the 0.1.3 verification record; detailed operational handoff kept private | Keep future work records current |
@@ -73,7 +73,6 @@ These are the remaining requirements after the completed 0.1.5 source/local deli
 
 | Item | Needed to finish | Reason |
 |---|---|---|
-| Developer ID signed/notarized download | Local Developer ID Application certificate and notarization Keychain profile, then accepted submissions/stapling/Gatekeeper checks | Owner offered signing access; distribution credentials are not yet installed/confirmed. Ad-hoc preview is available |
 | WidgetKit gallery | Matching host/extension provisioning, App Group and signing; installed-gallery validation | Platform provisioning; desktop widgets already work |
 | HomePod / Apple TV | Local pairing and network permissions on supported hardware | Physical setup |
 | Bambu printers | Actual model and supported cloud/LAN pairing | Physical/vendor setup |
@@ -106,3 +105,5 @@ A subsequent source follow-up replaces cursor-positioned camera help with a view
 ### Follow-up source: controls and motion
 
 The next focused source update refines the fan AUTO key, checks an acknowledged climate mode immediately before retaining the bounded confirmation wait, uses a 24-point floor-label/chevron gap, extends camera-grid refresh choices to480seconds and menu-bar rotation to60seconds, and gives the visible alert capsule a48-point menu-bar gap where the display permits it. Demo home samples publish coherently; power ties retain stable identities and local rank/bar/number transitions respect Reduce Motion. These are source changes until the exact candidate's CI, installation and native acceptance are recorded separately. No physical AC timing improvement is claimed from fixtures alone.
+
+On 17 October the owner asked for the alert to sit closer: 16 points below the drawn status capsule (measured from the capsule itself, not its slightly taller image).

@@ -64,4 +64,4 @@ Rendered from the focused branding source revision on `codex/brand-appearance-20
 
 All seven selected PNGs passed the metadata check: only dimensions, color-space and resolution EXIF tags, with no PNG text or identity/time/location metadata. Local OCR and face-region screening flagged none; this heuristic supplements visual review and does not guarantee detection of every private pixel. No owner screenshot, home scan, camera image, face, live account or recording was copied. Offscreen rendering does not establish live system-glass composition, universal contrast or physical integration support.
 
-These source-guide changes are separate from the installed app and do not imply a new packaged release. The public download remains the immutable 0.1.3 preview until a separately verified release is published.
+These source-guide changes are separate from the installed app and do not imply a new packaged release. The public download is the 0.1.8 release described in its [verification record](../release-verification-0.1.8.md).

@@ -126,14 +126,14 @@ final class PillVisualGeometryTests: XCTestCase {
             XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
         }
     }
-    func testNotificationCapsuleHasRequestedFortyEightPointGap() {
+    func testNotificationCapsuleSitsSixteenPointsBelowTheStatusCapsule() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let anchor = CGRect(x: 600, y: 876, width: 180, height: 24)
         let visible = CGRect(x: 0, y: 0, width: 1440, height: 876)
         let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible,
                                            screenFrame: screen, panelWidth: 456)
         let visibleCapsuleTop = frame.maxY - FlashPillGeometry.visibleBodyTop
-        XCTAssertEqual(anchor.minY - visibleCapsuleTop, 48)
+        XCTAssertEqual(anchor.minY - visibleCapsuleTop, 16)
         XCTAssertEqual(frame.midX, anchor.midX)
     }
 
@@ -147,7 +147,16 @@ final class PillVisualGeometryTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
         let gap = anchor.minY - (frame.maxY - FlashPillGeometry.visibleBodyTop)
         XCTAssertGreaterThanOrEqual(gap, 0)
-        XCTAssertLessThanOrEqual(gap, 48)
+        XCTAssertLessThanOrEqual(gap, 16)
+    }
+
+    func testStatusCapsuleExcludesTheCanvasMargin() {
+        let tall = CGRect(x: 600, y: 874, width: 120, height: 26)
+        XCTAssertEqual(StatusPillGeometry.capsule(in: tall), CGRect(x: 600, y: 875, width: 120, height: 24))
+        let exact = CGRect(x: 600, y: 876, width: 120, height: 24)
+        XCTAssertEqual(StatusPillGeometry.capsule(in: exact), exact)
+        let short = CGRect(x: 600, y: 880, width: 120, height: 20)
+        XCTAssertEqual(StatusPillGeometry.capsule(in: short), short)
     }
 
 }

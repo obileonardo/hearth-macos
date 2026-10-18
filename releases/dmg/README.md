@@ -2,11 +2,11 @@
 
 ## Download
 
-[Download Hearth 0.1.3 preview for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.3-preview/Hearth-0.1.3-universal-PREVIEW.dmg) · [SHA-256 file](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.3-preview/Hearth-0.1.3-universal-PREVIEW.dmg.sha256) · [release notes](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.3-preview).
+[Download Hearth 0.1.8 for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.8/Hearth-0.1.8-universal.dmg) · [SHA-256 file](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.8/Hearth-0.1.8-universal.dmg.sha256) · [release notes](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.8).
 
-This preview is ad-hoc signed and **not notarized**. macOS may block a downloaded copy. The Developer ID signed and notarized download awaits local signing credentials. See the [0.1.3 verification record](../../docs/release-verification-0.1.3.md); the [0.1.2 record](../../docs/release-verification-0.1.2.md) and [0.1.1 record](../../docs/release-verification-0.1.1.md) are retained as release history.
+This release is Developer ID signed and **notarized by Apple**, with tickets stapled to the disk image and the app. See the [0.1.8 verification record](../../docs/release-verification-0.1.8.md); the ad-hoc-signed [0.1.3](../../docs/release-verification-0.1.3.md), [0.1.2](../../docs/release-verification-0.1.2.md) and [0.1.1](../../docs/release-verification-0.1.1.md) preview records are retained as release history.
 
-The published 0.1.3 image's SHA-256 is `9c0b1608d4d49557a1cbe963562d83d00bf9dafaf528a03aef3f034641c2e78a`. A fresh unauthenticated GitHub download matched this checksum. Its `BuildInfo.txt` records reviewed public app-source commit `1d13b39c3c42711b67dde66c67bb0c21e290f10a`; later documentation commits do not change that binary's provenance.
+The published 0.1.8 image's SHA-256 is `7120c2b5821b80809db66fcf0a4a14c21d7a445c514f12fc08520b209c75d021`. Its `BuildInfo.txt` records source commit `17e07682201241c98f7fc2e8c0a3c5137a3032d6`, whose code, tests and scripts are identical to this repository's; later documentation commits do not change that binary's provenance.
 
 Generated `.dmg` and `.sha256` files go here and are ignored by Git. The packaging script does not install, quit or launch Hearth, or change Home Assistant, account credentials, homes, history or preferences. It builds and signs a separate staged app.
 
@@ -16,7 +16,7 @@ Generated `.dmg` and `.sha256` files go here and are ignored by Git. The packagi
 scripts/package-dmg.sh --version 0.1.3 --preview
 ```
 
-This builds an optimized universal app for Apple silicon and Intel, then creates `Hearth-0.1.3-universal-PREVIEW.dmg`. It is ad-hoc signed and **not notarized**; macOS may block a downloaded copy. The versioned public preview is available above; a completed notarized release still requires signing setup.
+This builds an optimized universal app for Apple silicon and Intel, then creates `Hearth-0.1.3-universal-PREVIEW.dmg`. It is ad-hoc signed and **not notarized**; macOS may block a downloaded copy. The notarized public release is available above.
 
 To package an existing universal app without rebuilding:
 
