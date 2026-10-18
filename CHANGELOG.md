@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-No changes yet.
+### Distribution
+
+- Install from Terminal with Homebrew: `brew install --cask obileonardo/hearth/hearth`. The [tap](https://github.com/obileonardo/homebrew-hearth) installs the notarized release disk image and follows new releases after a clean-Mac install check.
 
 ## 0.1.8 — 18 October 2026
 
