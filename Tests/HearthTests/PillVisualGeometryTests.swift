@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CoreGraphics
 import XCTest
@@ -108,8 +109,10 @@ final class PillVisualGeometryTests: XCTestCase {
             let anchor = CGRect(x: 600, y: screen.maxY - barHeight, width: 180, height: barHeight)
             let visible = CGRect(x: 0, y: 0, width: 1440, height: anchor.minY)
             let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible, screenFrame: screen, panelWidth: 456)
-            let bodyTop = frame.maxY - FlashPillGeometry.visibleBodyTop
+            let lift = FlashPillGeometry.bodyLift(anchor: anchor, screenFrame: screen)
+            let bodyTop = frame.maxY - FlashPillGeometry.visibleBodyTop + lift
             XCTAssertEqual(anchor.minY - bodyTop, FlashPillGeometry.bodyGap)
+            XCTAssertEqual(lift, barHeight < 24 ? 24 - barHeight : 0)
             XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
         }
     }
@@ -126,15 +129,45 @@ final class PillVisualGeometryTests: XCTestCase {
             XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
         }
     }
-    func testNotificationCapsuleSitsSixteenPointsBelowTheStatusCapsule() {
+    func testNotificationCapsuleSitsTwelvePointsBelowTheStatusCapsule() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let anchor = CGRect(x: 600, y: 876, width: 180, height: 24)
         let visible = CGRect(x: 0, y: 0, width: 1440, height: 876)
         let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: visible,
                                            screenFrame: screen, panelWidth: 456)
         let visibleCapsuleTop = frame.maxY - FlashPillGeometry.visibleBodyTop
-        XCTAssertEqual(anchor.minY - visibleCapsuleTop, 16)
+        XCTAssertEqual(anchor.minY - visibleCapsuleTop, 12)
         XCTAssertEqual(frame.midX, anchor.midX)
+    }
+
+    /// The geometry alone passed while AppKit pushed the shown window below the
+    /// menu bar, adding a full menu bar to the gap. Check the real window.
+    func testShownFlashPanelKeepsItsMenuBarOverlap() throws {
+        guard let screen = NSScreen.main, screen.frame.maxY - screen.visibleFrame.maxY >= 20 else {
+            throw XCTSkip("Needs a display with a menu bar")
+        }
+        let anchor = CGRect(x: screen.frame.midX - 90, y: screen.frame.maxY - 26, width: 180, height: 18)
+        let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: screen.visibleFrame,
+                                           screenFrame: screen.frame, panelWidth: 456)
+        XCTAssertGreaterThan(frame.maxY, screen.visibleFrame.maxY)
+
+        let panel = FlashPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel],
+                               backing: .buffered, defer: false)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.isFloatingPanel = true
+        panel.ignoresMouseEvents = true
+        defer { panel.orderOut(nil) }
+        panel.setFrame(frame, display: false)
+        panel.orderFrontRegardless()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(panel.frame, frame)
+        XCTAssertEqual(anchor.minY - (panel.frame.maxY - FlashPillGeometry.visibleBodyTop), 12)
+
+        let moved = frame.offsetBy(dx: 0, dy: 1)
+        panel.setFrame(moved, display: false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(panel.frame, moved)
     }
 
     func testConstrainedDisplayKeepsNotificationInsideScreenBeforePreservingGap() {
@@ -147,7 +180,7 @@ final class PillVisualGeometryTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, screen.maxY)
         let gap = anchor.minY - (frame.maxY - FlashPillGeometry.visibleBodyTop)
         XCTAssertGreaterThanOrEqual(gap, 0)
-        XCTAssertLessThanOrEqual(gap, 16)
+        XCTAssertLessThanOrEqual(gap, 12)
     }
 
     func testStatusCapsuleExcludesTheCanvasMargin() {

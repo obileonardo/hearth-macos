@@ -44,7 +44,7 @@ enum FlashPillGeometry {
     /// Blur radius is not its full extent. Reserve three radii so the faint
     /// outer gradient fades before a native window edge, including during entry.
     static let shadowBleed: CGFloat = shadowRadius * 3
-    static let bodyGap: CGFloat = 16
+    static let bodyGap: CGFloat = 12
     static var visibleBodyTop: CGFloat { visibleOffset + topPadding }
 
     static func frame(anchor: CGRect, visibleFrame: CGRect, screenFrame: CGRect,
@@ -53,10 +53,18 @@ enum FlashPillGeometry {
         let height = min(panelHeight, max(1, screenFrame.height))
         let x = min(max(anchor.midX - width / 2, visibleFrame.minX + 8), visibleFrame.maxX - width - 8)
         // The clear shadow canvas reaches into the menu bar; the actual capsule
-        // starts 16 points below the drawn status capsule when screen space permits.
+        // starts 12 points below the drawn status capsule when screen space permits.
         let requestedY = anchor.minY - bodyGap + visibleBodyTop - height
         let y = min(max(requestedY, visibleFrame.minY + 8), screenFrame.maxY - height)
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    /// On a menu bar too short for the clear canvas above the capsule, the window
+    /// stops at the screen's top edge and the capsule moves up inside it by the
+    /// same amount. The gap stays exact; only canvas that would be off screen is lost.
+    static func bodyLift(anchor: CGRect, screenFrame: CGRect) -> CGFloat {
+        let requestedTop = anchor.minY - bodyGap + visibleBodyTop
+        return min(topPadding, max(0, requestedTop - screenFrame.maxY))
     }
 
     static func offset(shown: Bool, reduceMotion: Bool) -> CGFloat {
