@@ -21,9 +21,9 @@
 
 ## Download
 
-[Download Hearth 0.1.8 for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.8/Hearth-0.1.8-universal.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.8)
+[Download Hearth 0.1.10 for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.10/Hearth-0.1.10-universal.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.10)
 
-**Signed with a Developer ID and notarized by Apple**, with the notarization ticket stapled to both the disk image and the app, so macOS opens it without an unidentified-developer warning. Requires macOS 14 or later. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.8.md) and the [task register](Task%20Update/README.md).
+**Signed with a Developer ID and notarized by Apple**, with the notarization ticket stapled to both the disk image and the app, so macOS opens it without an unidentified-developer warning. Requires macOS 14 or later. You can also [build from source](#4-build-or-open-hearth). See [verification](docs/release-verification-0.1.10.md) and the [task register](Task%20Update/README.md).
 
 Or install it from Terminal with [Homebrew](https://brew.sh):
 
@@ -81,7 +81,7 @@ The [full artwork sheet](docs/art/devices.png) includes every device and its on/
 
 The views below use offline sample data, with no personal camera pictures, household configuration or account information. Sign-in fields, the bug draft's **Subject** and **Message** fields, and the optional version-information switch are static documentation illustrations: the offscreen exporter cannot render these native controls. They remain native, interactive controls in the app. Device readings and playback states shown here are examples.
 
-The download is the published 0.1.8 release. Its [verification record](docs/release-verification-0.1.8.md) identifies its exact source and limitations. Source-guide images are regenerated separately from synthetic data; their [image register](docs/screenshots/README.md) records the export method and which controls are illustrated.
+The download is the published 0.1.10 release. Its [verification record](docs/release-verification-0.1.10.md) identifies its exact source and limitations. Source-guide images are regenerated separately from synthetic data; their [image register](docs/screenshots/README.md) records the export method and which controls are illustrated.
 
 <table>
   <tr>

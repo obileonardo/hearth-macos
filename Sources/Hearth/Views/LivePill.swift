@@ -79,6 +79,8 @@ final class LivePill: ObservableObject {
     }
     /// Seconds left before it lifts away, for the ring on its button.
     @Published private(set) var remaining: Double = 0
+    /// How far the capsule moves up inside a window held at the screen's top edge.
+    @Published private(set) var bodyLift: CGFloat = 0
     /// The line the menu bar is showing now, for the preview when a source is switched on.
     var statusLine: StatusLine?
 
@@ -280,12 +282,13 @@ final class LivePill: ObservableObject {
 
     private func ensurePanel() {
         guard panel == nil else { return }
-        let p = NSPanel(contentRect: NSRect(origin: .zero, size: Self.size),
-                        styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        p.level = .statusBar
+        let p = FlashPanel(contentRect: NSRect(origin: .zero, size: Self.size),
+                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = false
+        // Floating sits under the menu bar, so the clear top of this window never
+        // covers menu bar items while its capsule shows below them.
         p.isFloatingPanel = true
         p.hidesOnDeactivate = false
         p.becomesKeyOnlyIfNeeded = true
@@ -318,6 +321,8 @@ final class LivePill: ObservableObject {
             ?? NSRect(x: screen.frame.maxX - 200, y: screen.frame.maxY - 24, width: 40, height: 24)
         let frame = FlashPillGeometry.frame(anchor: anchor, visibleFrame: screen.visibleFrame,
                                            screenFrame: screen.frame, panelWidth: Self.size.width)
+        let lift = FlashPillGeometry.bodyLift(anchor: anchor, screenFrame: screen.frame)
+        if lift != bodyLift { bodyLift = lift }
         if abs(frame.minX - panel.frame.minX) > 0.5 || abs(frame.minY - panel.frame.minY) > 0.5
             || frame.size != panel.frame.size {
             panel.setFrame(frame, display: true)
@@ -328,6 +333,15 @@ final class LivePill: ObservableObject {
     static func clickStatusItem() {
         HearthMenuController.shared.open()
     }
+}
+
+/// AppKit moves ordinary windows below the menu bar when they are shown or
+/// moved. The flash window's clear top deliberately reaches into the menu bar so
+/// its capsule can sit just under the status pill; without this, the capsule
+/// landed a full menu bar lower than `FlashPillGeometry.frame` placed it.
+/// `FlashPillGeometry.frame` already keeps the window on its screen.
+final class FlashPanel: NSPanel {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
 // MARK: The pill
@@ -349,7 +363,7 @@ private struct LivePillView: View {
                     .accessibilityHidden(!pill.shown)
             }
         }
-        .padding(.top, FlashPillGeometry.topPadding)
+        .padding(.top, FlashPillGeometry.topPadding - pill.bodyLift)
         .frame(width: LivePill.size.width, height: LivePill.size.height, alignment: .top)
     }
 

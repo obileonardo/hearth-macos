@@ -6,6 +6,11 @@
 
 - Install from Terminal with Homebrew: `brew install --cask obileonardo/hearth/hearth`. The [tap](https://github.com/obileonardo/homebrew-hearth) installs the notarized release disk image and follows new releases after a clean-Mac install check.
 
+## 0.1.10 — 19 October 2026
+
+- The menu-bar alert now sits 12 points below the status pill. Earlier releases asked for a smaller gap, but macOS moved the alert's window below the menu bar when it appeared, adding a full menu bar to the gap; the window now stays where it is placed, and a test checks the shown window, not only the requested frame.
+- On menu bars shorter than 24 points the gap stays exact: the alert's window meets the screen's top edge and the capsule moves up inside it.
+
 ## 0.1.8 — 18 October 2026
 
 The first Developer ID signed and Apple-notarized download, with tickets stapled to the disk image and the app. It collects every source change since the 0.1.3 preview, listed below, and places the menu-bar alert capsule 16 points below the drawn status pill.
