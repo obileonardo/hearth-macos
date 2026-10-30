@@ -19,6 +19,8 @@
 
 ---
 
+**Contents:** [Download](#download) · [Your home, in six views](#your-home-in-six-views) · [In the app](#in-the-app) · [Requirements](#requirements) · [Get started](#get-started) · [Brand notes](#brand-notes) · [Troubleshooting](#troubleshooting) · [Help and support](#help-and-support) · [Privacy](#privacy) · [How it works](#how-it-works) · [Development](#development) · [Project status](#project-status) · [Credits](#credits) · [License](#license)
+
 ## Download
 
 [Download Hearth 0.1.10 for Apple Silicon and Intel](https://github.com/obileonardo/hearth-macos/releases/download/v0.1.10/Hearth-0.1.10-universal.dmg) · [Release notes and checksum](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.10)
@@ -215,7 +217,7 @@ Quit an already running copy before opening a second build with the same bundle 
   </tr>
 </table>
 
-**MFA sign-in is not supported yet.** Keep MFA enabled; do not weaken your account to use Hearth. [Connection guide and troubleshooting](docs/using-hearth.md#connect-your-own-server).
+**MFA sign-in is not supported yet.** Keep MFA enabled; do not weaken your account to use Hearth. [Connection guide](docs/using-hearth.md#connect-your-own-server) · [Troubleshooting](#troubleshooting).
 
 #### Manage integrations from Hearth
 
@@ -350,6 +352,64 @@ Hearth does not send the report automatically or attach logs, account details or
 | **Lithium batteries** | [BMS BLE](https://github.com/patman15/BMS_BLE-HA) from HACS, or ESPHome | Reads JK, Daly and many other BMSs over Bluetooth, including each cell's voltage. Tesla Powerwall and Victron over Bluetooth are built in. |
 | **Hisense / ConnectLife** | [ConnectLife](https://github.com/oyvindwe/connectlife-ha) from HACS | Uses your ConnectLife app login. |
 
+## Troubleshooting
+
+Text in quotes is the exact message you see. Problems with a particular brand's sign-in are in [Brand notes](#brand-notes). If your problem isn't here, see [Help and support](#help-and-support).
+
+### Signing in
+
+- **"This Home Assistant account requires an MFA sign-in flow that Hearth does not yet support. Keep MFA enabled."** Hearth can't complete multi-factor sign-in yet. Use Home Assistant's own apps for that account for now. Don't turn MFA off to use Hearth.
+- **"Wrong username or password".** Hearth uses your Home Assistant username and password; there is no separate Hearth account. Check them by signing in to Home Assistant in a browser at the same address.
+- **"Enter an HTTP or HTTPS Home Assistant address without embedded credentials."** Start the address with `http://` or `https://`, for example `http://homeassistant.local:8123`. Leave out any username, password, `?` or `#` part.
+- **"Couldn't reach Home Assistant at that address."** Open the exact same address, including the port, in a browser on this Mac. If the browser can't reach it either, check the network and the server before changing anything in Hearth.
+- **"Can't reach Home Assistant" after signing in.** The connection dropped. Hearth keeps retrying on its own, waiting up to 30 seconds between tries.
+- **"Token not accepted" or "Home Assistant signed Hearth out. Sign in again."** Home Assistant no longer accepts Hearth's saved sign-in. Sign in again.
+- **"Confirm your saved server".** After an upgrade, Hearth asks you to confirm the server an older saved sign-in belongs to. Check the address shown, then confirm or sign in again.
+- **"A development server override is active. Restart without HA_URL to choose another server."** Hearth was started with the developer `HA_URL` setting. Quit it and start it without `HA_URL` and `HA_TOKEN`.
+
+### HTTP or HTTPS
+
+Hearth accepts both. Plain `http://` doesn't encrypt sign-in or session traffic, so anyone who can inspect that network can read it. Use `http://` only on a network you trust, and HTTPS on shared or remote networks. The live connection follows your choice: `https://` uses a secure WebSocket.
+
+### Devices and rooms
+
+- **A page or category is empty.** Hearth shows what your Home Assistant exposes. Check in Home Assistant that the integration has loaded and its devices have entities.
+- **No Security or Rooms tab.** Security appears once Home Assistant has a camera or an alarm panel, and Rooms once it has devices. Tabs can also be turned off in **Settings → Navigation**.
+- **A device isn't in its room.** Rooms and floors come from Home Assistant. Assign the device to an area there (step 6 of [Get started](#6-put-devices-in-rooms)).
+- **An entity is missing.** Entities hidden in Home Assistant stay hidden in Hearth.
+- **A control does nothing.** Controls come from the integration, and a request being accepted doesn't prove the device acted. Try the same action in Home Assistant. If it fails there too, look at the integration or the device.
+
+Don't delete an integration or reset a device just to refresh Hearth.
+
+### Cameras
+
+- **Still pictures instead of live video.** Hearth tries WebRTC first, then HLS, then a snapshot every 2 seconds. Cameras whose integration handles WebRTC itself, such as Ring, have no HLS, so they fall back to snapshots.
+- **Live video takes a while to start.** Hearth waits up to 15 seconds for a first frame, or 25 seconds for cameras without HLS, before trying the next way.
+- **go2rtc in Docker falls back to HLS.** With bridge networking the Mac often can't reach go2rtc's WebRTC media. Run Home Assistant with host networking, or give go2rtc a candidate the Mac can reach.
+- **Live view stops.** Ring limits how long a live view lasts, and any camera can drop. Hearth reconnects up to 4 times, then falls back, so a forgotten window can't keep a battery camera streaming. Close the camera and open it again.
+- **Grid pictures look old.** The camera grid refreshes on the interval in **Settings → Camera refresh**, from 30 to 480 seconds.
+- **Pictures are blurred.** Privacy blur is on. Click the eye on the Security page or in a camera window.
+
+Building from source? `--live` opens one camera on its own and logs every step. See [testing without the panel](docs/live-video.md#testing-without-the-panel).
+
+### Opening the download
+
+- **macOS won't open Hearth.** Downloads from 0.1.8 on are signed with a Developer ID and notarized by Apple. The 0.1.1 to 0.1.3 previews and locally packaged preview images are not notarized, and macOS may block them. Use the [current download](#download).
+- **Checking the download.** Each release publishes a `.sha256` file next to the disk image. With both in one folder, run `shasum -a 256 -c Hearth-0.1.10-universal.dmg.sha256`.
+
+### Homebrew
+
+- **`brew upgrade` doesn't see a new release yet.** The tap updates after a daily check installs the new version on a clean Mac and verifies it, so it can trail the GitHub release.
+- **The install is refused on an older Mac.** The cask needs macOS 14 Sonoma or later.
+- **The sign-in is still there after `--zap`.** `--zap` doesn't remove the Home Assistant sign-in from your Keychain. Sign out in Hearth first (**Settings → Signed in as… → Sign out**), or delete the `com.elvisobi.hearth` item in Keychain Access.
+
+### Building from source
+
+- **"SDK not found: … Select an installed SDK with HEARTH_SDKROOT."** Install Xcode 26 or Command Line Tools with a macOS 26 SDK, or point `HEARTH_SDKROOT` at an installed SDK.
+- **`swift test` can't find XCTest.** Command Line Tools alone don't include it. Run the tests with full Xcode selected.
+- **"Hearth is running at the destination. Quit it yourself before installing; no process was changed".** A plain `scripts/build.sh` installs into `~/Applications` and won't replace a running app. Quit Hearth first, or build with `--no-install`.
+- **"Build output is running. Choose a separate HEARTH_APP_OUTPUT; no process was changed."** Quit the copy you opened from `build/Hearth.app`, or set `HEARTH_APP_OUTPUT` to a new path ending in `/Hearth.app`. Don't run two copies with the same bundle identifier at once.
+
 ## Help and support
 
 Open **Settings → Help & Support** to ask a question or report a bug. The current source opens an editable local draft to [contact@elvisobi.com](mailto:contact@elvisobi.com), with **Subject** and **Message** fields. Choose **Open mail app** to continue in your mail app or **Copy draft** for webmail; you send it yourself. App and macOS version numbers are optional and off by default. Useful bug reports include the steps, expected result and actual result.
@@ -365,6 +425,21 @@ Gadgets entered by hand can receive periodic TCP reachability checks at the addr
 The refresh token is stored in macOS Keychain. Homes, manual gadgets, maps, activity pictures and optional face samples are stored in `~/Library/Application Support/Hearth`; paint and display choices use UserDefaults. Face matching uses Apple's Vision framework on this Mac. Privacy blur covers camera images in the app, live pill and desktop widgets; it does not remove saved images. Clearing the activity timeline currently leaves its image files on disk.
 
 For a Home Assistant address across a shared network, prefer HTTPS. Plain HTTP exposes sign-in and session traffic to others who can inspect that network. Local development tools such as `--probe` act with the app's Home Assistant session; run them only with commands you understand. See [SECURITY.md](SECURITY.md).
+
+## How it works
+
+Hearth is written in Swift and built with Swift Package Manager. It uses Apple's frameworks only, with no third-party Swift packages. SwiftUI draws the pages and AppKit hosts them in the menu-bar panel. There is no Hearth server: Hearth signs in through Home Assistant's login flow over HTTP and keeps the refresh token in the macOS Keychain. It then follows live state and sends commands over Home Assistant's WebSocket API.
+
+Live camera video plays over WebRTC in WebKit, or HLS through AVKit ([live video](docs/live-video.md)). The 3D map uses SceneKit, with optional Metal lighting. Familiar-face matching uses Apple's Vision framework on this Mac. Desktop widgets are app windows; an optional WidgetKit extension reads a limited snapshot and holds no Home Assistant credentials. [Architecture overview](docs/architecture.md).
+
+```mermaid
+flowchart LR
+    Hearth["Hearth: SwiftUI and AppKit"] -->|"HTTP: sign-in, pictures"| HA["Your Home Assistant"]
+    Hearth -->|"WebSocket: state, events, commands"| HA
+    HA --- Devices["Integrations and devices"]
+    Hearth --- Keychain["macOS Keychain: refresh token"]
+    Hearth --- Files["Application Support: homes, maps, activity, faces"]
+```
 
 ## Development
 
@@ -401,6 +476,15 @@ How it fits together:
 Contributions are welcome. Adding friendly names for another brand's settings is a great first change: it's a table in `EntityCatalog.swift`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [0.1.10 public checks](https://github.com/obileonardo/hearth-macos/actions/runs/39261535250) succeeded with 346 XCTest cases, 2 GPU-dependent skips and no failures. Earlier results remain in the [0.1.8](docs/release-verification-0.1.8.md), [0.1.3](docs/release-verification-0.1.3.md), [0.1.2](docs/release-verification-0.1.2.md) and [0.1.1](docs/release-verification-0.1.1.md) verification records. These checks do not exercise connected Home Assistant devices or publish a binary.
+
+## Project status
+
+The current release is **Hearth 0.1.10**, from 19 October 2026. Hearth uses semantic versions and is not yet at 1.0. Releases come when they are ready; there is no fixed schedule. [Changelog](CHANGELOG.md) · [All releases](https://github.com/obileonardo/hearth-macos/releases)
+
+- **Releases.** From 0.1.8 on, each download is a universal app for Apple silicon and Intel, signed with a Developer ID, notarized by Apple and published with its SHA-256 checksum. A release ships after source review, the hosted build and tests and the relevant manual checks. Each release has a verification record of what was checked and what wasn't; see the [0.1.10 record](docs/release-verification-0.1.10.md). The earlier 0.1.1 to 0.1.3 previews were ad-hoc signed prereleases.
+- **Homebrew.** The [tap](https://github.com/obileonardo/homebrew-hearth) follows each release once a daily check has installed and verified it on a clean Mac.
+- **Before 1.0.** Changes must keep existing controls, integrations and saved data working, and a change to a stored format must describe its migration. Hosted tests use sample data and fixtures, not real devices. Release checks don't cover every supported macOS version, Intel Macs at runtime or full VoiceOver use. What a device can do always depends on its Home Assistant integration.
+- **Source.** The public [hearth-macos](https://github.com/obileonardo/hearth-macos) repository holds reviewed source snapshots with their own history.
 
 ## Credits
 
