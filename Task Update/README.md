@@ -8,7 +8,7 @@ The follow-up source includes the queued illustration refinements, 12-point floa
 
 The repeated open-source audit has been performed; its sensitive findings and operational handoff stay private. Architecture, setup, usage, provenance and container guides are included, with 41 refreshed synthetic PNGs. All 92 documentation PNGs were checked for identifying metadata. The rights holder confirmed authority for original code and illustrations; documented third-party terms still apply.
 
-The 0.1.5 source batch is delivered: private PRs #15–17 merged before [public PR #9](https://github.com/obileonardo/hearth-macos/pull/9), whose main tree is `c4cc0f1d814c6849127e287fa6eb5f6d95b93d6f`. [Required public CI 38869129008](https://github.com/obileonardo/hearth-macos/actions/runs/38869129008) passed **301 XCTest cases, two unsupported GPU skips and zero failures**, plus 13 maintenance fixtures, 14 release-tool fixtures and release/contrast/shell/optional universal WidgetKit gates. Universal local 0.1.5 build `20261016.8` was installed with the prior app recoverably retained and saved configuration preserved. The owner confirmed device tabs and final airflow. This acceptance covers those paths; it is not a complete hardware or accessibility pass. The public binary download remains the immutable 0.1.3 preview below; a local 0.1.5 ad-hoc preview is not yet published. Later work needs its own checks and delivery record.
+The 0.1.5 source batch is delivered: private PRs #15–17 merged before [public PR #9](https://github.com/obileonardo/hearth-macos/pull/9), whose main tree is `c4cc0f1d814c6849127e287fa6eb5f6d95b93d6f`. [Required public CI 38869129008](https://github.com/obileonardo/hearth-macos/actions/runs/38869129008) passed **301 XCTest cases, two unsupported GPU skips and zero failures**, plus 13 maintenance fixtures, 14 release-tool fixtures and release/contrast/shell/optional universal WidgetKit gates. Universal local 0.1.5 build `20261016.8` was installed with the prior app recoverably retained and saved configuration preserved. The owner confirmed device tabs and final airflow. This acceptance covers those paths; it is not a complete hardware or accessibility pass. A local 0.1.5 ad-hoc preview was not published; the next public download was the notarized 0.1.8 release, now followed by 0.1.10 (see the Download row below). Later work needs its own checks and delivery record.
 
 ### Current illustration and Rooms pass — 16 October
 
@@ -61,15 +61,15 @@ The [0.1.3 universal preview](https://github.com/obileonardo/hearth-macos/releas
 | Memory-only Activity previews | Codex | Explicit memory-only synthetic activity; five isolated regression tests prevent preview fixtures from persisting to runtime stores | Delivered in 0.1.3 |
 | Open-source preparation | Codex agents | License/notices, attribution, contributor/security guidance, issue/PR templates, generic examples and independently reviewed public history; current 306-file export and intended independent public history reviewed | Review every future export and release asset |
 | Repository security and CI | Codex | Required PR/build checks, force-push/deletion protection, secret scanning/push protection, private security reports, dependency updates and pinned Actions | Keep protections active; latest batch evidence above |
-| Universal build and DMG tooling | Codex agents | Final 0.1.3 universal payload, separate staging, provenance, signatures and disk-image validation; optional notarization workflow retained | Developer ID/notarization input below |
+| Universal build and DMG tooling | Codex agents | Final 0.1.3 universal payload, separate staging, provenance, signatures and disk-image validation; optional notarization workflow retained | Notarized downloads delivered from 0.1.8; see the Download row |
 | Download | Claude | [0.1.10](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.10), build `20261019.2`, Developer ID signed, notarized and stapled; see the [verification record](../docs/release-verification-0.1.10.md). The 0.1.3 preview remains as a prerelease. | Done |
 | Installed app and source continuity | Codex | Canonical `~/Applications/Hearth.app` updated; existing Apple Development signing retains Keychain trust, one Hearth process verified, older app backed up recoverably. current source synchronized with baseline checks and recovery copies; original Git bookkeeping untouched | Current source follow-up and installation/release validation are recorded above |
 | External-drive project relocation | Codex | Working files/history retained; original paths linked | External drive must remain connected |
-| Task register and Claude handoff | Codex | Current public source/artifact evidence here and in the 0.1.3 verification record; detailed operational handoff kept private | Keep future work records current |
+| Task register and Claude handoff | Codex | Current public source/artifact evidence here and in the [0.1.10 verification record](../docs/release-verification-0.1.10.md); detailed operational handoff kept private | Keep future work records current |
 
 ## Input, hardware and vendor requirements
 
-These are the remaining requirements after the completed 0.1.5 source/local delivery and earlier 0.1.3 public preview. Existing features and saved data remain intact.
+These are the remaining requirements after the notarized 0.1.10 release and the earlier 0.1.5 source/local delivery. Existing features and saved data remain intact.
 
 | Item | Needed to finish | Reason |
 |---|---|---|
@@ -88,7 +88,7 @@ These are the remaining requirements after the completed 0.1.5 source/local deli
 
 ## Verification history
 
-The current 0.1.5 public source passed 301 cases as recorded above. The [0.1.3 verification](../docs/release-verification-0.1.3.md) records its historical 137-case source batch and the still-current public download. Earlier source batches passed 107, 110 and 129 cases. The historical [0.1.2 verification](../docs/release-verification-0.1.2.md) records its 57-case suite and exact app source/checksum; [0.1.1 verification](../docs/release-verification-0.1.1.md) also remains unchanged. Later changes do not alter an older DMG's provenance.
+The 0.1.10 release source passed 346 cases ([0.1.10 verification](../docs/release-verification-0.1.10.md)) and the 0.1.8 source passed 345 ([0.1.8 verification](../docs/release-verification-0.1.8.md)). The 0.1.5 public source passed 301 cases as recorded above. The [0.1.3 verification](../docs/release-verification-0.1.3.md) records its historical 137-case source batch and the 0.1.3 preview download. Earlier source batches passed 107, 110 and 129 cases. The historical [0.1.2 verification](../docs/release-verification-0.1.2.md) records its 57-case suite and exact app source/checksum; [0.1.1 verification](../docs/release-verification-0.1.1.md) also remains unchanged. Later changes do not alter an older DMG's provenance.
 
 See [source/release status](../docs/open-source-readiness.md), [navigation](../docs/navigation.md), [widgets](../docs/widgets.md), [release policy](../docs/release-policy.md) and [map lighting](../docs/map-lighting.md). Private records, owner recordings, credentials and household runtime stores are excluded from public Git history.
 
