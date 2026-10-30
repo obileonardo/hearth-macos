@@ -1,14 +1,18 @@
 # Public source and release status
 
-Updated 2026-10-16. [Hearth's public repository](https://github.com/obileonardo/hearth-macos) is available from a reviewed source snapshot with independent history. The private development repository, household data and working installation remain separate. The universal preview is ad-hoc signed; a notarized Mac release still requires distribution credentials.
+Updated 2026-10-30. [Hearth's public repository](https://github.com/obileonardo/hearth-macos) is available from a reviewed source snapshot with independent history. The private development repository, household data and working installation remain separate. Release downloads from 0.1.8 onward are signed with a Developer ID and notarized by Apple.
 
-## Verified source and local-app delivery — 0.1.5
+## Current release: 0.1.10
+
+[Hearth 0.1.10](https://github.com/obileonardo/hearth-macos/releases/tag/v0.1.10), published 19 October 2026, is a universal app for Apple silicon and Intel, build `20261019.2`, signed with a Developer ID and notarized by Apple, with tickets stapled to the disk image and the app. Its [public source run](https://github.com/obileonardo/hearth-macos/actions/runs/39261535250), merged in [PR #15](https://github.com/obileonardo/hearth-macos/pull/15), passed **346 XCTest cases, two GPU-dependent skips and zero failures**. A fresh unauthenticated download matched the published SHA-256, and Gatekeeper accepted it as `Notarized Developer ID`. It is also installable with `brew install --cask obileonardo/hearth/hearth` from the [Homebrew tap](https://github.com/obileonardo/homebrew-hearth), which is at 0.1.10. See the [0.1.10 verification record](release-verification-0.1.10.md) and the [changelog](../CHANGELOG.md). 0.1.8, from 18 October 2026, was the first notarized release ([verification record](release-verification-0.1.8.md)).
+
+## Historical 0.1.5 source and local-app delivery
 
 [Public PR #9](https://github.com/obileonardo/hearth-macos/pull/9) merged as `c4cc0f1d814c6849127e287fa6eb5f6d95b93d6f`, following the private source checks and merges. Its required [CI run 38869129008](https://github.com/obileonardo/hearth-macos/actions/runs/38869129008) passed **301 XCTest cases, two unsupported GPU skips and zero failures**, 13 maintenance fixtures, 14 release-tool fixtures and the release/contrast/shell/optional universal WidgetKit gates. The installed local app is 0.1.5 build `20261016.8`; prior app and private configuration were preserved. The owner confirmed its device tabs and final airflow, and earlier confirmed room dragging/clicks in an isolated native review.
 
 The exact 306-file sanitized source tree and its independent public history were reviewed before publication. Source/history scans found no known leaks in scope; all 221 historical PNG blobs received metadata and local heuristic screening, and changed guides were visually reviewed with synthetic data. Scanner and media checks are not a privacy or security guarantee. Origin-bound sessions, safe credential persistence, web-session invalidation, exact-target command readback, maintenance preflight and bundled license notices were included. No private development history, operational audit, runtime data or owner recording was transferred.
 
-**Source publication and installed delivery are complete for the recorded 0.1.5 batch.** A local 0.1.5 ad-hoc preview DMG is not published; the public download remains 0.1.3. Developer ID/notarization, gallery provisioning and the validation limits below remain separate. Newer fixes are not covered by these results until independently checked and delivered.
+**Source publication and installed delivery are complete for the recorded 0.1.5 batch.** A local 0.1.5 ad-hoc preview DMG was not published; the next public download was the notarized 0.1.8 release. Gallery provisioning and the validation limits below remain separate. Newer fixes are not covered by these results until independently checked and delivered.
 
 ## Historical 0.1.3 delivery and current public download
 
@@ -42,13 +46,12 @@ Hearth is maintained by Elvis Obi. The [release policy](release-policy.md) keeps
 
 | Area | What remains |
 |---|---|
-| Notarized download | Owner has offered signing access; local Developer ID Application certificate and notarization Keychain profile still need confirmation, followed by accepted app/image submissions, stapled tickets and final Gatekeeper validation |
 | WidgetKit gallery | Matching macOS provisioning and App Group entitlements; registration and installed-gallery validation. This does not block desktop widgets |
 | Device and OS coverage | Connected-device workflows, Intel runtime behavior, older supported macOS versions and assistive interactions require separate checks |
 | Runtime operations | Container image pinning/network policy and camera-file retention require an installation-specific operational decision; source publication does not change live containers or erase personal data |
 | Ongoing review | New source/assets, dependency changes, security settings and each release artifact need their own review and accurate evidence record |
 
-See the [0.1.3 public-download verification record](release-verification-0.1.3.md), [0.1.2 history](release-verification-0.1.2.md), [0.1.1 history](release-verification-0.1.1.md), [source release preparation](source-release.md), [DMG packaging](../releases/dmg/README.md), [map lighting](map-lighting.md), [model regressions](model-regressions.md) and [security boundaries](../SECURITY.md).
+See the [0.1.10 verification record](release-verification-0.1.10.md), [0.1.8 record](release-verification-0.1.8.md), [0.1.3 preview history](release-verification-0.1.3.md), [0.1.2 history](release-verification-0.1.2.md), [0.1.1 history](release-verification-0.1.1.md), [source release preparation](source-release.md), [DMG packaging](../releases/dmg/README.md), [map lighting](map-lighting.md), [model regressions](model-regressions.md) and [security boundaries](../SECURITY.md).
 
 ## Camera help and avatar follow-up
 
