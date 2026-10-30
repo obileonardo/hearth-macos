@@ -65,3 +65,14 @@ Rendered from the focused branding source revision on `codex/brand-appearance-20
 All seven selected PNGs passed the metadata check: only dimensions, color-space and resolution EXIF tags, with no PNG text or identity/time/location metadata. Local OCR and face-region screening flagged none; this heuristic supplements visual review and does not guarantee detection of every private pixel. No owner screenshot, home scan, camera image, face, live account or recording was copied. Offscreen rendering does not establish live system-glass composition, universal contrast or physical integration support.
 
 These source-guide changes are separate from the installed app and do not imply a new packaged release. The public download is the 0.1.10 release described in its [verification record](../release-verification-0.1.10.md).
+
+## 30 October 2026 README image check
+
+Every image the main README embeds was re-rendered from current `main` with `scripts/build.sh --no-install`, then the SwiftPM executable's `--render-preview` and `--render-art` commands, each into a new scratch directory, with `-homesFile`, `-gadgetsFile`, `-facesFolder`, `-activityFolder` and `-mapsFolder` also pointing there. Calling the SwiftPM executable rather than the bundled app keeps renders away from the installed app's preferences domain. Three images were replaced at the same names and dimensions:
+
+| Output | Dimensions | Reason |
+|---|---|---|
+| `guide-climate-dark.png`, `guide-climate-light.png` | 960×1456 each | The fan AUTO key is now a rounded square concentric with its tray, not a capsule (17 October climate change). The airflow frame also differs because the drawing follows the clock. |
+| `guide-connect-light.png` | 960×1456 | Camera refresh read "Every 120s", a saved preference from the earlier render environment; the exporter does not pin that key. Current `main` renders the 60-second default. |
+
+The other README images matched current `main` apart from clock-driven glow and pulse phases, simulated map power and small renderer differences, so they were kept. The three replacements were inspected and contain only sample data. The replacements carry only dimension, color-space and resolution metadata. Images the README does not embed were not replaced in this pass; `guide-connect-dark.png` still shows "Every 120s".
