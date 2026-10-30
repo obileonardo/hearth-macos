@@ -215,7 +215,7 @@ Quit an already running copy before opening a second build with the same bundle 
   </tr>
 </table>
 
-**MFA sign-in is not supported yet.** Keep MFA enabled; do not weaken your account to use this preview. [Connection guide and troubleshooting](docs/using-hearth.md#connect-your-own-server).
+**MFA sign-in is not supported yet.** Keep MFA enabled; do not weaken your account to use Hearth. [Connection guide and troubleshooting](docs/using-hearth.md#connect-your-own-server).
 
 #### Manage integrations from Hearth
 
@@ -400,7 +400,7 @@ How it fits together:
 
 Contributions are welcome. Adding friendly names for another brand's settings is a great first change: it's a table in `EntityCatalog.swift`.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [0.1.3 public checks](https://github.com/obileonardo/hearth-macos/actions/runs/38703085752) succeeded with 137 XCTest cases, 2 GPU-dependent skips and no failures. Earlier results remain in the [0.1.2](docs/release-verification-0.1.2.md) and [0.1.1](docs/release-verification-0.1.1.md) verification records. These checks do not exercise connected Home Assistant devices or publish a binary.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance, [release status](docs/open-source-readiness.md) and the [source-release checklist](docs/source-release.md). Hosted macOS CI builds the executable, runs isolated regressions, checks shell syntax and compiles the optional universal widget extension. The [0.1.10 public checks](https://github.com/obileonardo/hearth-macos/actions/runs/39261535250) succeeded with 346 XCTest cases, 2 GPU-dependent skips and no failures. Earlier results remain in the [0.1.8](docs/release-verification-0.1.8.md), [0.1.3](docs/release-verification-0.1.3.md), [0.1.2](docs/release-verification-0.1.2.md) and [0.1.1](docs/release-verification-0.1.1.md) verification records. These checks do not exercise connected Home Assistant devices or publish a binary.
 
 ## Credits
 
